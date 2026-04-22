@@ -2,15 +2,35 @@
 <!DOCTYPE hibernate-configuration PUBLIC
         "-//Hibernate/Hibernate Configuration DTD 3.0//EN"
         "http://www.hibernate.org/dtd/hibernate-configuration-3.0.dtd">
+<!--
+  Конфигурация Hibernate для подключения к PostgreSQL через пул соединений HikariCP.
+  Автор: charset-8utf
+  Дата: 2026-04-23
+-->
 <hibernate-configuration>
     <session-factory>
+        <!-- Провайдер соединений HikariCP -->
+        <property name="hibernate.connection.provider_class">org.hibernate.hikaricp.internal.HikariCPConnectionProvider</property>
+
+        <!-- Параметры подключения к базе данных -->
         <property name="hibernate.connection.driver_class">org.postgresql.Driver</property>
         <property name="hibernate.connection.url">jdbc:postgresql://localhost:5432/userdb</property>
         <property name="hibernate.connection.username">postgres</property>
         <property name="hibernate.connection.password">postgres</property>
-        <property name="hibernate.dialect">org.hibernate.dialect.PostgreSQLDialect</property>
+
+        <!-- Настройки HikariCP -->
+        <property name="hibernate.hikari.maximumPoolSize">10</property>
+        <property name="hibernate.hikari.minimumIdle">2</property>
+        <property name="hibernate.hikari.idleTimeout">300000</property>
+
+        <!-- Схема БД: автоматическое обновление -->
         <property name="hibernate.hbm2ddl.auto">update</property>
+
+        <!-- Логирование SQL -->
         <property name="hibernate.show_sql">true</property>
         <property name="hibernate.format_sql">true</property>
+
+        <!-- Регистрация JPA-сущностей -->
+        <mapping class="com.crud.entity.User"/>
     </session-factory>
 </hibernate-configuration>

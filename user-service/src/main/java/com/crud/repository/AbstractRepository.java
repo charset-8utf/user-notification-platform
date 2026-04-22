@@ -52,16 +52,24 @@ public abstract class AbstractRepository<T, I> {
      * @throws DataAccessException если произошла ошибка базы данных
      */
     protected <R> R executeInTransaction(Function<Session, R> action) {
+        Session session = null;
         Transaction tx = null;
-        try (Session session = sessionFactory.openSession()) {
+        try {
+            session = sessionFactory.openSession();
             tx = session.beginTransaction();
             R result = action.apply(session);
             tx.commit();
             return result;
         } catch (Exception e) {
-            Optional.ofNullable(tx).ifPresent(Transaction::rollback);
+            if (tx != null && tx.isActive()) {
+                tx.rollback();
+            }
             logger.error("Ошибка при выполнении транзакции", e);
             throw new DataAccessException("Ошибка доступа к данным: " + e.getMessage(), e);
+        } finally {
+            if (session != null && session.isOpen()) {
+                session.close();
+            }
         }
     }
 
