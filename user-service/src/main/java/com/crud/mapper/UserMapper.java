@@ -3,7 +3,10 @@ package com.crud.mapper;
 import com.crud.dto.UserRequest;
 import com.crud.dto.UserResponse;
 import com.crud.entity.User;
+
+import java.time.LocalDateTime;
 import java.util.List;
+import java.time.format.DateTimeFormatter;
 
 /**
  * Утилитарный класс для преобразования между DTO и сущностью User.
@@ -16,6 +19,8 @@ import java.util.List;
  * @version 1.0
  */
 public final class UserMapper {
+
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
 
     private UserMapper() {
         throw new UnsupportedOperationException("Утилитарный класс, создание экземпляров запрещено");
@@ -95,5 +100,15 @@ public final class UserMapper {
         return users.stream()
                 .map(UserMapper::toResponse)
                 .toList();
+    }
+
+    /**
+     * Форматирует LocalDateTime в вид "дд.ММ.гггг ЧЧ:мм:сс".
+     *
+     * @param dateTime дата-время
+     * @return отформатированная строка, или пустая строка если dateTime == null
+     */
+    public static String formatDateTime(LocalDateTime dateTime) {
+        return dateTime == null ? "" : dateTime.format(DATE_FORMATTER);
     }
 }
