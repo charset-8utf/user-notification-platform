@@ -2,46 +2,38 @@ package com.crud.api.command;
 
 import com.crud.api.ConsoleInput;
 import com.crud.controller.UserController;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Scanner;
 
 /**
- * Команда для удаления пользователя по ID с запросом подтверждения.
+ * Команда для удаления пользователя.
  */
 public class DeleteUserCommand implements Command {
+    private static final Logger log = LoggerFactory.getLogger(DeleteUserCommand.class);
     private final UserController controller;
     private final Scanner scanner;
 
-    /**
-     * Конструктор команды.
-     *
-     * @param controller контроллер пользователей
-     * @param scanner    сканер для чтения ввода
-     */
     public DeleteUserCommand(UserController controller, Scanner scanner) {
         this.controller = controller;
         this.scanner = scanner;
     }
 
-    /**
-     * Запрашивает ID и подтверждение, затем вызывает удаление через контроллер.
-     *
-     * @return {@code true} всегда (приложение продолжает работу)
-     */
     @Override
-    public boolean execute() {
+    public void execute() {
         long id = ConsoleInput.readLong(scanner, "Введите ID пользователя для удаления: ");
-        System.out.print("Вы уверены? (y/n): ");
+        log.info("Вы уверены? (y/n): ");
         String confirm = scanner.nextLine();
         if (!"y".equalsIgnoreCase(confirm.trim())) {
-            System.out.println("Удаление отменено.");
-            return true;
+            log.info("Удаление отменено.");
+            return;
         }
         try {
             controller.deleteUser(id);
-            System.out.printf("✅ Пользователь с ID %d удалён%n", id);
+            log.info("✅ Пользователь с ID {} удалён", id);
         } catch (Exception e) {
-            System.err.println("❌ Ошибка удаления: " + e.getMessage());
+            log.error("❌ Ошибка удаления: {}", e.getMessage(), e);
         }
-        return true;
     }
 }

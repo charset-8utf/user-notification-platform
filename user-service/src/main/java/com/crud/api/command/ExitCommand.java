@@ -1,19 +1,16 @@
 package com.crud.api.command;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Команда для завершения работы приложения.
  */
 public class ExitCommand implements Command {
+    private static final Logger log = LoggerFactory.getLogger(ExitCommand.class);
 
-    /**
-     * Выводит сообщение о завершении и возвращает {@code false},
-     * что приводит к остановке основного цикла.
-     *
-     * @return {@code false} – сигнал остановить приложение
-     */
     @Override
-    public boolean execute() {
-        System.out.println("Завершение работы...");
-        return false;
+    public void execute() {
+        log.info("Завершение работы...");
     }
 }

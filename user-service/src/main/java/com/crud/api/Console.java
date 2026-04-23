@@ -2,13 +2,29 @@ package com.crud.api;
 
 import com.crud.api.command.*;
 import com.crud.controller.UserController;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Map;
 import java.util.Scanner;
 
+/**
+ * Главный класс консольного приложения.
+ * <p>
+ * Реализует паттерн Command для обработки действий пользователя.
+ * Управление циклом происходит через флаг {@code running}.
+ * </p>
+ */
 public class Console {
+    private static final Logger log = LoggerFactory.getLogger(Console.class);
     private final Map<Integer, Command> commands;
     private final Scanner scanner;
 
+    /**
+     * Конструктор, инициализирующий команды и сканер.
+     *
+     * @param controller контроллер пользователей (внедрение зависимости)
+     */
     public Console(UserController controller) {
         this.scanner = new Scanner(System.in);
         this.commands = Map.of(
@@ -21,6 +37,11 @@ public class Console {
         );
     }
 
+    /**
+     * Запускает основной цикл приложения.
+     * Выводит меню, читает выбор пользователя и выполняет соответствующую команду.
+     * Цикл завершается при выполнении команды {@link ExitCommand}.
+     */
     public void start() {
         try {
             boolean running = true;
@@ -29,7 +50,7 @@ public class Console {
                 int choice = ConsoleInput.readInt(scanner, "Ваш выбор: ");
                 Command cmd = commands.get(choice);
                 if (cmd == null) {
-                    System.out.println("❌ Неверный выбор. Введите число от 0 до 5.");
+                    log.error("❌ Неверный выбор. Введите число от 0 до 5.");
                     continue;
                 }
                 cmd.execute();
@@ -42,8 +63,11 @@ public class Console {
         }
     }
 
+    /**
+     * Выводит на экран главное меню.
+     */
     private void printMenu() {
-        System.out.println("""
+        log.info("""
                 
                 ╔══════════════════════════════════╗
                 ║       User Service (CRUD)        ║
@@ -58,6 +82,12 @@ public class Console {
                 """);
     }
 
+    /**
+     * Точка входа в приложение.
+     * Собирает зависимости и запускает консоль.
+     *
+     * @param args аргументы командной строки (не используются)
+     */
     public static void main(String[] args) {
         var sessionFactory = com.crud.util.HibernateUtil.getSessionFactory();
         var userRepository = new com.crud.repository.UserRepositoryImpl(sessionFactory);

@@ -6,12 +6,8 @@ package com.crud.api.command;
  */
 @FunctionalInterface
 public interface Command {
-
     /**
      * Выполняет команду.
-     *
-     * @return {@code true}, если приложение должно продолжить работу;
-     *         {@code false}, если требуется завершение (например, команда выхода)
      */
-    boolean execute();
+    void execute();
 }
