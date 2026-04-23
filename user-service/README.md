@@ -47,7 +47,7 @@ docker run --name user-postgres -e POSTGRES_DB=userdb -e POSTGRES_USER=postgres 
 
 Копируем скрипт в контейнер
 ```bash
- docker cp src/main/resources/db/schema.sql user-postgres:/tmp/schema.sql
+docker cp src/main/resources/db/schema.sql user-postgres:/tmp/schema.sql
 ```
 
 Выполняем скрипт
