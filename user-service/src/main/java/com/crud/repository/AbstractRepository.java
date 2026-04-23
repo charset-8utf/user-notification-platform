@@ -1,6 +1,8 @@
 package com.crud.repository;
 
 import com.crud.exception.DataAccessException;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
@@ -102,8 +104,11 @@ public abstract class AbstractRepository<T, I> {
      * @return список всех сущностей (может быть пустым)
      */
     public List<T> findAll() {
-        return executeInTransaction(session ->
-                session.createQuery("from " + getEntityClass().getSimpleName(), getEntityClass()).list()
-        );
+        return executeInTransaction(session -> {
+            CriteriaBuilder cb = session.getCriteriaBuilder();
+            CriteriaQuery<T> cq = cb.createQuery(getEntityClass());
+            cq.from(getEntityClass());
+            return session.createQuery(cq).getResultList();
+        });
     }
 }
