@@ -24,7 +24,7 @@
         <property name="hibernate.hikari.idleTimeout">300000</property>
 
         <!-- Схема БД: автоматическое обновление -->
-        <property name="hibernate.hbm2ddl.auto">update</property>
+        <property name="hibernate.hbm2ddl.auto">validate</property>
 
         <!-- Логирование SQL -->
         <property name="hibernate.show_sql">true</property>
