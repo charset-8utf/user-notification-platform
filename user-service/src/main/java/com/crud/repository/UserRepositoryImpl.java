@@ -91,7 +91,7 @@ public class UserRepositoryImpl extends AbstractRepository<User, Long> implement
     @Override
     public User update(User user) {
         return executeInTransaction(session ->
-                Optional.ofNullable(session.get(User.class, user.getId()))
+                Optional.ofNullable(session.find(User.class, user.getId()))
                         .map(existing -> {
                             existing.setName(user.getName());
                             existing.setEmail(user.getEmail());
@@ -112,7 +112,7 @@ public class UserRepositoryImpl extends AbstractRepository<User, Long> implement
     @Override
     public void deleteById(Long id) {
         executeInTransactionVoid(session ->
-                Optional.ofNullable(session.get(User.class, id))
+                Optional.ofNullable(session.find(User.class, id))
                         .ifPresentOrElse(
                                 user -> {
                                     session.remove(user);

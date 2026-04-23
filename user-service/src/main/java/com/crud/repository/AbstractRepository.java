@@ -93,7 +93,7 @@ public abstract class AbstractRepository<T, I> {
      * @return Optional с найденной сущностью или пустой Optional
      */
     public Optional<T> findById(I id) {
-        return executeInTransaction(session -> Optional.ofNullable(session.get(getEntityClass(), id)));
+        return executeInTransaction(session -> Optional.ofNullable(session.find(getEntityClass(), id)));
     }
 
     /**
