@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @Testcontainers
 class ConsoleE2ETest {
     @Container
-    private static final PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:16-alpine")
+    private static final PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:17-alpine")
             .withDatabaseName("testdb")
             .withUsername("test")
             .withPassword("test");
