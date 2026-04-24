@@ -7,17 +7,19 @@ import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
 import org.junit.jupiter.api.*;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SuppressWarnings({"deprecation", "resource"})
+@Testcontainers
 class UserRepositoryImplTest {
-
-    private static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
+    @Container
+    private static final PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:16-alpine")
             .withDatabaseName("testdb")
             .withUsername("test")
             .withPassword("test");
@@ -34,10 +36,10 @@ class UserRepositoryImplTest {
         cfg.setProperty("hibernate.connection.username", postgres.getUsername());
         cfg.setProperty("hibernate.connection.password", postgres.getPassword());
         cfg.setProperty("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
-        cfg.setProperty("hibernate.hbm2ddl.auto", "create-drop"); // создаёт таблицы для тестов
+        cfg.setProperty("hibernate.hbm2ddl.auto", "create-drop");
         cfg.setProperty("hibernate.show_sql", "true");
         cfg.setProperty("hibernate.format_sql", "true");
-        cfg.addAnnotatedClass(User.class); // добавляем сущность
+        cfg.addAnnotatedClass(User.class);
         sessionFactory = cfg.buildSessionFactory();
     }
 
@@ -119,5 +121,18 @@ class UserRepositoryImplTest {
         userRepository.deleteById(saved.getId());
         Optional<User> found = userRepository.findById(saved.getId());
         assertTrue(found.isEmpty());
+    }
+
+    @Test
+    void update_WhenUserNotFound_ShouldThrowDataAccessException() {
+        User nonExistent = User.builder().name("Ghost").email("ghost@example.com").age(0).build();
+        nonExistent.setId(999L);
+        assertThrows(DataAccessException.class, () -> userRepository.update(nonExistent));
+    }
+
+    @Test
+    void deleteById_WhenNotFound_ShouldNotThrow() {
+        long id = 999L;
+        assertDoesNotThrow(() -> userRepository.deleteById(id));
     }
 }

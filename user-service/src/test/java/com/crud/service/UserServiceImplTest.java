@@ -9,6 +9,9 @@ import com.crud.mapper.UserMapper;
 import com.crud.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -51,16 +54,20 @@ class UserServiceImplTest {
         verify(userRepository, never()).save(any());
     }
 
-    @Test
-    void createUser_WithInvalidEmail_ShouldThrowValidationException() {
-        UserRequest request = new UserRequest("John", "not-an-email", 30);
+    @ParameterizedTest
+    @ValueSource(strings = {"", "  ", "not-an-email", "user@", "@example.com", "user@.com", "user@domain..com"})
+    void createUser_WithInvalidEmail_ShouldThrowValidationException(String invalidEmail) {
+        UserRequest request = new UserRequest("John", invalidEmail, 30);
         assertThrows(ValidationException.class, () -> userService.createUser(request));
+        verify(userRepository, never()).save(any());
     }
 
-    @Test
-    void createUser_WithInvalidAge_ShouldThrowValidationException() {
-        UserRequest request = new UserRequest("John", "john@example.com", -5);
+    @ParameterizedTest
+    @CsvSource({"-1", "151", "-5"})
+    void createUser_WithInvalidAge_ShouldThrowValidationException(int age) {
+        UserRequest request = new UserRequest("John", "john@example.com", age);
         assertThrows(ValidationException.class, () -> userService.createUser(request));
+        verify(userRepository, never()).save(any());
     }
 
     @Test
@@ -122,5 +129,13 @@ class UserServiceImplTest {
         when(userRepository.findById(999L)).thenReturn(Optional.empty());
         assertThrows(UserNotFoundException.class, () -> userService.deleteUser(999L));
         verify(userRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void updateUser_WhenNotExists_ShouldThrowUserNotFoundException() {
+        UserRequest request = new UserRequest("New", "new@example.com", 25);
+        when(userRepository.findById(999L)).thenReturn(Optional.empty());
+        assertThrows(UserNotFoundException.class, () -> userService.updateUser(999L, request));
+        verify(userRepository, never()).update(any());
     }
 }
