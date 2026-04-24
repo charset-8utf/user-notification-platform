@@ -17,7 +17,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 
 @Testcontainers
-class UserRepositoryImplTest {
+class UserRepositoryImplIntegrationTest {
     @Container
     private static final PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:17-alpine")
             .withDatabaseName("testdb")
