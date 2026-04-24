@@ -84,4 +84,33 @@ class ConsoleInputTest {
         String result = ConsoleInput.readString(scanner, "Введите текст: ", "по умолчанию");
         assertEquals("по умолчанию", result);
     }
+
+    @Test
+    void readIntWithDefault_WhenBlank_ShouldReturnDefault() {
+        String input = "\n";
+        System.setIn(new ByteArrayInputStream(input.getBytes()));
+        Scanner scanner = new Scanner(System.in);
+        int result = ConsoleInput.readIntWithDefault(scanner, "Введите возраст (Enter - оставить 18): ", 18);
+        assertEquals(18, result);
+    }
+
+    @Test
+    void readIntWithDefault_WhenNumber_ShouldReturnNumber() {
+        String input = "25\n";
+        System.setIn(new ByteArrayInputStream(input.getBytes()));
+        Scanner scanner = new Scanner(System.in);
+        int result = ConsoleInput.readIntWithDefault(scanner, "Введите возраст: ", 18);
+        assertEquals(25, result);
+    }
+
+    @Test
+    void readIntWithDefault_WhenInvalidThenValid_ShouldRetry() {
+        String input = "abc\n30\n";
+        System.setIn(new ByteArrayInputStream(input.getBytes()));
+        Scanner scanner = new Scanner(System.in);
+        int result = ConsoleInput.readIntWithDefault(scanner, "Введите возраст: ", 18);
+        assertEquals(30, result);
+        String output = outContent.toString();
+        assertTrue(output.contains("❌ Ошибка: введите целое число."));
+    }
 }
