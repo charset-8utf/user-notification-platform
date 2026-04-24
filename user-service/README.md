@@ -1,10 +1,10 @@
-# UserService – консольное CRUD-приложение на Java 21 + Hibernate + PostgreSQL
+# UserService – консольное CRUD-приложение
 
 ![Java](https://img.shields.io/badge/Java-21-blue?logo=openjdk&color=orange)
 ![Maven](https://img.shields.io/badge/Maven-3.9.14-blue?logo=apachemaven)
 ![Hibernate](https://img.shields.io/badge/Hibernate-7.3.2.Final-purple?logo=hibernate)
 ![HikariCP](https://img.shields.io/badge/HikariCP-7.0.2-lightgrey)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-blue?logo=postgresql)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-blue?logo=postgresql)
 ![SLF4J](https://img.shields.io/badge/SLF4J-2.0.17-yellow)
 ![Logback](https://img.shields.io/badge/Logback-1.5.32-brightgreen)
 ![JUnit](https://img.shields.io/badge/JUnit%20Jupiter-6.0.3-green)
@@ -12,14 +12,17 @@
 ![Testcontainers](https://img.shields.io/badge/Testcontainers-2.0.5-blue)
 [![CI](https://github.com/charset-8utf/UserService/actions/workflows/UserServiceCI.yml/badge.svg)](https://github.com/charset-8utf/UserService/actions/workflows/UserServiceCI.yml)
 ![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)
+
 ## Описание проекта
 
 Консольное приложение для управления пользователями с поддержкой операций **Create**, **Read**, **Update**, **Delete** (CRUD).  
 Использует **Hibernate ORM**, **PostgreSQL** в Docker и пул соединений **HikariCP**.  
 **Архитектура:** трёхслойная (Controller → Service → Repository) с DTO, ручным маппером, паттернами GoF.
 
-Покрыт юнит-тестами (JUnit, Mockito) и интеграционными тестами (Testcontainers).  
-Настроен CI (GitHub Actions) с авто-тестами, сборкой Docker-образа и Smoke-тестом.
+При первом запуске приложение самостоятельно создаёт таблицу `users` через SQL-скрипт `db/schema.sql` (включая ограничения, индекс и комментарии).  
+Покрыто юнит-тестами (JUnit, Mockito) и интеграционными тестами (Testcontainers).  
+Настроен CI (GitHub Actions) с авто-тестами, сборкой Docker-образа и Smoke-тестом.  
+Приложение и PostgreSQL запускаются через `docker-compose`. В образ включён **healthcheck** (класс `HealthCheck`).
 
 ## Требования к окружению
 
@@ -29,14 +32,6 @@
 
 ## Быстрый старт через Docker
 
-Собрать образ и запустить приложение вместе с PostgreSQL:
-```bash
-docker-compose up postgres -d
-docker-compose run --rm app
-```
-
-## Локальный запуск с PostgreSQL в контейнере:
-
 ### 1. Клонирование репозитория
 
 ```bash
@@ -44,26 +39,52 @@ git clone https://github.com/charset-8utf/UserService.git
 cd UserService
 ```
 
-### 2. Запуск PostgreSQL в Docker
+### 2. Запуск PostgreSQL и приложения
+
+Запустить базу данных:
+
 ```bash
-docker run --name user-postgres -e POSTGRES_DB=userdb -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres:latest
+docker-compose up -d postgres
 ```
 
-### 3. Создание таблицы (выполняется один раз)
+Собрать образ приложения:
 
-Таблица создаётся вручную с помощью SQL-скрипта `src/main/resources/db/schema.sql`:
-
-Копируем скрипт в контейнер
 ```bash
-docker cp src/main/resources/db/schema.sql user-postgres:/tmp/schema.sql
+docker-compose build app
 ```
 
-Выполняем скрипт
+Запуск приложения:
+
 ```bash
-docker exec -it user-postgres psql -U postgres -d userdb -f /tmp/schema.sql
+docker-compose run --rm app
 ```
 
-### 4. Локальная сборка и запуск приложения
+### 3. Остановка и очистка
+
+Остановить контейнеры (данные сохраняются):
+
+```bash
+docker-compose down
+```
+
+Полностью удалить всё (включая том с БД)
+
+```bash
+docker-compose down -v
+```
+
+## Локальный запуск с PostgreSQL в контейнере:
+
+### 1. Запуск PostgreSQL в Docker
+```bash
+docker run --name user-postgres \
+  -e POSTGRES_DB=userdb \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -p 5432:5432 postgres:17-alpine
+```
+
+### 2. Локальная сборка и запуск приложения
 
 ```bash
 mvn clean package
@@ -88,7 +109,7 @@ com.crud
 ├── dto         # DTO (UserRequest, UserResponse)
 ├── mapper      # преобразование DTO ↔ Entity
 ├── exception   # иерархия кастомных исключений
-└── util        # HibernateUtil (SessionFactory)
+└── util        # HibernateUtil (SessionFactory) и HealthCheck (Docker healthcheck)
 ```
 
 **Паттерны GoF:**
@@ -107,11 +128,20 @@ mvn clean test
 
 ### Типы тестов
 
-- **Интеграционные тесты репозитория** – поднимают временный PostgreSQL через Testcontainers.
-- **Юнит-тесты сервиса** – используют Mockito для мока репозитория.
-- **Юнит-тесты контроллера** – мокают сервис.
-- **Юнит-тесты команд** – проверяют работу каждой команды меню.
-- **End-to-end тест консоли** – симулируют пользовательский ввод/вывод.
+#### **Модульные тесты** (JUnit + Mockito) проверяют:
+- Сервис
+- Контроллер 
+- Команды
+- Маппер
+- Исключения
+- Консольный ввод
+
+#### **Интеграционные тесты** (Testcontainers) проверяют:
+- Репозиторий с помощью поднятия временного PostgreSQL
+- Успешную инициализацию SessionFactory и работу скрипта `schema.sql`
+- HealthCheck
+
+#### **End-to-end тест** симулирует пользовательский ввод/вывод
 
 Все тесты автоматически запускаются в GitHub Actions при каждом push в ветки `main`/`develop`.
 
@@ -119,11 +149,12 @@ mvn clean test
 
 Файл `.github/workflows/UserServiceCI.yml`:
 
-- Запускает Maven-тесты (Юнит и интеграционные).
-- Собирает Docker-образ приложения.
-- Запускает PostgreSQL в отдельном контейнере.
-- Выполняет smoke-тест
-- Загружает отчёты о тестах в артефакты.
+- Установка JDK 21 и кеширование Maven.
+- Запуск `mvn clean verify` (тесты).
+- Сборка Docker-образа.
+- Запуск PostgreSQL в отдельном контейнере.
+- Smoke‑тест приложения (подача команд `5\n0` в консоль).
+- Загрузка отчётов тестов в артефакты.
 
 ## Логирование
 
@@ -136,6 +167,7 @@ mvn clean test
 - **Использование Criteria API** в `findAll` вместо динамического HQL (исключение потенциальных SQL-инъекций).
 - `hibernate.hbm2ddl.auto = validate` – схема создаётся вручную через SQL-скрипт.
 - **Кастомные исключения** для бизнес-ошибок.
+- **HealthCheck** позволяет оркестраторам (Docker, Kubernetes) контролировать состояние приложения.
 
 ## Автор
 [charset-8utf](https://github.com/charset-8utf)
