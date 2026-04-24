@@ -7,11 +7,12 @@ import com.crud.exception.UserNotFoundException;
 import com.crud.exception.ValidationException;
 import com.crud.mapper.UserMapper;
 import com.crud.repository.UserRepository;
+import jakarta.mail.internet.AddressException;
+import jakarta.mail.internet.InternetAddress;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.regex.Pattern;
 
 /**
  * Реализация {@link UserService} с валидацией и использованием репозитория.
@@ -26,8 +27,6 @@ import java.util.regex.Pattern;
 public class UserServiceImpl implements UserService {
 
     private static final Logger log = LoggerFactory.getLogger(UserServiceImpl.class);
-    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@(.+)$");
-
     private final UserRepository userRepository;
 
     /**
@@ -49,7 +48,10 @@ public class UserServiceImpl implements UserService {
         if (request.name() == null || request.name().isBlank()) {
             throw new ValidationException("Имя не может быть пустым");
         }
-        if (request.email() == null || !EMAIL_PATTERN.matcher(request.email()).matches()) {
+        try {
+            InternetAddress emailAddr = new InternetAddress(request.email());
+            emailAddr.validate();
+        } catch (AddressException e) {
             throw new ValidationException("Некорректный формат email");
         }
         if (request.age() == null || request.age() < 0 || request.age() > 150) {
