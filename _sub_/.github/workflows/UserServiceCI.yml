@@ -45,4 +45,4 @@ jobs:
         run: sleep 10
 
       - name: Запуск Smoke теста
-        run: echo -e "5\n0" | docker run -i --rm --network host user-service:latest
+        run: echo -e "5\n0" | docker run -i --rm --network host -e DB_URL=jdbc:postgresql://localhost:5432/userdb -e DB_USER=postgres -e DB_PASSWORD=postgres user-service:latest
