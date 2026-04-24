@@ -19,7 +19,11 @@ services:
       - app-network
 
   app:
-    build: .
+    build:
+      context: .
+      cache_from:
+        - user-service:latest
+        - type=local,src=/tmp/.buildx-cache
     container_name: user-app
     depends_on:
       postgres:
