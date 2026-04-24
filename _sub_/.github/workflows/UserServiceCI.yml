@@ -10,20 +10,15 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        name: Загрузка кода
+      - name: Загрузка кода
+        uses: actions/checkout@v4
 
       - name: Установка JDK 21
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
-
-      - name: Кеширование Maven-зависимостей
-        uses: actions/cache@v3
-        with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          cache: maven
 
       - name: Сборка и тестирование через Maven
         run: mvn clean verify
@@ -38,16 +33,24 @@ jobs:
       - name: Сборка Docker-образа
         run: docker build -t user-service:latest .
 
-      - name: Запуск PostgreSQL для Smoke теста
-        run: docker run -d --name postgres -e POSTGRES_DB=userdb -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:17-alpine
-
-      - name: Ожидание запуска PostgreSQL
-        run: sleep 10
-
-      - name: Копирование schema.sql и создание таблицы
+      - name: Запуск PostgreSQL для smoke-теста
         run: |
-          docker cp src/main/resources/db/schema.sql postgres:/tmp/schema.sql
-          docker exec postgres psql -U postgres -d userdb -f /tmp/schema.sql
+          docker run -d --name postgres \
+            -e POSTGRES_DB=userdb \
+            -e POSTGRES_USER=postgres \
+            -e POSTGRES_PASSWORD=postgres \
+            -p 5432:5432 postgres:17-alpine
+          # Ожидание готовности PostgreSQL
+          for i in {1..30}; do
+            docker exec postgres pg_isready -U postgres && break || sleep 1
+          done
 
-      - name: Запуск Smoke теста
-        run: echo -e "5\n0" | docker run -i --rm --network host -e DB_URL=jdbc:postgresql://localhost:5432/userdb -e DB_USER=postgres -e DB_PASSWORD=postgres user-service:latest
+      - name: Smoke-тест приложения
+        run: |
+          # Передаём команды меню: 5 (показать всех), 0 (выход)
+          echo -e "5\n0" | docker run -i --rm \
+            --network host \
+            -e DB_URL=jdbc:postgresql://localhost:5432/userdb \
+            -e DB_USER=postgres \
+            -e DB_PASSWORD=postgres \
+            user-service:latest
