@@ -27,7 +27,15 @@
 - **Java 21** (установлена и настроена)
 - **Maven 3.9+** (или использовать встроенный Maven в IDEA)
 
-## Быстрый старт
+## Быстрый старт через Docker
+
+Собрать образ и запустить приложение вместе с PostgreSQL:
+```bash
+docker-compose up postgres -d
+docker-compose run --rm app
+```
+
+## Локальный запуск с PostgreSQL в контейнере:
 
 ### 1. Клонирование репозитория
 
@@ -55,18 +63,6 @@ docker cp src/main/resources/db/schema.sql user-postgres:/tmp/schema.sql
 docker exec -it user-postgres psql -U postgres -d userdb -f /tmp/schema.sql
 ```
 
-Содержимое `schema.sql`:
-
-```sql
-CREATE TABLE IF NOT EXISTS users (
-    id BIGSERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    email VARCHAR(150) NOT NULL UNIQUE,
-    age INTEGER NOT NULL,
-    created_at TIMESTAMP NOT NULL
-);
-```
-
 ### 4. Локальная сборка и запуск приложения
 
 ```bash
@@ -78,14 +74,6 @@ java -jar target/UserService-1.0-SNAPSHOT.jar
 
 ```bash
 mvn compile exec:java -Dexec.mainClass="com.crud.api.Console"
-```
-
-### 5. Запуск через Docker
-
-Собрать образ и запустить приложение вместе с PostgreSQL:
-```bash
-docker-compose up postgres -d
-docker-compose run --rm app
 ```
 
 ## Архитектура проекта
