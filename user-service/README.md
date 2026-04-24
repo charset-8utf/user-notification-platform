@@ -11,19 +11,19 @@
 ![Mockito](https://img.shields.io/badge/Mockito-5.23.0-orange)
 ![Testcontainers](https://img.shields.io/badge/Testcontainers-2.0.5-blue)
 [![CI](https://github.com/charset-8utf/UserService/actions/workflows/UserServiceCI.yml/badge.svg)](https://github.com/charset-8utf/UserService/actions/workflows/UserServiceCI.yml)
-
+![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)
 ## Описание проекта
 
 Консольное приложение для управления пользователями с поддержкой операций **Create**, **Read**, **Update**, **Delete** (CRUD).  
-Использует **Hibernate ORM** (без Spring), **PostgreSQL** в Docker и пул соединений **HikariCP**.  
+Использует **Hibernate ORM**, **PostgreSQL** в Docker и пул соединений **HikariCP**.  
 **Архитектура:** трёхслойная (Controller → Service → Repository) с DTO, ручным маппером, паттернами GoF.
 
-Покрыт _предварительными_ юнит-тестами (JUnit, Mockito) и интеграционными тестами (Testcontainers).  
-Настроен CI (GitHub Actions).
+Покрыт юнит-тестами (JUnit, Mockito) и интеграционными тестами (Testcontainers).  
+Настроен CI (GitHub Actions) с авто-тестами, сборкой Docker-образа и Smoke-тестом.
 
 ## Требования к окружению
 
-- **Docker Desktop** (для запуска PostgreSQL и интеграционных тестов)
+- **Docker Desktop** (для локального запуска PostgreSQL и интеграционных тестов)
 - **Java 21** (установлена и настроена)
 - **Maven 3.9+** (или использовать встроенный Maven в IDEA)
 
@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 ```
 
-### 4. Сборка и запуск приложения
+### 4. Локальная сборка и запуск приложения
 
 ```bash
 mvn clean package
@@ -78,6 +78,14 @@ java -jar target/UserService-1.0-SNAPSHOT.jar
 
 ```bash
 mvn compile exec:java -Dexec.mainClass="com.crud.api.Console"
+```
+
+### 5. Запуск через Docker
+
+Собрать образ и запустить приложение вместе с PostgreSQL:
+```bash
+docker-compose up postgres -d
+docker-compose run --rm app
 ```
 
 ## Архитектура проекта
@@ -111,10 +119,11 @@ mvn clean test
 
 ### Типы тестов
 
-- **Интеграционные тесты репозитория** (`UserRepositoryImplTest`) – поднимают временный PostgreSQL через Testcontainers.
-- **Юнит-тесты сервиса** (`UserServiceImplTest`) – используют Mockito для мока репозитория.
-- **Юнит-тесты контроллера** (`UserControllerImplTest`) – мокают сервис.
-- **End-to-end тест консоли** (`ConsoleE2ETest`) – симулируют пользовательский ввод/вывод.
+- **Интеграционные тесты репозитория** – поднимают временный PostgreSQL через Testcontainers.
+- **Юнит-тесты сервиса** – используют Mockito для мока репозитория.
+- **Юнит-тесты контроллера** – мокают сервис.
+- **Юнит-тесты команд** – проверяют работу каждой команды меню.
+- **End-to-end тест консоли** – симулируют пользовательский ввод/вывод.
 
 Все тесты автоматически запускаются в GitHub Actions при каждом push в ветки `main`/`develop`.
 
@@ -122,8 +131,10 @@ mvn clean test
 
 Файл `.github/workflows/UserServiceCI.yml`:
 
-- Запускает сборку и тесты на Ubuntu.
-- Кеширует Maven-зависимости.
+- Запускает Maven-тесты (Юнит и интеграционные).
+- Собирает Docker-образ приложения.
+- Запускает PostgreSQL в отдельном контейнере.
+- Выполняет smoke-тест
 - Загружает отчёты о тестах в артефакты.
 
 ## Логирование
