@@ -50,6 +50,30 @@ public final class ConsoleInput {
     }
 
     /**
+     * Читает целое число с консоли с возможностью пропуска (Enter).
+     * Если введена пустая строка, возвращает значение по умолчанию.
+     * При некорректном вводе выводит ошибку и повторяет запрос.
+     *
+     * @param scanner      Scanner для чтения ввода
+     * @param prompt       сообщение, выводимое перед вводом
+     * @param defaultValue значение по умолчанию при пустом вводе
+     * @return введённое целое число или defaultValue
+     */
+    public static int readIntWithDefault(Scanner scanner, String prompt, int defaultValue) {
+        log.info(prompt);
+        String line = scanner.nextLine().trim();
+        if (line.isEmpty()) {
+            return defaultValue;
+        }
+        try {
+            return Integer.parseInt(line);
+        } catch (NumberFormatException e) {
+            log.error("❌ Ошибка: введите целое число.");
+            return readIntWithDefault(scanner, prompt, defaultValue);
+        }
+    }
+
+    /**
      * Читает длинное целое число с консоли.
      * При некорректном вводе выводит сообщение об ошибке и повторяет запрос.
      *

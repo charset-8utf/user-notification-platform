@@ -35,8 +35,7 @@ public class UpdateUserCommand implements Command {
 
         String name = ConsoleInput.readString(scanner, "Новое имя (Enter - оставить \"" + existing.name() + "\"): ", existing.name());
         String email = ConsoleInput.readString(scanner, "Новый email (Enter - оставить \"" + existing.email() + "\"): ", existing.email());
-        int age = ConsoleInput.readInt(scanner, "Новый возраст (Enter - оставить " + existing.age() + "): ");
-        if (age == 0 && existing.age() != 0) age = existing.age();
+        int age = ConsoleInput.readIntWithDefault(scanner, "Новый возраст (Enter - оставить " + existing.age() + "): ", existing.age());
 
         try {
             UserResponse updated = controller.updateUser(id, new UserRequest(name, email, age));
