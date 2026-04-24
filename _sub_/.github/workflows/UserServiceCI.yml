@@ -45,7 +45,7 @@ jobs:
         run: sleep 10
 
       - name: Копирование schema.sql и создание таблицы
-        run:
+        run: |
           docker cp src/main/resources/db/schema.sql postgres:/tmp/schema.sql
           docker exec postgres psql -U postgres -d userdb -f /tmp/schema.sql
 
