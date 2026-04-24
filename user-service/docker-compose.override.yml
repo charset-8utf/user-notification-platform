@@ -5,8 +5,8 @@ services:
       target: builder
     command: mvn compile exec:java -Dexec.mainClass="com.crud.api.Console"
     volumes:
-      - ./src:/app/src
-      - ./pom.xml:/app/pom.xml
+      - ./src:/build/src
+      - ./pom.xml:/build/pom.xml
       - maven-repo:/root/.m2
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/userdb
