@@ -50,8 +50,13 @@ public class HibernateUtil {
     private static SessionFactory buildSessionFactory() {
         try {
             log.info("Загрузка конфигурации Hibernate из hibernate.cfg.xml");
-            Configuration configuration = new Configuration();
-            configuration.configure(); // загружает hibernate.cfg.xml
+            Configuration configuration = new Configuration().configure();
+            String dbUrl = System.getenv("DB_URL");
+            if (dbUrl != null) configuration.setProperty("hibernate.connection.url", dbUrl);
+            String dbUser = System.getenv("DB_USER");
+            if (dbUser != null) configuration.setProperty("hibernate.connection.username", dbUser);
+            String dbPassword = System.getenv("DB_PASSWORD");
+            if (dbPassword != null) configuration.setProperty("hibernate.connection.password", dbPassword);
             log.info("Конфигурация загружена успешно, создаётся SessionFactory");
             return configuration.buildSessionFactory();
         } catch (Exception ex) {
@@ -59,6 +64,7 @@ public class HibernateUtil {
             throw new ExceptionInInitializerError("Ошибка инициализации Hibernate: " + ex.getMessage());
         }
     }
+
 
     /**
      * Возвращает экземпляр SessionFactory (единственный в приложении).
