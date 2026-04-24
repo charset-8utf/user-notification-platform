@@ -1,0 +1,19 @@
+services:
+  app:
+    build:
+      context: .
+      target: builder
+    command: mvn compile exec:java -Dexec.mainClass="com.crud.api.Console"
+    volumes:
+      - ./src:/app/src
+      - ./pom.xml:/app/pom.xml
+      - maven-repo:/root/.m2
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/userdb
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+    stdin_open: true
+    tty: true
+
+volumes:
+  maven-repo:
