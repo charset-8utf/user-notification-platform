@@ -49,4 +49,15 @@ public interface UserRepository {
      * @param id идентификатор удаляемого пользователя
      */
     void deleteById(Long id);
+
+    /**
+     * Находит пользователя по адресу электронной почты.
+     * <p>
+     * Использует именованный запрос {@code User.findByEmail}.
+     * </p>
+     *
+     * @param email адрес электронной почты (уникальный)
+     * @return Optional с найденным пользователем или пустой Optional, если пользователь не найден
+     */
+    Optional<User> findByEmail(String email);
 }
