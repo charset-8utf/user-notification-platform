@@ -13,6 +13,8 @@ import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
@@ -20,9 +22,12 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import org.junit.jupiter.api.Timeout;
+import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
+@Timeout(value = 60, unit = TimeUnit.SECONDS)
 @Testcontainers
 class ConsoleE2ETest {
     @Container
@@ -127,5 +132,114 @@ class ConsoleE2ETest {
 
         String output = outContent.toString();
         assertTrue(output.contains("✅ Пользователь с ID " + created.id() + " удалён"));
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "Новое имя, ,30",
+            " ,new@example.com,30",
+            " , ,35",
+            "Новое имя,new@example.com,35",
+            "Новое имя, ,",
+            " ,new@example.com,",
+    })
+
+    void testUpdateUser_PartialUpdates(String newName, String newEmail, String newAgeStr) {
+        UserResponse original = userController.createUser(
+                new UserRequest("OriginalName", "original@example.com", 30)
+        );
+
+        ExpectedValues expected = ExpectedValues.builder()
+                .name(defaultIfBlank(newName, original.name()))
+                .email(defaultIfBlank(newEmail, original.email()))
+                .age(defaultIfBlankInt(newAgeStr, original.age()))
+                .build();
+
+        String userInput = buildUpdateInput(original.id(), newName, newEmail, newAgeStr);
+        simulateUserInput(userInput);
+
+        new Console(userController).start();
+
+        assertTrue(outContent.toString().contains("✅ Пользователь с ID " + original.id() + " обновлён"));
+        UserResponse updated = userController.findUserById(original.id());
+        assertAll("Обновлённый пользователь",
+                () -> assertEquals(expected.name(), updated.name(), "Имя"),
+                () -> assertEquals(expected.email(), updated.email(), "Email"),
+                () -> assertEquals(expected.age(), updated.age(), "Возраст")
+        );
+    }
+
+    private String buildUpdateInput(long id, String newName, String newEmail, String newAgeStr) {
+        return new InputBuilder()
+                .addLine("3")
+                .addLine(String.valueOf(id))
+                .addLineOrDefault(newName)
+                .addLineOrDefault(newEmail)
+                .addLineOrDefault(newAgeStr)
+                .addLine("0")
+                .build();
+    }
+
+    private static String defaultIfBlank(String value, String defaultValue) {
+        return (value == null || value.isBlank()) ? defaultValue : value.trim();
+    }
+
+    private static int defaultIfBlankInt(String value, int defaultValue) {
+        return (value == null || value.isBlank()) ? defaultValue : Integer.parseInt(value.trim());
+    }
+
+    private static class InputBuilder {
+
+        private final StringBuilder sb = new StringBuilder();
+
+        InputBuilder addLine(String line) {
+            sb.append(line).append("\n");
+            return this;
+        }
+
+        InputBuilder addLineOrDefault(String value) {
+            if (value == null || value.isBlank()) {
+                sb.append("\n");
+            } else {
+                sb.append(value).append("\n");
+            }
+            return this;
+        }
+
+        String build() {
+            return sb.toString();
+        }
+    }
+
+    private record ExpectedValues(String name, String email, int age) {
+
+        static Builder builder() {
+                return new Builder();
+        }
+
+        static class Builder {
+                private String name;
+                private String email;
+                private int age;
+
+            Builder name(String name) {
+                this.name = name;
+                return this;
+            }
+
+            Builder email(String email) {
+                this.email = email;
+                return this;
+            }
+
+            Builder age(int age) {
+                this.age = age;
+                return this;
+            }
+
+            ExpectedValues build() {
+                return new ExpectedValues(name, email, age);
+            }
+        }
     }
 }
