@@ -7,6 +7,7 @@ import org.hibernate.SessionFactory;
 import org.hibernate.exception.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.hibernate.StaleObjectStateException;
 
 import java.util.List;
 import java.util.Optional;
@@ -81,27 +82,33 @@ public class UserRepositoryImpl extends AbstractRepository<User, Long> implement
     }
 
     /**
-     * Обновляет пользователя. Использует Optional для проверки существования.
-     * Если пользователь с таким id не существует, выбрасывает UserNotFoundException.
+     * Обновляет пользователя, выполняя слияние detached-сущности с persistent-контекстом.
+     * <p>
+     * При наличии поля {@code @Version} проверяется оптимистическая блокировка:
+     * если версия переданного объекта не соответствует текущей версии в БД,
+     * выбрасывается исключение с сообщением о конкурентном изменении.
+     * </p>
      *
-     * @param user сущность с обновлёнными данными (должен содержать id)
-     * @return обновлённая сущность
-     * @throws UserNotFoundException если пользователь не найден
+     * @param user сущность с обновлёнными данными (должна содержать id и актуальную версию)
+     * @return обновлённая (присоединённая) сущность
+     * @throws UserNotFoundException       если пользователь с данным id не существует
+     * @throws DataAccessException         если произошла ошибка при обновлении,
+     *                                     в том числе {@link StaleObjectStateException} (конкурентное изменение)
      */
     @Override
     public User update(User user) {
-        return executeInTransaction(session ->
-                Optional.ofNullable(session.find(User.class, user.getId()))
-                        .map(existing -> {
-                            existing.setName(user.getName());
-                            existing.setEmail(user.getEmail());
-                            existing.setAge(user.getAge());
-                            session.merge(existing);
-                            log.info("Пользователь обновлён: id={}, email={}", existing.getId(), existing.getEmail());
-                            return existing;
-                        })
-                        .orElseThrow(() -> new UserNotFoundException(user.getId()))
-        );
+        try {
+            return executeInTransaction(session -> {
+                User merged = session.merge(user);
+                log.info("Пользователь обновлён: id={}, email={}", merged.getId(), merged.getEmail());
+                return merged;
+            });
+        } catch (DataAccessException e) {
+            if (e.getCause() instanceof StaleObjectStateException) {
+                throw new DataAccessException("Пользователь с id " + user.getId() + " был изменён другим пользователем. Повторите операцию.", e.getCause());
+            }
+            throw e;
+        }
     }
 
     /**
@@ -120,6 +127,25 @@ public class UserRepositoryImpl extends AbstractRepository<User, Long> implement
                                 },
                                 () -> log.warn("Попытка удалить несуществующего пользователя с id={}", id)
                         )
+        );
+    }
+
+    /**
+     * Находит пользователя по адресу электронной почты.
+     * <p>
+     * Использует именованный запрос {@code User.findByEmail} для выполнения поиска.
+     * Если пользователь с указанным email не найден, возвращает пустой {@link Optional}.
+     * </p>
+     *
+     * @param email адрес электронной почты (уникальный)
+     * @return Optional с найденным пользователем или пустой Optional
+     */
+    @Override
+    public Optional<User> findByEmail(String email) {
+        return executeInTransaction(session ->
+                session.createNamedQuery("User.findByEmail", User.class)
+                        .setParameter("email", email)
+                        .uniqueResultOptional()
         );
     }
 }
