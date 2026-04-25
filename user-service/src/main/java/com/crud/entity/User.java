@@ -13,22 +13,22 @@ import java.time.LocalDateTime;
  *     <li>{@code email} – электронная почта (уникальна, не может быть null)</li>
  *     <li>{@code age} – возраст (от 0 до 150)</li>
  *     <li>{@code createdAt} – дата и время создания записи (устанавливается один раз)</li>
+ *     <li>{@code version} – версия для оптимистической блокировки (управляется JPA)</li>
  * </ul>
  * </p>
  * <p>
- * Для создания объектов рекомендуется использовать {@link Builder},
- * который автоматически устанавливает {@code createdAt} и выполняет валидацию полей.
+ * Для создания объектов рекомендуется использовать {@link Builder}.
  * </p>
- *
  *
  * @see Builder
  * @author charset-8utf
- * @version 1.0
+ * @version 1.2
  */
 @Entity
 @Table(name = "users", uniqueConstraints = {
         @UniqueConstraint(columnNames = "email", name = "uk_users_email")
 })
+@NamedQuery(name = "User.findByEmail", query = "SELECT u FROM User u WHERE u.email = :email")
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -47,6 +47,9 @@ public class User {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Version
+    private Long version;
+
     /**
      * Конструктор по умолчанию (требуется Hibernate).
      * Не предназначен для прямого использования.
@@ -62,68 +65,103 @@ public class User {
         this.name = builder.name;
         this.email = builder.email;
         this.age = builder.age;
-        this.createdAt = LocalDateTime.now();
     }
 
     /**
      * Возвращает идентификатор пользователя.
      * @return id (может быть null до сохранения в БД)
      */
-    public Long getId() { return id; }
+    public Long getId() {
+        return id;
+    }
 
     /**
      * Возвращает имя пользователя.
      * @return имя (не null)
      */
-    public String getName() { return name; }
+    public String getName() {
+        return name;
+    }
 
     /**
      * Возвращает email пользователя.
      * @return email (не null, уникальный)
      */
-    public String getEmail() { return email; }
+    public String getEmail() {
+        return email;
+    }
 
     /**
      * Возвращает возраст пользователя.
      * @return возраст (целое число)
      */
-    public Integer getAge() { return age; }
+    public Integer getAge() {
+        return age;
+    }
 
     /**
      * Возвращает дату и время создания записи.
-     * @return дата создания (устанавливается один раз при построении объекта)
+     * @return дата создания
      */
-    public LocalDateTime getCreatedAt() { return createdAt; }
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    /**
+     * Возвращает версию для оптимистической блокировки.
+     * @return версия (управляется JPA)
+     */
+    public Long getVersion() {
+        return version;
+    }
 
     /**
      * Устанавливает идентификатор (обычно вызывается Hibernate после сохранения).
      * @param id новый идентификатор
      */
-    public void setId(Long id) { this.id = id; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
     /**
      * Устанавливает имя пользователя.
      * @param name новое имя (не должно быть null или пустым)
      */
-    public void setName(String name) { this.name = name; }
+    public void setName(String name) {
+        this.name = name;
+    }
 
     /**
      * Устанавливает email пользователя.
      * @param email новый email (должен быть уникальным)
      */
-    public void setEmail(String email) { this.email = email; }
+    public void setEmail(String email) {
+        this.email = email;
+    }
 
     /**
      * Устанавливает возраст пользователя.
      * @param age новый возраст (должен быть в диапазоне 0-150)
      */
-    public void setAge(Integer age) { this.age = age; }
+    public void setAge(Integer age) {
+        this.age = age;
+    }
 
     /**
      * Устанавливает дату создания (обычно только для целей тестирования или при миграции).
      * @param createdAt дата и время
      */
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    /**
+     * Устанавливает версию (обычно не требуется вызывать вручную).
+     * @param version новое значение версии
+     */
+    public void setVersion(Long version) {
+        this.version = version;
+    }
 
     /**
      * Создаёт новый экземпляр {@link Builder} для пошагового конструирования объекта User.
@@ -135,12 +173,19 @@ public class User {
     }
 
     /**
+     * Автоматически вызывается перед первым сохранением сущности в базу данных.
+     * Устанавливает текущую дату и время создания записи.
+     */
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+    }
+
+    /**
      * Внутренний класс Builder для создания объектов {@link User} с валидацией.
      * <p>
-     * Реализует паттерн "Строитель" (Builder). Позволяет задать имя, email и возраст,
+     * Реализует паттерн "Строитель". Позволяет задать имя, email и возраст,
      * после чего вызвать {@link #build()} для получения экземпляра User.
-     * </p>
-     * <p>
      * Валидация выполняется в методе {@code build()}: имя и email не могут быть пустыми,
      * возраст должен быть в диапазоне [0, 150].
      * </p>
@@ -183,7 +228,7 @@ public class User {
         /**
          * Создаёт объект {@link User} после проверки корректности полей.
          *
-         * @return новый экземпляр User с заполненными полями и текущей датой создания
+         * @return новый экземпляр User
          * @throws IllegalArgumentException если имя или email пусты, либо возраст вне допустимого диапазона
          */
         public User build() {
