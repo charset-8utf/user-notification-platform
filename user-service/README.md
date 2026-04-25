@@ -20,7 +20,7 @@
 **Архитектура:** трёхслойная (Controller → Service → Repository) с DTO, ручным маппером, паттернами GoF.
 
 При первом запуске приложение самостоятельно создаёт таблицу `users` через SQL-скрипт `db/schema.sql` (включая ограничения, индекс и комментарии).  
-Покрыто юнит-тестами (JUnit, Mockito) и интеграционными тестами (Testcontainers).  
+Покрыт юнит-тестами (JUnit, Mockito) и интеграционными тестами (Testcontainers).  
 Настроен CI (GitHub Actions) с авто-тестами, сборкой Docker-образа и Smoke-тестом.  
 Приложение и PostgreSQL запускаются через `docker-compose`. В образ включён **healthcheck** (класс `HealthCheck`).
 
