@@ -138,4 +138,27 @@ class UserServiceImplTest {
         assertThrows(UserNotFoundException.class, () -> userService.updateUser(999L, request));
         verify(userRepository, never()).update(any());
     }
+
+    @Test
+    void getUserByEmail_WhenExists_ShouldReturnResponse() {
+        String email = "test@example.com";
+        User user = User.builder().name("John").email(email).age(30).build();
+        user.setId(1L);
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+
+        UserResponse response = userService.getUserByEmail(email);
+        assertEquals(1L, response.id());
+        assertEquals("John", response.name());
+        assertEquals(email, response.email());
+        assertEquals(30, response.age());
+        verify(userRepository).findByEmail(email);
+    }
+
+    @Test
+    void getUserByEmail_WhenNotExists_ShouldThrowUserNotFoundException() {
+        String email = "missing@example.com";
+        when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+        assertThrows(UserNotFoundException.class, () -> userService.getUserByEmail(email));
+        verify(userRepository).findByEmail(email);
+    }
 }
