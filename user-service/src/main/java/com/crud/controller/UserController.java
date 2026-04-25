@@ -63,4 +63,16 @@ public interface UserController {
      * @throws UserNotFoundException если пользователь не найден
      */
     void deleteUser(Long id);
+
+    /**
+     * Находит пользователя по его электронной почте.
+     * <p>
+     * Делегирует выполнение сервисному слою {@link com.crud.service.UserService#getUserByEmail(String)}.
+     * </p>
+     *
+     * @param email адрес электронной почты (уникальный, не должен быть {@code null} или пустым)
+     * @return DTO {@link UserResponse} с полными данными пользователя
+     * @throws com.crud.exception.UserNotFoundException если пользователь с указанным email отсутствует в базе
+     */
+    UserResponse findUserByEmail(String email);
 }

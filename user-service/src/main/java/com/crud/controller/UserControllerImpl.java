@@ -73,4 +73,12 @@ public class UserControllerImpl implements UserController {
         log.debug("Контроллер: удаление пользователя с id: {}", id);
         userService.deleteUser(id);
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public UserResponse findUserByEmail(String email) {
+        return userService.getUserByEmail(email);
+    }
 }

@@ -75,4 +75,17 @@ public interface UserService {
      * @throws UserNotFoundException если пользователь не найден
      */
     void deleteUser(Long id);
+
+    /**
+     * Находит пользователя по его электронной почте.
+     * <p>
+     * Использует репозиторий {@link com.crud.repository.UserRepository#findByEmail(String)} для выполнения поиска.
+     * Если пользователь с указанным email не найден, выбрасывается {@link UserNotFoundException}.
+     * </p>
+     *
+     * @param email адрес электронной почты (уникальный, не должен быть {@code null} или пустым)
+     * @return DTO {@link UserResponse} с полными данными найденного пользователя
+     * @throws UserNotFoundException если пользователь с таким email не существует
+     */
+    UserResponse getUserByEmail(String email);
 }
