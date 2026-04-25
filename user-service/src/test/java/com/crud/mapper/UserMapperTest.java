@@ -21,13 +21,15 @@ class UserMapperTest {
         assertEquals("ivan@example.com", user.getEmail());
         assertEquals(25, user.getAge());
         assertNull(user.getId());
-        assertNotNull(user.getCreatedAt());
     }
 
     @Test
     void toEntity_WithExistingUser_ShouldUpdateUser() {
         User existing = User.builder().name("Старое").email("old@example.com").age(20).build();
         existing.setId(1L);
+        LocalDateTime existingDate = LocalDateTime.of(2025, 4, 24, 12, 0, 0);
+        existing.setCreatedAt(existingDate);
+
         UserRequest request = new UserRequest("Новое", "new@example.com", 30);
         User updated = UserMapper.toEntity(request, existing);
 
@@ -35,7 +37,7 @@ class UserMapperTest {
         assertEquals("Новое", updated.getName());
         assertEquals("new@example.com", updated.getEmail());
         assertEquals(30, updated.getAge());
-        assertNotNull(updated.getCreatedAt());
+        assertEquals(existingDate, updated.getCreatedAt()); // дата не изменилась
     }
 
     @Test

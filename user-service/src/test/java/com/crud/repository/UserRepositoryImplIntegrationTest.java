@@ -138,4 +138,37 @@ class UserRepositoryImplIntegrationTest {
         long id = 999L;
         assertDoesNotThrow(() -> userRepository.deleteById(id));
     }
+
+    @Test
+    void findByEmail_WhenExists_ShouldReturnUser() {
+        String email = "unique@example.com";
+        User user = User.builder().name("EmailTest").email(email).age(25).build();
+        userRepository.save(user);
+        Optional<User> found = userRepository.findByEmail(email);
+        assertTrue(found.isPresent());
+        assertEquals(email, found.get().getEmail());
+    }
+
+    @Test
+    void findByEmail_WhenNotExists_ShouldReturnEmpty() {
+        Optional<User> found = userRepository.findByEmail("nonexistent@example.com");
+        assertTrue(found.isEmpty());
+    }
+
+    @Test
+    void update_WhenConcurrentModification_ShouldThrowOptimisticLockException() {
+        User user = User.builder().name("Исходный").email("optimistic@example.com").age(20).build();
+        User saved = userRepository.save(user);
+        Long id = saved.getId();
+
+        User userV1 = userRepository.findById(id).orElseThrow();
+        User userV2 = userRepository.findById(id).orElseThrow();
+
+        userV1.setName("Обновлён первым");
+        userV2.setName("Обновлён вторым");
+
+        userRepository.update(userV1);
+
+        assertThrows(DataAccessException.class, () -> userRepository.update(userV2));
+    }
 }

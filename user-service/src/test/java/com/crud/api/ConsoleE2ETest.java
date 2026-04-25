@@ -91,17 +91,68 @@ class ConsoleE2ETest {
 
     @Test
     void testCreateAndFindUser() {
-        String simulatedInput = "1\nИван\nivan@example.com\n30\n2\n1\n0\n";
+        String createInput = "1\nИван\nivan@example.com\n30\n0\n";
+        simulateUserInput(createInput);
+        Console consoleCreate = new Console(userController);
+        consoleCreate.start();
+        String createOutput = outContent.toString();
+        outContent.reset();
+
+        String marker = "✅ Пользователь создан! ID: ";
+        int startIdx = createOutput.indexOf(marker);
+        assertNotEquals(-1, startIdx, "Не найдено сообщение о создании пользователя");
+
+        int endIdx = createOutput.indexOf('\n', startIdx);
+        if (endIdx == -1) {
+            endIdx = createOutput.length();
+        }
+        String idStr = createOutput.substring(startIdx + marker.length(), endIdx).trim();
+        long userId = Long.parseLong(idStr);
+
+        String findInput = "2\n" + userId + "\n0\n";
+        simulateUserInput(findInput);
+        Console consoleFind = new Console(userController);
+        consoleFind.start();
+        String findOutput = outContent.toString();
+
+        assertTrue(findOutput.contains("🔍 Найден пользователь:"),
+                "Должно быть сообщение о найденном пользователе");
+        assertTrue(findOutput.contains("Имя: Иван"),
+                "Должно содержать имя Иван");
+        assertTrue(findOutput.contains("Email: ivan@example.com"),
+                "Должен содержать email ivan@example.com");
+    }
+
+
+    @Test
+    void testFindUserByEmail_Success() {
+        UserResponse created = userController.createUser(
+                new UserRequest("EmailTest", "email@example.com", 30)
+        );
+        String email = created.email();
+
+        String simulatedInput = "3\n" + email + "\n0\n";
         simulateUserInput(simulatedInput);
 
         Console console = new Console(userController);
         console.start();
 
         String output = outContent.toString();
-        assertTrue(output.contains("✅ Пользователь создан! ID: 1"));
         assertTrue(output.contains("🔍 Найден пользователь:"));
-        assertTrue(output.contains("Имя: Иван"));
-        assertTrue(output.contains("Email: ivan@example.com"));
+        assertTrue(output.contains("Email: " + email));
+        assertTrue(output.contains("Имя: EmailTest"));
+    }
+
+    @Test
+    void testFindUserByEmail_NotFound() {
+        String simulatedInput = "3\nnonexistent@example.com\n0\n";
+        simulateUserInput(simulatedInput);
+
+        Console console = new Console(userController);
+        console.start();
+
+        String output = outContent.toString();
+        assertTrue(output.contains("❌ Ошибка: Пользователь с email nonexistent@example.com не найден"));
     }
 
     @Test
@@ -109,7 +160,7 @@ class ConsoleE2ETest {
         userController.createUser(new UserRequest("Alice", "alice@example.com", 25));
         userController.createUser(new UserRequest("Bob", "bob@example.com", 30));
 
-        String simulatedInput = "5\n0\n";
+        String simulatedInput = "6\n0\n";
         simulateUserInput(simulatedInput);
 
         Console console = new Console(userController);
@@ -124,7 +175,7 @@ class ConsoleE2ETest {
     @Test
     void testDeleteUser() {
         UserResponse created = userController.createUser(new UserRequest("ToDelete", "delete@example.com", 40));
-        String simulatedInput = "4\n" + created.id() + "\ny\n0\n";
+        String simulatedInput = "5\n" + created.id() + "\ny\n0\n";
         simulateUserInput(simulatedInput);
 
         Console console = new Console(userController);
@@ -171,7 +222,7 @@ class ConsoleE2ETest {
 
     private String buildUpdateInput(long id, String newName, String newEmail, String newAgeStr) {
         return new InputBuilder()
-                .addLine("3")
+                .addLine("4")
                 .addLine(String.valueOf(id))
                 .addLineOrDefault(newName)
                 .addLineOrDefault(newEmail)
