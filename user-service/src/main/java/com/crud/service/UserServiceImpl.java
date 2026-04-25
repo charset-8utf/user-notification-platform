@@ -113,4 +113,14 @@ public class UserServiceImpl implements UserService {
         userRepository.deleteById(id);
         log.info("Удалён пользователь: id={}", id);
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public UserResponse getUserByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .map(UserMapper::toResponse)
+                .orElseThrow(() -> new UserNotFoundException("Пользователь с email " + email + " не найден"));
+    }
 }
