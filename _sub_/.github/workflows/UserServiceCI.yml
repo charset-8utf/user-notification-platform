@@ -47,8 +47,7 @@ jobs:
 
       - name: Smoke-тест приложения
         run: |
-          # Передаём команды меню: 5 (показать всех), 0 (выход)
-          echo -e "5\n0" | docker run -i --rm \
+          echo -e "6\n0" | docker run -i --rm \
             --network host \
             -e DB_URL=jdbc:postgresql://localhost:5432/userdb \
             -e DB_USER=postgres \
