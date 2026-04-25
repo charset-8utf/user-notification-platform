@@ -75,4 +75,15 @@ class UserControllerImplTest {
         userController.deleteUser(1L);
         verify(userService).deleteUser(1L);
     }
+
+    @Test
+    void findUserByEmail_ShouldDelegateToService() {
+        String email = "test@example.com";
+        UserResponse expected = new UserResponse(1L, "John", email, 30, LocalDateTime.now());
+        when(userService.getUserByEmail(email)).thenReturn(expected);
+
+        UserResponse actual = userController.findUserByEmail(email);
+        assertEquals(expected, actual);
+        verify(userService).getUserByEmail(email);
+    }
 }
