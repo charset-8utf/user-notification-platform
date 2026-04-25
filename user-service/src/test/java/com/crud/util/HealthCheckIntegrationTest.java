@@ -9,6 +9,9 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.stream.Collectors;
 
+import org.junit.jupiter.api.Timeout;
+import java.util.concurrent.TimeUnit;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @Testcontainers
@@ -20,6 +23,7 @@ class HealthCheckIntegrationTest {
             .withUsername("test")
             .withPassword("test");
 
+    @Timeout(value = 30, unit = TimeUnit.SECONDS)
     @Test
     void healthCheck_ShouldExitZeroWhenDatabaseAvailable() throws Exception {
         String javaHome = System.getProperty("java.home");

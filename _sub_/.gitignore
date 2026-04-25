@@ -39,3 +39,6 @@ build/
 
 postgres_data/
 maven-repo/
+.idea/
+dependency-reduced-pom.xml.idea/
+dependency-reduced-pom.xml
