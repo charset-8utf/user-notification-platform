@@ -9,6 +9,9 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.stream.Collectors;
 
+import org.junit.jupiter.api.Timeout;
+import java.util.concurrent.TimeUnit;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @Testcontainers
@@ -21,6 +24,7 @@ class HibernateUtilIntegrationTest {
             .withPassword("test");
 
     @Test
+    @Timeout(value = 30, unit = TimeUnit.SECONDS)
     void hibernateUtil_WhenValidCredentials_ShouldSucceed() throws Exception {
         int exitCode = runHealthCheck(
                 postgres.getJdbcUrl(),
@@ -31,6 +35,7 @@ class HibernateUtilIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 30, unit = TimeUnit.SECONDS)
     void hibernateUtil_WhenInvalidPassword_ShouldFail() throws Exception {
         int exitCode = runHealthCheck(
                 postgres.getJdbcUrl(),

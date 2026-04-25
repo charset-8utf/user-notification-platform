@@ -15,7 +15,10 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import java.util.concurrent.TimeUnit;
 
+@Timeout(value = 30, unit = TimeUnit.SECONDS)
 @Testcontainers
 class UserRepositoryImplIntegrationTest {
     @Container
