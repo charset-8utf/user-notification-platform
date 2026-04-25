@@ -30,9 +30,10 @@ public class Console {
         this.commands = Map.of(
                 1, new CreateUserCommand(controller, scanner),
                 2, new FindUserCommand(controller, scanner),
-                3, new UpdateUserCommand(controller, scanner),
-                4, new DeleteUserCommand(controller, scanner),
-                5, new ListUsersCommand(controller),
+                3, new FindByEmailCommand(controller, scanner),
+                4, new UpdateUserCommand(controller, scanner),
+                5, new DeleteUserCommand(controller, scanner),
+                6, new ListUsersCommand(controller),
                 0, new ExitCommand()
         );
     }
@@ -50,7 +51,7 @@ public class Console {
                 int choice = ConsoleInput.readInt(scanner, "Ваш выбор: ");
                 Command cmd = commands.get(choice);
                 if (cmd == null) {
-                    log.error("❌ Неверный выбор. Введите число от 0 до 5.");
+                    log.error("❌ Неверный выбор. Введите число от 0 до 6.");
                     continue;
                 }
                 cmd.execute();
@@ -74,9 +75,10 @@ public class Console {
                 ╠══════════════════════════════════╣
                 ║  1. Создать пользователя         ║
                 ║  2. Найти пользователя по ID     ║
-                ║  3. Обновить пользователя        ║
-                ║  4. Удалить пользователя         ║
-                ║  5. Показать всех пользователей  ║
+                ║  3. Найти пользователя по email  ║
+                ║  4. Обновить пользователя        ║
+                ║  5. Удалить пользователя         ║
+                ║  6. Показать всех пользователей  ║
                 ║  0. Выход                        ║
                 ╚══════════════════════════════════╝
                 """);
