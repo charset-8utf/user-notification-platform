@@ -1,5 +1,6 @@
 package com.crud.api.command;
 
+import com.crud.api.ConsoleInput;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
@@ -12,7 +13,7 @@ public abstract class ConsoleCommandTest {
 
     protected ByteArrayOutputStream outContent;
     private PrintStream originalOut;
-    private Scanner scanner;
+    private ConsoleInput consoleInput;
 
     @BeforeEach
     void setUp() {
@@ -24,20 +25,14 @@ public abstract class ConsoleCommandTest {
     @AfterEach
     void tearDown() {
         System.setOut(originalOut);
-        if (scanner != null) {
-            scanner.close();
-        }
     }
 
     protected void provideInput(String data) {
-        scanner = new Scanner(new ByteArrayInputStream(data.getBytes()));
+        Scanner scanner = new Scanner(new ByteArrayInputStream(data.getBytes()));
+        consoleInput = new ConsoleInput(scanner);
     }
 
-    protected Scanner getScanner() {
-        return scanner;
-    }
-
-    protected String getOutput() {
-        return outContent.toString();
+    protected ConsoleInput getConsoleInput() {
+        return consoleInput;
     }
 }

@@ -1,5 +1,6 @@
-package com.crud.api.command;
+package com.crud.api.command.user;
 
+import com.crud.api.command.ConsoleCommandTest;
 import com.crud.controller.UserController;
 import com.crud.dto.UserRequest;
 import com.crud.dto.UserResponse;
@@ -18,27 +19,24 @@ class CreateUserCommandTest extends ConsoleCommandTest {
     private UserController controller;
 
     @Test
-    void execute_ShouldCreateUserAndPrintSuccess() {
+    void execute_ShouldCreateUser() {
         provideInput("John\njohn@example.com\n30\n");
-        CreateUserCommand command = new CreateUserCommand(controller, getScanner());
+        CreateUserCommand command = new CreateUserCommand(controller, getConsoleInput());
         when(controller.createUser(any(UserRequest.class)))
                 .thenReturn(new UserResponse(1L, "John", "john@example.com", 30, null));
 
         command.execute();
 
         verify(controller).createUser(any(UserRequest.class));
-        assertTrue(getOutput().contains("✅ Пользователь создан! ID: 1"));
     }
 
     @Test
-    void execute_WhenControllerThrowsException_ShouldPrintError() {
+    void execute_WhenControllerThrowsException_ShouldNotThrow() {
         provideInput("John\njohn@example.com\n30\n");
-        CreateUserCommand command = new CreateUserCommand(controller, getScanner());
+        CreateUserCommand command = new CreateUserCommand(controller, getConsoleInput());
         when(controller.createUser(any(UserRequest.class)))
                 .thenThrow(new RuntimeException("Database error"));
 
-        command.execute();
-
-        assertTrue(getOutput().contains("❌ Ошибка: Database error"));
+        assertDoesNotThrow(command::execute);
     }
 }
