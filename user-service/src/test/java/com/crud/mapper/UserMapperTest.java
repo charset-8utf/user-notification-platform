@@ -12,10 +12,12 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class UserMapperTest {
 
+    private final UserMapper mapper = new UserMapperImpl();
+
     @Test
     void toEntity_ShouldMapRequestToUser() {
         UserRequest request = new UserRequest("Иван", "ivan@example.com", 25);
-        User user = UserMapper.toEntity(request);
+        User user = mapper.toEntity(request);
 
         assertEquals("Иван", user.getName());
         assertEquals("ivan@example.com", user.getEmail());
@@ -31,7 +33,7 @@ class UserMapperTest {
         existing.setCreatedAt(existingDate);
 
         UserRequest request = new UserRequest("Новое", "new@example.com", 30);
-        User updated = UserMapper.toEntity(request, existing);
+        User updated = mapper.toEntity(request, existing);
 
         assertEquals(1L, updated.getId());
         assertEquals("Новое", updated.getName());
@@ -46,7 +48,7 @@ class UserMapperTest {
         user.setId(10L);
         user.setCreatedAt(LocalDateTime.of(2025, 4, 24, 14, 30, 15));
 
-        UserResponse response = UserMapper.toResponse(user);
+        UserResponse response = mapper.toResponse(user);
 
         assertEquals(10L, response.id());
         assertEquals("Мария", response.name());
@@ -62,7 +64,7 @@ class UserMapperTest {
         User user2 = User.builder().name("Петр").email("peter@example.com").age(35).build();
         user2.setId(2L);
 
-        List<UserResponse> responses = UserMapper.toResponseList(List.of(user1, user2));
+        List<UserResponse> responses = mapper.toResponseList(List.of(user1, user2));
 
         assertEquals(2, responses.size());
         assertEquals("Анна", responses.get(0).name());
@@ -72,12 +74,12 @@ class UserMapperTest {
     @Test
     void formatDateTime_ShouldReturnFormattedString() {
         LocalDateTime date = LocalDateTime.of(2025, 4, 24, 9, 5, 3);
-        String formatted = UserMapper.formatDateTime(date);
+        String formatted = mapper.formatDateTime(date);
         assertEquals("24.04.2025 09:05:03", formatted);
     }
 
     @Test
     void formatDateTime_WhenNull_ShouldReturnEmptyString() {
-        assertEquals("", UserMapper.formatDateTime(null));
+        assertEquals("", mapper.formatDateTime(null));
     }
 }

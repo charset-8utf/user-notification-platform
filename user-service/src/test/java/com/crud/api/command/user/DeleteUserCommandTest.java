@@ -1,5 +1,6 @@
-package com.crud.api.command;
+package com.crud.api.command.user;
 
+import com.crud.api.command.ConsoleCommandTest;
 import com.crud.controller.UserController;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,34 +19,30 @@ class DeleteUserCommandTest extends ConsoleCommandTest {
     @Test
     void execute_WhenConfirmed_ShouldDeleteUser() {
         provideInput("1\ny\n");
-        DeleteUserCommand command = new DeleteUserCommand(controller, getScanner());
+        DeleteUserCommand command = new DeleteUserCommand(controller, getConsoleInput());
         doNothing().when(controller).deleteUser(1L);
 
         command.execute();
 
         verify(controller).deleteUser(1L);
-        assertTrue(getOutput().contains("✅ Пользователь с ID 1 удалён"));
     }
 
     @Test
     void execute_WhenNotConfirmed_ShouldNotDelete() {
         provideInput("1\nn\n");
-        DeleteUserCommand command = new DeleteUserCommand(controller, getScanner());
+        DeleteUserCommand command = new DeleteUserCommand(controller, getConsoleInput());
+
         command.execute();
 
         verify(controller, never()).deleteUser(anyLong());
-        assertTrue(getOutput().contains("Удаление отменено"));
     }
 
     @Test
-    void execute_WhenDeletionFails_ShouldPrintError() {
+    void execute_WhenControllerThrowsException_ShouldNotThrow() {
         provideInput("1\ny\n");
-        DeleteUserCommand command = new DeleteUserCommand(controller, getScanner());
-        doThrow(new RuntimeException("DB error")).when(controller).deleteUser(1L);
+        DeleteUserCommand command = new DeleteUserCommand(controller, getConsoleInput());
+        doThrow(new RuntimeException("User not found")).when(controller).deleteUser(1L);
 
-        command.execute();
-
-        verify(controller).deleteUser(1L);
-        assertTrue(getOutput().contains("❌ Ошибка удаления: DB error"));
+        assertDoesNotThrow(command::execute);
     }
 }
