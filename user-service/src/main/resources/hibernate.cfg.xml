@@ -21,6 +21,19 @@
         <property name="hibernate.show_sql">true</property>
         <property name="hibernate.format_sql">true</property>
 
+        <property name="hibernate.jdbc.batch_size">20</property>
+        <property name="hibernate.order_inserts">true</property>
+        <property name="hibernate.order_updates">true</property>
+
+        <property name="hibernate.cache.use_second_level_cache">true</property>
+        <property name="hibernate.cache.region.factory_class">org.hibernate.cache.jcache.JCacheRegionFactory</property>
+        <property name="hibernate.javax.cache.provider">com.github.benmanes.caffeine.jcache.spi.CaffeineCachingProvider</property>
+        <property name="hibernate.cache.use_query_cache">true</property>
+        <property name="hibernate.cache.caffeine.maxSize">10000</property>
+
         <mapping class="com.crud.entity.User"/>
+        <mapping class="com.crud.entity.Note"/>
+        <mapping class="com.crud.entity.Role"/>
+        <mapping class="com.crud.entity.Profile"/>
     </session-factory>
 </hibernate-configuration>
