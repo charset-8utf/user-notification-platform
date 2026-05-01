@@ -2,12 +2,11 @@ services:
   postgres:
     image: postgres:17-alpine
     container_name: user-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_DB: userdb
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -19,6 +18,7 @@ services:
       - app-network
 
   app:
+    image: user-service:latest
     build:
       context: .
       cache_from:
