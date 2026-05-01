@@ -1,45 +1,47 @@
-package com.crud.api.command;
+package com.crud.api.command.user;
+
+import lombok.extern.slf4j.Slf4j;
 
 import com.crud.api.ConsoleInput;
+import com.crud.api.command.Command;
 import com.crud.controller.UserController;
 import com.crud.dto.UserResponse;
 import com.crud.mapper.UserMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.Scanner;
+import com.crud.mapper.UserMapperImpl;
 
 /**
  * Команда для поиска пользователя по ID.
  */
+@Slf4j
 public class FindUserCommand implements Command {
-    private static final Logger log = LoggerFactory.getLogger(FindUserCommand.class);
     private final UserController controller;
-    private final Scanner scanner;
+    private final ConsoleInput consoleInput;
+    private final UserMapper userMapper;
 
-    public FindUserCommand(UserController controller, Scanner scanner) {
+    public FindUserCommand(UserController controller, ConsoleInput consoleInput) {
         this.controller = controller;
-        this.scanner = scanner;
+        this.consoleInput = consoleInput;
+        this.userMapper = new UserMapperImpl();
     }
 
     @Override
     public void execute() {
-        long id = ConsoleInput.readLong(scanner, "Введите ID пользователя: ");
+        long id = consoleInput.readLong("Введите ID пользователя: ");
         try {
             UserResponse user = controller.findUserById(id);
             if (log.isInfoEnabled()) {
                 log.info("""
-                        🔍 Найден пользователь:
+                        Найден пользователь:
                            ID: {}
                            Имя: {}
                            Email: {}
                            Возраст: {}
                            Создан: {}
                         """, user.id(), user.name(), user.email(), user.age(),
-                        UserMapper.formatDateTime(user.createdAt()));
+                        userMapper.formatDateTime(user.createdAt()));
             }
-        } catch (Exception e) {
-            log.error("❌ Ошибка: {}", e.getMessage(), e);
+        } catch (RuntimeException e) {
+            log.error("Ошибка: {}", e.getMessage(), e);
         }
     }
 }
