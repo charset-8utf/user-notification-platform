@@ -1,13 +1,12 @@
 package com.crud.api.command;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Команда для завершения работы приложения.
  */
+@Slf4j
 public class ExitCommand implements Command {
-    private static final Logger log = LoggerFactory.getLogger(ExitCommand.class);
 
     @Override
     public void execute() {
