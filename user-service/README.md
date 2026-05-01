@@ -19,7 +19,7 @@
 Использует **Hibernate ORM**, **PostgreSQL** в Docker и пул соединений **HikariCP**.  
 **Архитектура:** трёхслойная (Controller → Service → Repository) с DTO, ручным маппером, паттернами GoF.
 
-Схема БД управляется миграциями **Flyway** из `src/main/resources/db/migration` (V1...V5).  
+Схема БД управляется миграциями **Flyway** из `src/main/resources/db/migration` (V1...V6).  
 Покрыт юнит-тестами (JUnit, Mockito) и интеграционными тестами (Testcontainers).  
 Настроен CI (GitHub Actions) с авто-тестами, сборкой Docker-образа и Smoke-тестом.  
 Приложение и PostgreSQL запускаются через `docker-compose`. В образ включён **healthcheck** (класс `HealthCheck`).
@@ -101,22 +101,27 @@ mvn compile exec:java -Dexec.mainClass="com.crud.api.Console"
 
 ```text
 com.crud
-├── api         # консольный интерфейс (меню, команды)
-├── controller  # слой контроллера (работа с DTO)
-├── service     # слой сервиса (бизнес-логика, валидация)
-├── repository  # слой репозитория (Hibernate, транзакции)
-├── entity      # JPA-сущности User/Note/Role/Profile
-├── dto         # DTO запросов/ответов и пагинации
-├── mapper      # преобразование DTO ↔ Entity
-├── exception   # иерархия кастомных исключений
-└── util        # HibernateUtil (SessionFactory) и HealthCheck (Docker healthcheck)
+├── api/                                    # консольный интерфейс (меню навигации, команды, постраничный вывод)
+├── controller/                             # слой контроллера (работа с DTO)
+├── service/                                # слой сервиса (бизнес-логика, валидация, retry)
+├── repository/                             # слой репозитория (Hibernate, транзакции)
+├── entity/                                 # JPA-сущности User/Note/Role/Profile
+├── dto/                                    # DTO запросов/ответов и пагинации
+├── mapper/                                 # преобразование DTO ↔ Entity
+├── exception/                              # иерархия кастомных исключений
+├── ApplicationBuilder, ApplicationContext  # ручной DI-контейнер
+├── HealthCheck                             # проверка здоровья для Docker
+└── HibernateUtil                           # конфигурация SessionFactory + Flyway
 ```
 
 **Паттерны GoF:**
-- *Builder* – для создания `User`
-- *Command* – для пунктов меню
-- *Template Method* – для транзакций в `AbstractRepository`
-- *Strategy* – для валидации
+- *Builder* – @Builder для Entity и `ApplicationBuilder` для DI
+- *Command* – инкапсуляция запросов как объектов (команды меню)
+- *Factory* – создание команд меню (`MenuCommandFactory`)
+- *Registry* – регистрация команд по состояниям (`CommandRegistry`)
+- *State* – состояния меню (`MenuState`)
+- *Template Method* – выполнение транзакций в `AbstractRepository`
+- *Strategy* – валидация входных данных (`Validator`)
 
 ## Тестирование
 
@@ -129,17 +134,19 @@ mvn clean test
 ### Типы тестов
 
 #### **Модульные тесты** (JUnit + Mockito) проверяют:
-- Сервис
-- Контроллер 
-- Команды
-- Маппер
+- Сервисы (с моками репозиториев)
+- Контроллеры
+- Команды меню
+- Мапперы (Entity ↔ DTO)
 - Исключения
 - Консольный ввод
+- Постраничный вывод
 
 #### **Интеграционные тесты** (Testcontainers) проверяют:
-- Репозиторий с помощью поднятия временного PostgreSQL
-- Успешную инициализацию SessionFactory и применение миграций Flyway
-- HealthCheck
+- Репозитории с временным PostgreSQL в Docker
+- SessionFactory и миграции Flyway
+- HealthCheck и подключение к БД
+- **End-to-end** тест через ConsoleE2ETest
 
 #### **End-to-end тест** симулирует пользовательский ввод/вывод
 
@@ -161,13 +168,21 @@ mvn clean test
 Используется **SLF4J + Logback**. Конфигурация – `src/main/resources/logback.xml`.  
 Все сообщения (меню, результаты операций, ошибки) выводятся через логгер, что обеспечивает единообразие.
 
-## Безопасность
+## Особенности реализации
 
-- **Параметризованные логи** – избегание конкатенации строк в `log.error`.
-- **Использование Criteria API** в `findAll` вместо динамического HQL (исключение потенциальных SQL-инъекций).
-- `hibernate.hbm2ddl.auto = validate` – схема изменяется только миграциями Flyway.
-- **Кастомные исключения** для бизнес-ошибок.
-- **HealthCheck** позволяет оркестраторам (Docker, Kubernetes) контролировать состояние приложения.
+- **4 сущности** со связями:
+  - User ↔ Profile (OneToOne)
+  - User ↔ Note (OneToMany)
+  - User ↔ Role (ManyToMany через `user_role`)
+- **Оптимистичные блокировки** – `@Version` + retry-механизм (3 попытки) при конфликтах
+- **Пессимистичные блокировки** – `PESSIMISTIC_WRITE` для чтения с блокировкой (findByIdWithLock)
+- **Кэш 2-го уровня** – Caffeine с JCache для снижения нагрузки на БД
+- **Постраничный вывод** – `PagedListCommand` для списков с навигацией
+- **Параметризованные логи** – избегание конкатенации строк в `log.error`
+- **Criteria API** в `findAll` вместо динамического HQL (защита от SQL-инъекций)
+- `hibernate.hbm2ddl.auto = validate` – схема изменяется только миграциями Flyway
+- **Кастомные исключения** для бизнес-ошибок
+- **HealthCheck** для мониторинга состояния приложения в Docker
 
 ## Автор
 [charset-8utf](https://github.com/charset-8utf)
