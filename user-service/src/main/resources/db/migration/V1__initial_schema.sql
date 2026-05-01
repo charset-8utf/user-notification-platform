@@ -14,5 +14,6 @@ COMMENT ON COLUMN users.name IS 'Полное имя пользователя';
 COMMENT ON COLUMN users.email IS 'Электронная почта';
 COMMENT ON COLUMN users.age IS 'Возраст';
 COMMENT ON COLUMN users.created_at IS 'Дата и время создания записи';
+COMMENT ON COLUMN users.version IS 'Версия для оптимистической блокировки';
 
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
