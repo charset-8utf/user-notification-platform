@@ -1,17 +1,25 @@
 package com.crud.repository;
 
+import com.crud.entity.Note;
+import com.crud.entity.Profile;
+import com.crud.entity.Role;
 import com.crud.entity.User;
 import com.crud.exception.DataAccessException;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.Assumptions;
+import org.testcontainers.DockerClientFactory;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+import org.flywaydb.core.Flyway;
+import org.hibernate.stat.Statistics;
 
-import java.util.List;
+
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -19,7 +27,7 @@ import org.junit.jupiter.api.Timeout;
 import java.util.concurrent.TimeUnit;
 
 @Timeout(value = 30, unit = TimeUnit.SECONDS)
-@Testcontainers
+@Testcontainers(disabledWithoutDocker = true)
 class UserRepositoryImplIntegrationTest {
     @Container
     private static final PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:17-alpine")
@@ -32,18 +40,44 @@ class UserRepositoryImplIntegrationTest {
 
     @BeforeAll
     static void beforeAll() {
+        Assumptions.assumeTrue(
+                DockerClientFactory.instance().isDockerAvailable(),
+                "Docker недоступен: интеграционные тесты пропущены"
+        );
         postgres.start();
+        Flyway flyway = Flyway.configure()
+                .dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
+                .locations("db/migration")
+                .load();
+        flyway.migrate();
+
+        Configuration cfg = getConfiguration();
+        cfg.addAnnotatedClass(User.class);
+        cfg.addAnnotatedClass(Note.class);
+        cfg.addAnnotatedClass(Role.class);
+        cfg.addAnnotatedClass(Profile.class);
+        sessionFactory = cfg.buildSessionFactory();
+    }
+
+    private static @NotNull Configuration getConfiguration() {
         Configuration cfg = new Configuration();
         cfg.setProperty("hibernate.connection.driver_class", "org.postgresql.Driver");
         cfg.setProperty("hibernate.connection.url", postgres.getJdbcUrl());
         cfg.setProperty("hibernate.connection.username", postgres.getUsername());
         cfg.setProperty("hibernate.connection.password", postgres.getPassword());
         cfg.setProperty("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
-        cfg.setProperty("hibernate.hbm2ddl.auto", "create-drop");
+        cfg.setProperty("hibernate.hbm2ddl.auto", "validate");
         cfg.setProperty("hibernate.show_sql", "true");
         cfg.setProperty("hibernate.format_sql", "true");
-        cfg.addAnnotatedClass(User.class);
-        sessionFactory = cfg.buildSessionFactory();
+        cfg.setProperty("hibernate.jdbc.batch_size", "20");
+        cfg.setProperty("hibernate.order_inserts", "true");
+        cfg.setProperty("hibernate.order_updates", "true");
+        cfg.setProperty("hibernate.cache.use_second_level_cache", "true");
+        cfg.setProperty("hibernate.cache.region.factory_class", "org.hibernate.cache.jcache.JCacheRegionFactory");
+        cfg.setProperty("hibernate.javax.cache.provider", "com.github.benmanes.caffeine.jcache.spi.CaffeineCachingProvider");
+        cfg.setProperty("hibernate.cache.use_query_cache", "true");
+        cfg.setProperty("hibernate.cache.caffeine.maxSize", "10000");
+        return cfg;
     }
 
     @AfterAll
@@ -100,8 +134,8 @@ class UserRepositoryImplIntegrationTest {
     void findAll_ShouldReturnAllUsers() {
         userRepository.save(User.builder().name("User1").email("u1@example.com").age(20).build());
         userRepository.save(User.builder().name("User2").email("u2@example.com").age(21).build());
-        List<User> users = userRepository.findAll();
-        assertEquals(2, users.size());
+        com.crud.dto.Page<User> page = userRepository.findAll(com.crud.dto.Pageable.of(0, 10));
+        assertEquals(2, page.content().size());
     }
 
     @Test
@@ -131,6 +165,27 @@ class UserRepositoryImplIntegrationTest {
         User nonExistent = User.builder().name("Ghost").email("ghost@example.com").age(0).build();
         nonExistent.setId(999L);
         assertThrows(DataAccessException.class, () -> userRepository.update(nonExistent));
+    }
+
+    @Test
+    void batchInsert_ShouldSaveAllUsersWithReducedQueries() {
+        Statistics stats = sessionFactory.unwrap(SessionFactory.class).getStatistics();
+        stats.clear();
+
+        int numberOfUsers = 100;
+        for (int i = 0; i < numberOfUsers; i++) {
+            User user = User.builder()
+                    .name("BatchUser" + i)
+                    .email("batch" + i + "@example.com")
+                    .age(20 + i % 50)
+                    .build();
+            userRepository.save(user);
+        }
+
+        long queryCount = stats.getQueryExecutionCount();
+        int expectedMaxQueries = (numberOfUsers / 20) + 5;
+        assertTrue(queryCount <= expectedMaxQueries,
+                "Ожидалось не более " + expectedMaxQueries + " запросов, а было " + queryCount);
     }
 
     @Test
@@ -170,5 +225,25 @@ class UserRepositoryImplIntegrationTest {
         userRepository.update(userV1);
 
         assertThrows(DataAccessException.class, () -> userRepository.update(userV2));
+    }
+
+    @Test
+    void findByIdWithLock_WhenNotExists_ShouldReturnEmpty() {
+        Optional<User> found = userRepository.findByIdWithLock(9999L);
+        assertTrue(found.isEmpty());
+    }
+
+    @Test
+    void secondLevelCache_ShouldReturnSameUser() {
+        User user = User.builder().name("CacheTest").email("cache@test.com").age(25).build();
+        userRepository.save(user);
+        Long id = user.getId();
+
+        Optional<User> found1 = userRepository.findById(id);
+        Optional<User> found2 = userRepository.findById(id);
+
+        assertTrue(found1.isPresent());
+        assertTrue(found2.isPresent());
+        assertEquals(found1.get().getId(), found2.get().getId());
     }
 }
