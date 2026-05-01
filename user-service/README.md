@@ -19,7 +19,7 @@
 Использует **Hibernate ORM**, **PostgreSQL** в Docker и пул соединений **HikariCP**.  
 **Архитектура:** трёхслойная (Controller → Service → Repository) с DTO, ручным маппером, паттернами GoF.
 
-При первом запуске приложение самостоятельно создаёт таблицу `users` через SQL-скрипт `db/schema.sql` (включая ограничения, индекс и комментарии).  
+Схема БД управляется миграциями **Flyway** из `src/main/resources/db/migration` (V1...V5).  
 Покрыт юнит-тестами (JUnit, Mockito) и интеграционными тестами (Testcontainers).  
 Настроен CI (GitHub Actions) с авто-тестами, сборкой Docker-образа и Smoke-тестом.  
 Приложение и PostgreSQL запускаются через `docker-compose`. В образ включён **healthcheck** (класс `HealthCheck`).
@@ -105,8 +105,8 @@ com.crud
 ├── controller  # слой контроллера (работа с DTO)
 ├── service     # слой сервиса (бизнес-логика, валидация)
 ├── repository  # слой репозитория (Hibernate, транзакции)
-├── entity      # JPA-сущность User
-├── dto         # DTO (UserRequest, UserResponse)
+├── entity      # JPA-сущности User/Note/Role/Profile
+├── dto         # DTO запросов/ответов и пагинации
 ├── mapper      # преобразование DTO ↔ Entity
 ├── exception   # иерархия кастомных исключений
 └── util        # HibernateUtil (SessionFactory) и HealthCheck (Docker healthcheck)
@@ -138,7 +138,7 @@ mvn clean test
 
 #### **Интеграционные тесты** (Testcontainers) проверяют:
 - Репозиторий с помощью поднятия временного PostgreSQL
-- Успешную инициализацию SessionFactory и работу скрипта `schema.sql`
+- Успешную инициализацию SessionFactory и применение миграций Flyway
 - HealthCheck
 
 #### **End-to-end тест** симулирует пользовательский ввод/вывод
@@ -153,7 +153,7 @@ mvn clean test
 - Запуск `mvn clean verify` (тесты).
 - Сборка Docker-образа.
 - Запуск PostgreSQL в отдельном контейнере.
-- Smoke‑тест приложения (подача команд `5\n0` в консоль).
+- Smoke‑тест приложения в docker compose (подача команд `1\n6\n0\n0` в консоль).
 - Загрузка отчётов тестов в артефакты.
 
 ## Логирование
@@ -165,7 +165,7 @@ mvn clean test
 
 - **Параметризованные логи** – избегание конкатенации строк в `log.error`.
 - **Использование Criteria API** в `findAll` вместо динамического HQL (исключение потенциальных SQL-инъекций).
-- `hibernate.hbm2ddl.auto = validate` – схема создаётся вручную через SQL-скрипт.
+- `hibernate.hbm2ddl.auto = validate` – схема изменяется только миграциями Flyway.
 - **Кастомные исключения** для бизнес-ошибок.
 - **HealthCheck** позволяет оркестраторам (Docker, Kubernetes) контролировать состояние приложения.
 
