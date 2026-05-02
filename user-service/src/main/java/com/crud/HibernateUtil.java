@@ -26,22 +26,24 @@ public class HibernateUtil {
         return sessionFactory;
     }
 
-    private static String getEnvOrDefault(String name, String defaultValue) {
-        return Optional.ofNullable(System.getenv(name))
+    private static String getPropertyOrEnvOrDefault(String propertyName, String defaultValue) {
+        return Optional.ofNullable(System.getProperty(propertyName))
                 .filter(v -> !v.isBlank())
-                .orElse(defaultValue);
+                .orElseGet(() -> Optional.ofNullable(System.getenv(propertyName))
+                        .filter(v -> !v.isBlank())
+                        .orElse(defaultValue));
     }
 
     private static String getDbUrl() {
-        return getEnvOrDefault("DB_URL", "jdbc:postgresql://localhost:5432/userdb");
+        return getPropertyOrEnvOrDefault("DB_URL", "jdbc:postgresql://localhost:5432/userdb");
     }
 
     private static String getDbUser() {
-        return getEnvOrDefault("DB_USER", "postgres");
+        return getPropertyOrEnvOrDefault("DB_USER", "postgres");
     }
 
     private static String getDbPassword() {
-        return getEnvOrDefault("DB_PASSWORD", "postgres");
+        return getPropertyOrEnvOrDefault("DB_PASSWORD", "postgres");
     }
 
     private static Map<String, String> getConfigurationOverrides() {
