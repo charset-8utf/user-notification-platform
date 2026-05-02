@@ -30,9 +30,11 @@ public class ConsoleInput {
                 result = scanner.nextInt();
                 scanner.nextLine();
                 success = true;
-            } else {
+            } else if (scanner.hasNext()) {
                 scanner.next();
                 log.error("Ошибка: введите целое число.");
+            } else {
+                throw new ConsoleInterruptedException("Ввод завершен");
             }
         }
         return result;
@@ -75,9 +77,11 @@ public class ConsoleInput {
                 result = scanner.nextLong();
                 scanner.nextLine();
                 success = true;
-            } else {
+            } else if (scanner.hasNext()) {
                 scanner.next();
                 log.error("Ошибка: введите число.");
+            } else {
+                throw new ConsoleInterruptedException("Ввод завершен");
             }
         }
         return result;
