@@ -3,20 +3,22 @@ package com.crud.service;
 import com.crud.dto.UserRequest;
 import com.crud.dto.UserResponse;
 import com.crud.entity.User;
+import com.crud.exception.DataAccessException;
 import com.crud.exception.UserNotFoundException;
 import com.crud.exception.ValidationException;
 import com.crud.mapper.UserMapper;
+import com.crud.mapper.UserMapperImpl;
 import com.crud.repository.UserRepository;
+import org.hibernate.StaleObjectStateException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -29,13 +31,19 @@ class UserServiceImplTest {
     @Mock
     private UserRepository userRepository;
 
-    @InjectMocks
     private UserServiceImpl userService;
+    private UserMapper userMapper;
+
+    @BeforeEach
+    void setUp() {
+        userMapper = new UserMapperImpl();
+        userService = new UserServiceImpl(userRepository, userMapper);
+    }
 
     @Test
     void createUser_ShouldSaveAndReturnResponse() {
         UserRequest request = new UserRequest("John", "john@example.com", 30);
-        User savedUser = UserMapper.toEntity(request);
+        User savedUser = userMapper.toEntity(request);
         savedUser.setId(1L);
         when(userRepository.save(any(User.class))).thenReturn(savedUser);
 
@@ -71,32 +79,20 @@ class UserServiceImplTest {
     }
 
     @Test
-    void getUserById_WhenExists_ShouldReturnResponse() {
+    void findUserById_WhenExists_ShouldReturnResponse() {
         User user = User.builder().name("Jane").email("jane@example.com").age(25).build();
         user.setId(1L);
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
-        UserResponse response = userService.getUserById(1L);
+        UserResponse response = userService.findUserById(1L);
         assertEquals(1L, response.id());
         assertEquals("Jane", response.name());
     }
 
     @Test
-    void getUserById_WhenNotExists_ShouldThrowUserNotFoundException() {
+    void findUserById_WhenNotExists_ShouldThrowUserNotFoundException() {
         when(userRepository.findById(999L)).thenReturn(Optional.empty());
-        assertThrows(UserNotFoundException.class, () -> userService.getUserById(999L));
-    }
-
-    @Test
-    void getAllUsers_ShouldReturnList() {
-        User user1 = User.builder().name("User1").email("u1@example.com").age(20).build();
-        user1.setId(1L);
-        User user2 = User.builder().name("User2").email("u2@example.com").age(21).build();
-        user2.setId(2L);
-        when(userRepository.findAll()).thenReturn(List.of(user1, user2));
-
-        List<UserResponse> responses = userService.getAllUsers();
-        assertEquals(2, responses.size());
+        assertThrows(UserNotFoundException.class, () -> userService.findUserById(999L));
     }
 
     @Test
@@ -140,13 +136,13 @@ class UserServiceImplTest {
     }
 
     @Test
-    void getUserByEmail_WhenExists_ShouldReturnResponse() {
+    void findUserByEmail_WhenExists_ShouldReturnResponse() {
         String email = "test@example.com";
         User user = User.builder().name("John").email(email).age(30).build();
         user.setId(1L);
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
 
-        UserResponse response = userService.getUserByEmail(email);
+        UserResponse response = userService.findUserByEmail(email);
         assertEquals(1L, response.id());
         assertEquals("John", response.name());
         assertEquals(email, response.email());
@@ -155,10 +151,54 @@ class UserServiceImplTest {
     }
 
     @Test
-    void getUserByEmail_WhenNotExists_ShouldThrowUserNotFoundException() {
+    void findUserByEmail_WhenNotExists_ShouldThrowUserNotFoundException() {
         String email = "missing@example.com";
         when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
-        assertThrows(UserNotFoundException.class, () -> userService.getUserByEmail(email));
+        assertThrows(UserNotFoundException.class, () -> userService.findUserByEmail(email));
         verify(userRepository).findByEmail(email);
+    }
+
+    @Test
+    void updateUser_WithOptimisticLockException_ShouldRetryAndSucceed() {
+        User existing = User.builder().name("Old").email("old@example.com").age(20).build();
+        existing.setId(1L);
+        UserRequest request = new UserRequest("New", "new@example.com", 25);
+        StaleObjectStateException optimisticLockException = new StaleObjectStateException("User", 1L);
+
+        when(userRepository.findById(1L))
+                .thenReturn(Optional.of(existing))
+                .thenReturn(Optional.of(existing))
+                .thenReturn(Optional.of(existing));
+        when(userRepository.update(any(User.class)))
+                .thenThrow(new DataAccessException("Конкурентное изменение", optimisticLockException))
+                .thenThrow(new DataAccessException("Конкурентное изменение", optimisticLockException))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        UserResponse response = userService.updateUser(1L, request);
+
+        assertEquals("New", response.name());
+        assertEquals("new@example.com", response.email());
+        assertEquals(25, response.age());
+
+        verify(userRepository, times(3)).findById(1L);
+
+        verify(userRepository, times(3)).update(any(User.class));
+    }
+
+    @Test
+    void updateUser_WithPersistentOptimisticLockException_ShouldFailAfterMaxRetries() {
+        User existing = User.builder().name("Old").email("old@example.com").age(20).build();
+        existing.setId(1L);
+        UserRequest request = new UserRequest("New", "new@example.com", 25);
+        StaleObjectStateException optimisticLockException = new StaleObjectStateException("User", 1L);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(userRepository.update(any(User.class)))
+                .thenThrow(new DataAccessException("Конкурентное изменение", optimisticLockException));
+
+        assertThrows(DataAccessException.class, () -> userService.updateUser(1L, request));
+
+        verify(userRepository, times(3)).findById(1L);
+        verify(userRepository, times(3)).update(any(User.class));
     }
 }
