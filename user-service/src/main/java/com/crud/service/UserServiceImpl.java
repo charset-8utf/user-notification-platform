@@ -1,49 +1,39 @@
 package com.crud.service;
 
+import com.crud.dto.Page;
+import com.crud.dto.Pageable;
 import com.crud.dto.UserRequest;
 import com.crud.dto.UserResponse;
 import com.crud.entity.User;
 import com.crud.exception.UserNotFoundException;
 import com.crud.exception.ValidationException;
 import com.crud.mapper.UserMapper;
+import com.crud.mapper.UserMapperImpl;
 import com.crud.repository.UserRepository;
 import jakarta.mail.internet.AddressException;
 import jakarta.mail.internet.InternetAddress;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 
 /**
- * Реализация {@link UserService} с валидацией и использованием репозитория.
- * <p>
- * <ul>
- *     <li>имя не может быть пустым</li>
- *     <li>email должен соответствовать формату</li>
- *     <li>возраст в диапазоне 0–150</li>
- * </ul>
- * </p>
+ * Реализация сервиса пользователей.
  */
-public class UserServiceImpl implements UserService {
+@Slf4j
+public class UserServiceImpl extends AbstractService implements UserService {
 
-    private static final Logger log = LoggerFactory.getLogger(UserServiceImpl.class);
     private final UserRepository userRepository;
+    private final UserMapper userMapper;
 
-    /**
-     * Конструктор с внедрением зависимости репозитория.
-     *
-     * @param userRepository репозиторий для доступа к базе данных
-     */
     public UserServiceImpl(UserRepository userRepository) {
-        this.userRepository = userRepository;
+        this(userRepository, new UserMapperImpl());
     }
 
-    /**
-     * Выполняет валидацию полей запроса.
-     *
-     * @param request DTO с данными
-     * @throws ValidationException если какое-либо поле некорректно
-     */
+    public UserServiceImpl(UserRepository userRepository, UserMapper userMapper) {
+        this.userRepository = userRepository;
+        this.userMapper = userMapper;
+    }
+
     private void validate(UserRequest request) {
         if (request.name() == null || request.name().isBlank()) {
             throw new ValidationException("Имя не может быть пустым");
@@ -59,53 +49,42 @@ public class UserServiceImpl implements UserService {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public UserResponse createUser(UserRequest request) {
         validate(request);
-        User user = UserMapper.toEntity(request);
+        User user = userMapper.toEntity(request);
         User saved = userRepository.save(user);
         log.info("Создан пользователь: id={}, email={}", saved.getId(), saved.getEmail());
-        return UserMapper.toResponse(saved);
+        return userMapper.toResponse(saved);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    public UserResponse getUserById(Long id) {
+    public UserResponse findUserById(Long id) {
         return userRepository.findById(id)
-                .map(UserMapper::toResponse)
+                .map(userMapper::toResponse)
                 .orElseThrow(() -> new UserNotFoundException(id));
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    public List<UserResponse> getAllUsers() {
-        return UserMapper.toResponseList(userRepository.findAll());
+    public Page<UserResponse> findAllUsers(Pageable pageable) {
+        Page<User> userPage = userRepository.findAll(pageable);
+        List<UserResponse> content = userMapper.toResponseList(userPage.content());
+        return new Page<>(content, userPage.totalElements(), userPage.page(), userPage.size());
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public UserResponse updateUser(Long id, UserRequest request) {
         validate(request);
-        User existing = userRepository.findById(id)
-                .orElseThrow(() -> new UserNotFoundException(id));
-        User updated = UserMapper.toEntity(request, existing);
-        User saved = userRepository.update(updated);
-        log.info("Обновлён пользователь: id={}, email={}", saved.getId(), saved.getEmail());
-        return UserMapper.toResponse(saved);
+        return executeWithRetry(() -> {
+            User existing = userRepository.findById(id)
+                    .orElseThrow(() -> new UserNotFoundException(id));
+            User updated = userMapper.toEntity(request, existing);
+            User saved = userRepository.update(updated);
+            log.info("Обновлён пользователь: id={}, email={}", saved.getId(), saved.getEmail());
+            return userMapper.toResponse(saved);
+        });
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void deleteUser(Long id) {
         userRepository.findById(id)
@@ -114,13 +93,10 @@ public class UserServiceImpl implements UserService {
         log.info("Удалён пользователь: id={}", id);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    public UserResponse getUserByEmail(String email) {
+    public UserResponse findUserByEmail(String email) {
         return userRepository.findByEmail(email)
-                .map(UserMapper::toResponse)
+                .map(userMapper::toResponse)
                 .orElseThrow(() -> new UserNotFoundException("Пользователь с email " + email + " не найден"));
     }
 }

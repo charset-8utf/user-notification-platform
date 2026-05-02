@@ -10,7 +10,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -38,24 +37,11 @@ class UserControllerImplTest {
     @Test
     void findUserById_ShouldDelegateToService() {
         UserResponse expected = new UserResponse(1L, "Jane", "jane@example.com", 25, LocalDateTime.now());
-        when(userService.getUserById(1L)).thenReturn(expected);
+        when(userService.findUserById(1L)).thenReturn(expected);
 
         UserResponse actual = userController.findUserById(1L);
         assertEquals(expected, actual);
-        verify(userService).getUserById(1L);
-    }
-
-    @Test
-    void findAllUsers_ShouldDelegateToService() {
-        List<UserResponse> expected = List.of(
-                new UserResponse(1L, "User1", "u1@example.com", 20, LocalDateTime.now()),
-                new UserResponse(2L, "User2", "u2@example.com", 21, LocalDateTime.now())
-        );
-        when(userService.getAllUsers()).thenReturn(expected);
-
-        List<UserResponse> actual = userController.findAllUsers();
-        assertEquals(expected, actual);
-        verify(userService).getAllUsers();
+        verify(userService).findUserById(1L);
     }
 
     @Test
@@ -80,10 +66,10 @@ class UserControllerImplTest {
     void findUserByEmail_ShouldDelegateToService() {
         String email = "test@example.com";
         UserResponse expected = new UserResponse(1L, "John", email, 30, LocalDateTime.now());
-        when(userService.getUserByEmail(email)).thenReturn(expected);
+        when(userService.findUserByEmail(email)).thenReturn(expected);
 
         UserResponse actual = userController.findUserByEmail(email);
         assertEquals(expected, actual);
-        verify(userService).getUserByEmail(email);
+        verify(userService).findUserByEmail(email);
     }
 }

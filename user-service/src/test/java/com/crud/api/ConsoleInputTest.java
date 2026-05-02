@@ -31,7 +31,8 @@ class ConsoleInputTest {
         String input = "42\n";
         System.setIn(new ByteArrayInputStream(input.getBytes()));
         Scanner scanner = new Scanner(System.in);
-        int result = ConsoleInput.readInt(scanner, "Введите число: ");
+        ConsoleInput consoleInput = new ConsoleInput(scanner);
+        int result = consoleInput.readInt("Введите число: ");
         assertEquals(42, result);
         assertTrue(outContent.toString().contains("Введите число: "));
     }
@@ -41,10 +42,11 @@ class ConsoleInputTest {
         String input = "abc\n42\n";
         System.setIn(new ByteArrayInputStream(input.getBytes()));
         Scanner scanner = new Scanner(System.in);
-        int result = ConsoleInput.readInt(scanner, "Введите число: ");
+        ConsoleInput consoleInput = new ConsoleInput(scanner);
+        int result = consoleInput.readInt("Введите число: ");
         assertEquals(42, result);
         String output = outContent.toString();
-        assertTrue(output.contains("❌ Ошибка: введите целое число."));
+        assertTrue(output.contains("Ошибка: введите целое число."));
     }
 
     @Test
@@ -52,7 +54,8 @@ class ConsoleInputTest {
         String input = "1234567890\n";
         System.setIn(new ByteArrayInputStream(input.getBytes()));
         Scanner scanner = new Scanner(System.in);
-        long result = ConsoleInput.readLong(scanner, "Введите длинное число: ");
+        ConsoleInput consoleInput = new ConsoleInput(scanner);
+        long result = consoleInput.readLong("Введите длинное число: ");
         assertEquals(1234567890L, result);
     }
 
@@ -61,10 +64,11 @@ class ConsoleInputTest {
         String input = "abc\n9876543210\n";
         System.setIn(new ByteArrayInputStream(input.getBytes()));
         Scanner scanner = new Scanner(System.in);
-        long result = ConsoleInput.readLong(scanner, "Введите длинное число: ");
+        ConsoleInput consoleInput = new ConsoleInput(scanner);
+        long result = consoleInput.readLong("Введите длинное число: ");
         assertEquals(9876543210L, result);
         String output = outContent.toString();
-        assertTrue(output.contains("❌ Ошибка: введите число."));
+        assertTrue(output.contains("Ошибка: введите число."));
     }
 
     @Test
@@ -72,7 +76,8 @@ class ConsoleInputTest {
         String input = "Привет\n";
         System.setIn(new ByteArrayInputStream(input.getBytes()));
         Scanner scanner = new Scanner(System.in);
-        String result = ConsoleInput.readString(scanner, "Введите текст: ", "по умолчанию");
+        ConsoleInput consoleInput = new ConsoleInput(scanner);
+        String result = consoleInput.readString("Введите текст: ", "по умолчанию");
         assertEquals("Привет", result);
     }
 
@@ -81,7 +86,8 @@ class ConsoleInputTest {
         String input = "\n";
         System.setIn(new ByteArrayInputStream(input.getBytes()));
         Scanner scanner = new Scanner(System.in);
-        String result = ConsoleInput.readString(scanner, "Введите текст: ", "по умолчанию");
+        ConsoleInput consoleInput = new ConsoleInput(scanner);
+        String result = consoleInput.readString("Введите текст: ", "по умолчанию");
         assertEquals("по умолчанию", result);
     }
 
@@ -90,7 +96,8 @@ class ConsoleInputTest {
         String input = "\n";
         System.setIn(new ByteArrayInputStream(input.getBytes()));
         Scanner scanner = new Scanner(System.in);
-        int result = ConsoleInput.readIntWithDefault(scanner, "Введите возраст (Enter - оставить 18): ", 18);
+        ConsoleInput consoleInput = new ConsoleInput(scanner);
+        int result = consoleInput.readIntWithDefault("Введите возраст (Enter - оставить 18): ", 18);
         assertEquals(18, result);
     }
 
@@ -99,7 +106,8 @@ class ConsoleInputTest {
         String input = "25\n";
         System.setIn(new ByteArrayInputStream(input.getBytes()));
         Scanner scanner = new Scanner(System.in);
-        int result = ConsoleInput.readIntWithDefault(scanner, "Введите возраст: ", 18);
+        ConsoleInput consoleInput = new ConsoleInput(scanner);
+        int result = consoleInput.readIntWithDefault("Введите возраст: ", 18);
         assertEquals(25, result);
     }
 
@@ -108,9 +116,10 @@ class ConsoleInputTest {
         String input = "abc\n30\n";
         System.setIn(new ByteArrayInputStream(input.getBytes()));
         Scanner scanner = new Scanner(System.in);
-        int result = ConsoleInput.readIntWithDefault(scanner, "Введите возраст: ", 18);
+        ConsoleInput consoleInput = new ConsoleInput(scanner);
+        int result = consoleInput.readIntWithDefault("Введите возраст: ", 18);
         assertEquals(30, result);
         String output = outContent.toString();
-        assertTrue(output.contains("❌ Ошибка: введите целое число."));
+        assertTrue(output.contains("Ошибка: введите целое число."));
     }
 }

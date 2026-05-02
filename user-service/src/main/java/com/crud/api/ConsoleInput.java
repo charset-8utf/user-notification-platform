@@ -1,35 +1,24 @@
 package com.crud.api;
 
+import lombok.extern.slf4j.Slf4j;
 import com.crud.exception.ConsoleInterruptedException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.Scanner;
 
 /**
- * Утилитарный класс для безопасного чтения ввода из консоли.
- * <p>
- * Предоставляет методы для чтения целых чисел, длинных целых и строк
- * с автоматической обработкой ошибок ввода и повторным запросом.
- * Все методы используют цикл с флагом и логирование через SLF4J.
- * </p>
+ * Безопасное чтение ввода из консоли с валидацией.
  */
-public final class ConsoleInput {
-    private static final Logger log = LoggerFactory.getLogger(ConsoleInput.class);
+@Slf4j
+public class ConsoleInput {
+    private final Scanner scanner;
 
-    private ConsoleInput() {
-        throw new UnsupportedOperationException("Утилитарный класс, создание экземпляров запрещено");
+    public ConsoleInput(Scanner scanner) {
+        this.scanner = scanner;
     }
 
     /**
-     * Читает целое число с консоли.
-     * При некорректном вводе выводит сообщение об ошибке и повторяет запрос.
-     *
-     * @param scanner Scanner для чтения ввода
-     * @param prompt  сообщение, выводимое перед вводом
-     * @return введённое целое число
+     * Читает целое число с повтором при ошибке.
      */
-    public static int readInt(Scanner scanner, String prompt) {
+    public int readInt(String prompt) {
         boolean success = false;
         int result = 0;
         while (!success) {
@@ -41,47 +30,42 @@ public final class ConsoleInput {
                 result = scanner.nextInt();
                 scanner.nextLine();
                 success = true;
-            } else {
+            } else if (scanner.hasNext()) {
                 scanner.next();
-                log.error("❌ Ошибка: введите целое число.");
+                log.error("Ошибка: введите целое число.");
+            } else {
+                throw new ConsoleInterruptedException("Ввод завершен");
             }
         }
         return result;
     }
 
     /**
-     * Читает целое число с консоли с возможностью пропуска (Enter).
-     * Если введена пустая строка, возвращает значение по умолчанию.
-     * При некорректном вводе выводит ошибку и повторяет запрос.
-     *
-     * @param scanner      Scanner для чтения ввода
-     * @param prompt       сообщение, выводимое перед вводом
-     * @param defaultValue значение по умолчанию при пустом вводе
-     * @return введённое целое число или defaultValue
+     * Читает целое число или возвращает значение по умолчанию.
      */
-    public static int readIntWithDefault(Scanner scanner, String prompt, int defaultValue) {
-        log.info(prompt);
-        String line = scanner.nextLine().trim();
-        if (line.isEmpty()) {
-            return defaultValue;
+    public int readIntWithDefault(String prompt, int defaultValue) {
+        boolean valid = false;
+        int result = defaultValue;
+        while (!valid) {
+            log.info(prompt);
+            String line = scanner.nextLine().trim();
+            if (line.isEmpty()) {
+                return result;
+            }
+            try {
+                result = Integer.parseInt(line);
+                valid = true;
+            } catch (NumberFormatException e) {
+                log.error("Ошибка: введите целое число.");
+            }
         }
-        try {
-            return Integer.parseInt(line);
-        } catch (NumberFormatException e) {
-            log.error("❌ Ошибка: введите целое число.");
-            return readIntWithDefault(scanner, prompt, defaultValue);
-        }
+        return result;
     }
 
     /**
-     * Читает длинное целое число с консоли.
-     * При некорректном вводе выводит сообщение об ошибке и повторяет запрос.
-     *
-     * @param scanner Scanner для чтения ввода
-     * @param prompt  сообщение, выводимое перед вводом
-     * @return введённое длинное целое число
+     * Читает длинное целое число с повтором при ошибке.
      */
-    public static long readLong(Scanner scanner, String prompt) {
+    public long readLong(String prompt) {
         boolean success = false;
         long result = 0;
         while (!success) {
@@ -93,23 +77,20 @@ public final class ConsoleInput {
                 result = scanner.nextLong();
                 scanner.nextLine();
                 success = true;
-            } else {
+            } else if (scanner.hasNext()) {
                 scanner.next();
-                log.error("❌ Ошибка: введите число.");
+                log.error("Ошибка: введите число.");
+            } else {
+                throw new ConsoleInterruptedException("Ввод завершен");
             }
         }
         return result;
     }
 
     /**
-     * Читает строку с консоли. Если введена пустая строка, возвращает значение по умолчанию.
-     *
-     * @param scanner      Scanner для чтения ввода
-     * @param prompt       сообщение, выводимое перед вводом
-     * @param defaultValue значение, возвращаемое при пустом вводе
-     * @return введённая строка или defaultValue
+     * Читает строку или возвращает значение по умолчанию.
      */
-    public static String readString(Scanner scanner, String prompt, String defaultValue) {
+    public String readString(String prompt, String defaultValue) {
         log.info(prompt);
         String line = scanner.nextLine();
         return line.isBlank() ? defaultValue : line;

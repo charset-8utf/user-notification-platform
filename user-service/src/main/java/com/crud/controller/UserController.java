@@ -1,78 +1,42 @@
 package com.crud.controller;
 
+import com.crud.dto.Page;
+import com.crud.dto.Pageable;
 import com.crud.dto.UserRequest;
 import com.crud.dto.UserResponse;
-import com.crud.exception.UserNotFoundException;
-import com.crud.exception.ValidationException;
-
-import java.util.List;
 
 /**
- * Контроллер для обработки запросов, связанных с пользователями.
- * <p>
- * Является входной точкой в приложение со стороны пользовательского интерфейса (консоли).
- * Делегирует выполнение бизнес-логики сервису {@link com.crud.service.UserService}.
- * </p>
- * <p>
- * В текущей реализации все методы просто вызывают соответствующие методы сервиса.
- * </p>
+ * Контроллер пользователей.
  */
 public interface UserController {
 
     /**
-     * Создаёт нового пользователя.
-     *
-     * @param request DTO с данными пользователя (имя, email, возраст)
-     * @return DTO созданного пользователя (с id и датой создания)
-     * @throws ValidationException если данные не прошли валидацию
-     * @throws com.crud.exception.DataAccessException если произошла ошибка БД (например, дубликат email)
+     * Создаёт пользователя.
      */
     UserResponse createUser(UserRequest request);
 
     /**
-     * Возвращает пользователя по идентификатору.
-     *
-     * @param id идентификатор пользователя
-     * @return DTO пользователя
-     * @throws UserNotFoundException если пользователь не найден
+     * Находит пользователя по ID.
      */
     UserResponse findUserById(Long id);
 
     /**
-     * Возвращает список всех пользователей.
-     *
-     * @return список DTO всех пользователей (может быть пустым)
+     * Возвращает страницу пользователей.
      */
-    List<UserResponse> findAllUsers();
+    Page<UserResponse> findAllUsers(Pageable pageable);
 
     /**
-     * Обновляет данные существующего пользователя.
-     *
-     * @param id      идентификатор обновляемого пользователя
-     * @param request DTO с новыми данными
-     * @return DTO обновлённого пользователя
-     * @throws UserNotFoundException если пользователь не найден
-     * @throws ValidationException   если новые данные некорректны
+     * Обновляет пользователя.
      */
     UserResponse updateUser(Long id, UserRequest request);
 
     /**
-     * Удаляет пользователя по идентификатору.
-     *
-     * @param id идентификатор удаляемого пользователя
-     * @throws UserNotFoundException если пользователь не найден
+     * Удаляет пользователя.
      */
     void deleteUser(Long id);
 
     /**
-     * Находит пользователя по его электронной почте.
-     * <p>
-     * Делегирует выполнение сервисному слою {@link com.crud.service.UserService#getUserByEmail(String)}.
-     * </p>
-     *
-     * @param email адрес электронной почты (уникальный, не должен быть {@code null} или пустым)
-     * @return DTO {@link UserResponse} с полными данными пользователя
-     * @throws com.crud.exception.UserNotFoundException если пользователь с указанным email отсутствует в базе
+     * Находит пользователя по email.
      */
     UserResponse findUserByEmail(String email);
 }
