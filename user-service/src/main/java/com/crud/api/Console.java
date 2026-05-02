@@ -12,6 +12,7 @@ import com.crud.controller.NoteController;
 import com.crud.controller.ProfileController;
 import com.crud.controller.RoleController;
 import com.crud.controller.UserController;
+import com.crud.exception.ConsoleInterruptedException;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -83,6 +84,8 @@ public class Console {
         );
         try {
             console.start();
+        } catch (ConsoleInterruptedException e) {
+            log.info("Приложение завершено: {}", e.getMessage());
         } finally {
             context.hibernateUtil().shutdown();
         }
