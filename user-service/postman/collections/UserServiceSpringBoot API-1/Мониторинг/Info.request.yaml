@@ -1,0 +1,7 @@
+$kind: http-request
+name: Информация о приложении (info)
+url: "{{baseUrl}}/actuator/info"
+method: GET
+auth:
+  type: noauth
+order: 2000

@@ -1,0 +1,5 @@
+$kind: http-request
+name: Список ролей (пагинация)
+url: "{{baseUrl}}/api/roles?page=0&size=20"
+method: GET
+order: 2000

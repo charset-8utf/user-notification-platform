@@ -46,8 +46,10 @@ jobs:
 
       - name: Smoke-тест приложения
         run: |
-          docker compose up -d postgres
-          docker compose run --rm -T app sh -c 'printf "1\n6\n0\n0\n" | java $JAVA_OPTS -jar app.jar'
+          docker compose up -d --no-build
+          echo "Ожидание запуска приложения..."
+          timeout 90 bash -c 'until docker inspect --format="{{.State.Health.Status}}" user-app 2>/dev/null | grep -q healthy; do sleep 5; done'
+          echo "Healthcheck пройден"
 
       - name: Очистка compose-окружения
         if: always()

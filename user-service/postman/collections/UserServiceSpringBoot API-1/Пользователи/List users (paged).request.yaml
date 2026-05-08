@@ -1,0 +1,5 @@
+$kind: http-request
+name: Список пользователей (пагинация)
+url: "{{baseUrl}}/api/users?page=0&size=20"
+method: GET
+order: 2000

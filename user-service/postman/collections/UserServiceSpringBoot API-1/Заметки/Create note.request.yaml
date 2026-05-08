@@ -1,0 +1,13 @@
+$kind: http-request
+name: Создать заметку
+url: "{{baseUrl}}/api/users/{{userId}}/notes"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "content": "Заметка из Postman"
+    }
+order: 1000
