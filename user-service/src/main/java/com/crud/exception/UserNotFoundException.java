@@ -1,8 +1,5 @@
 package com.crud.exception;
 
-/**
- * Пользователь не найден.
- */
 public class UserNotFoundException extends UserServiceException {
 
   public UserNotFoundException(Long id) {
