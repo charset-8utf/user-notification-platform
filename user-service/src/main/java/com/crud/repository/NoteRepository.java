@@ -1,19 +1,13 @@
 package com.crud.repository;
 
-import com.crud.dto.Page;
-import com.crud.dto.Pageable;
 import com.crud.entity.Note;
-import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
-/**
- * Репозиторий заметок.
- */
-public interface NoteRepository {
+@Repository
+public interface NoteRepository extends JpaRepository<Note, Long> {
 
-    Note save(Note note);
-    Optional<Note> findById(Long id);
-    Page<Note> findAll(Pageable pageable);
-    Note update(Note note);
-    void deleteById(Long id);
     Page<Note> findByUserId(Long userId, Pageable pageable);
 }

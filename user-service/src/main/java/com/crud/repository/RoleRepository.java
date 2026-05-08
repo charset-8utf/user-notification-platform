@@ -1,20 +1,13 @@
 package com.crud.repository;
 
-import com.crud.dto.Page;
-import com.crud.dto.Pageable;
 import com.crud.entity.Role;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
 import java.util.Optional;
 
-/**
- * Репозиторий ролей.
- */
-public interface RoleRepository {
+@Repository
+public interface RoleRepository extends JpaRepository<Role, Long> {
 
-    Role save(Role role);
-    Optional<Role> findById(Long id);
-    Page<Role> findAll(Pageable pageable);
-    Role update(Role role);
-    void deleteById(Long id);
-    void assignRoleToUser(Long userId, Long roleId);
-    void removeRoleFromUser(Long userId, Long roleId);
+    Optional<Role> findByName(String name);
 }
