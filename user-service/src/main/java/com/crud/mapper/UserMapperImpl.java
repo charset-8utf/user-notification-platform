@@ -3,17 +3,13 @@ package com.crud.mapper;
 import com.crud.dto.UserRequest;
 import com.crud.dto.UserResponse;
 import com.crud.entity.User;
-
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
+import org.springframework.stereotype.Component;
 
 /**
  * Реализация маппера пользователей.
  */
+@Component
 public class UserMapperImpl implements UserMapper {
-
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
 
     @Override
     public User toEntity(UserRequest request) {
@@ -41,20 +37,5 @@ public class UserMapperImpl implements UserMapper {
                 user.getAge(),
                 user.getCreatedAt()
         );
-    }
-
-    @Override
-    public List<UserResponse> toResponseList(List<User> users) {
-        if (users == null) {
-            return List.of();
-        }
-        return users.stream()
-                .map(this::toResponse)
-                .toList();
-    }
-
-    @Override
-    public String formatDateTime(LocalDateTime dateTime) {
-        return dateTime == null ? "" : dateTime.format(DATE_FORMATTER);
     }
 }

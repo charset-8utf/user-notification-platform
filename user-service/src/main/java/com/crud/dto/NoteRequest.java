@@ -1,4 +1,11 @@
 package com.crud.dto;
 
-public record NoteRequest(String content) {
+import com.crud.config.Sanitized;
+import jakarta.validation.constraints.NotBlank;
+
+public record NoteRequest(
+        @NotBlank(message = "Текст заметки не может быть пустым")
+        @Sanitized
+        String content
+) {
 }
