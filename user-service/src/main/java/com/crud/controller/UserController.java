@@ -1,42 +1,62 @@
 package com.crud.controller;
 
-import com.crud.dto.Page;
-import com.crud.dto.Pageable;
 import com.crud.dto.UserRequest;
 import com.crud.dto.UserResponse;
+import com.crud.service.UserService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
-/**
- * Контроллер пользователей.
- */
-public interface UserController {
+@RestController
+@RequestMapping("/api/users")
+@RequiredArgsConstructor
+public class UserController {
 
-    /**
-     * Создаёт пользователя.
-     */
-    UserResponse createUser(UserRequest request);
+    private final UserService userService;
 
-    /**
-     * Находит пользователя по ID.
-     */
-    UserResponse findUserById(Long id);
+    @PostMapping
+    public ResponseEntity<UserResponse> createUser(@Valid @RequestBody UserRequest request) {
+        UserResponse response = userService.createUser(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
 
-    /**
-     * Возвращает страницу пользователей.
-     */
-    Page<UserResponse> findAllUsers(Pageable pageable);
+    @GetMapping("/{id}")
+    public ResponseEntity<UserResponse> findUserById(@PathVariable Long id) {
+        UserResponse response = userService.findUserById(id);
+        return ResponseEntity.ok(response);
+    }
 
-    /**
-     * Обновляет пользователя.
-     */
-    UserResponse updateUser(Long id, UserRequest request);
+    @GetMapping
+    public ResponseEntity<Page<UserResponse>> findAllUsers(Pageable pageable) {
+        Page<UserResponse> page = userService.findAllUsers(pageable);
+        return ResponseEntity.ok(page);
+    }
 
-    /**
-     * Удаляет пользователя.
-     */
-    void deleteUser(Long id);
+    @PutMapping("/{id}")
+    public ResponseEntity<UserResponse> updateUser(@PathVariable Long id, @Valid @RequestBody UserRequest request) {
+        UserResponse response = userService.updateUser(id, request);
+        return ResponseEntity.ok(response);
+    }
 
-    /**
-     * Находит пользователя по email.
-     */
-    UserResponse findUserByEmail(String email);
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+        userService.deleteUser(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/by-email")
+    public ResponseEntity<UserResponse> findUserByEmail(@RequestParam String email) {
+        UserResponse response = userService.findUserByEmail(email);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<Page<UserResponse>> searchUsers(@RequestParam String email, Pageable pageable) {
+        Page<UserResponse> responses = userService.searchUsersByEmail(email, pageable);
+        return ResponseEntity.ok(responses);
+    }
 }
