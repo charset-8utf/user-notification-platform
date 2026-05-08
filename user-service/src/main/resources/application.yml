@@ -1,0 +1,104 @@
+spring:
+  application:
+    name: user-service
+
+  docker:
+    compose:
+      enabled: false
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/userdb}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: HikariPool
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 30000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+      register-mbeans: true
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+        javax:
+          cache:
+            provider: com.github.benmanes.caffeine.jcache.spi.CaffeineCachingProvider
+            missing_cache_strategy: create
+
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+server:
+  port: 8443
+  ssl:
+    enabled: true
+    key-store: classpath:keystore.p12
+    key-store-password: ${KEYSTORE_PASSWORD:changeit}
+    key-store-type: PKCS12
+    key-alias: user-service
+    protocol: TLS
+    enabled-protocols: TLSv1.2,TLSv1.3
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+      base-path: /actuator
+  # Без этого info.* из конфигурации не попадают в /actuator/info (по умолчанию false в Spring Boot 4)
+  info:
+    env:
+      enabled: true
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState,ping
+        readiness:
+          include: readinessState,db
+  health:
+    db:
+      enabled: true
+    diskspace:
+      enabled: true
+
+app:
+  rate-limit:
+    max-requests: 20
+    window-seconds: 60
+  seed:
+    admin-password: ${APP_SEED_ADMIN_PASSWORD:}
+    user-password: ${APP_SEED_USER_PASSWORD:}
+
+logging:
+  level:
+    root: INFO
+    com.crud: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+info:
+  application:
+    name: ${spring.application.name}
+    description: REST user service (Spring Boot)
