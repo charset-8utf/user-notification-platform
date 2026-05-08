@@ -1,8 +1,5 @@
 package com.crud.exception;
 
-/**
- * Ошибка валидации.
- */
 public class ValidationException extends UserServiceException {
 
     public ValidationException(String message) {
