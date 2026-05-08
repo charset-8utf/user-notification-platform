@@ -3,18 +3,17 @@ package com.crud.mapper;
 import com.crud.dto.RoleRequest;
 import com.crud.dto.RoleResponse;
 import com.crud.entity.Role;
-
-import java.util.List;
+import org.springframework.stereotype.Component;
 
 /**
  * Реализация маппера ролей.
  */
+@Component
 public class RoleMapperImpl implements RoleMapper {
 
     @Override
     public Role toEntity(RoleRequest request) {
         return Role.builder()
-                .id(request.id())
                 .name(request.name())
                 .build();
     }
@@ -27,16 +26,6 @@ public class RoleMapperImpl implements RoleMapper {
                 role.getCreatedAt(),
                 role.getUpdatedAt()
         );
-    }
-
-    @Override
-    public List<RoleResponse> toResponseList(List<Role> roles) {
-        if (roles == null) {
-            return List.of();
-        }
-        return roles.stream()
-                .map(this::toResponse)
-                .toList();
     }
 
     @Override
