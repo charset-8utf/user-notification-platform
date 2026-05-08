@@ -1,9 +1,9 @@
 package com.crud.service;
 
-import com.crud.dto.Page;
-import com.crud.dto.Pageable;
 import com.crud.dto.ProfileRequest;
 import com.crud.dto.ProfileResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 /**
  * Сервис профилей.
