@@ -1,0 +1,14 @@
+$kind: http-request
+name: Создать профиль
+url: "{{baseUrl}}/api/profiles/user/{{userId}}"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "phone": "+79001234567",
+      "address": "Москва"
+    }
+order: 1000

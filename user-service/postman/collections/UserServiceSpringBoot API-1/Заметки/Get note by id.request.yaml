@@ -1,0 +1,5 @@
+$kind: http-request
+name: Получить заметку по id
+url: "{{baseUrl}}/api/users/{{userId}}/notes/{{noteId}}"
+method: GET
+order: 3000

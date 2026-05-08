@@ -1,0 +1,13 @@
+$kind: http-request
+name: Обновить заметку
+url: "{{baseUrl}}/api/users/{{userId}}/notes/{{noteId}}"
+method: PUT
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "content": "Обновлённая заметка"
+    }
+order: 4000
