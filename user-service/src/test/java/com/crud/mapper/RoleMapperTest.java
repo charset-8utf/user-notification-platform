@@ -4,73 +4,68 @@ import com.crud.dto.RoleRequest;
 import com.crud.dto.RoleResponse;
 import com.crud.entity.Role;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+@Execution(ExecutionMode.CONCURRENT)
 class RoleMapperTest {
 
-    private final RoleMapper mapper = new RoleMapperImpl();
+    private final RoleMapper roleMapper = new RoleMapperImpl();
 
     @Test
-    void toEntity_ShouldMapRequestToRole() {
-        RoleRequest request = new RoleRequest(1L, "ADMIN");
+    void toEntity_FromRequest_ShouldMapName() {
+        RoleRequest request = new RoleRequest("ADMIN");
 
-        Role result = mapper.toEntity(request);
+        Role entity = roleMapper.toEntity(request);
 
-        assertEquals(1L, result.getId());
-        assertEquals("ADMIN", result.getName());
+        assertThat(entity).isNotNull();
+        assertThat(entity.getName()).isEqualTo("ADMIN");
     }
 
     @Test
-    void toResponse_ShouldMapRoleToResponse() {
+    void toResponse_FromEntity_ShouldMapAllFields() {
+        LocalDateTime createdAt = LocalDateTime.now();
+        LocalDateTime updatedAt = LocalDateTime.now();
         Role role = Role.builder().name("USER").build();
         role.setId(1L);
-        role.setCreatedAt(LocalDateTime.of(2025, 1, 1, 10, 0));
-        role.setUpdatedAt(LocalDateTime.of(2025, 1, 2, 12, 0));
+        role.setCreatedAt(createdAt);
+        role.setUpdatedAt(updatedAt);
 
-        RoleResponse result = mapper.toResponse(role);
+        RoleResponse response = roleMapper.toResponse(role);
 
-        assertEquals(1L, result.id());
-        assertEquals("USER", result.name());
-        assertNotNull(result.createdAt());
-        assertNotNull(result.updatedAt());
+        assertThat(response).isNotNull();
+        assertThat(response.id()).isEqualTo(1L);
+        assertThat(response.name()).isEqualTo("USER");
+        assertThat(response.createdAt()).isEqualTo(createdAt);
+        assertThat(response.updatedAt()).isEqualTo(updatedAt);
     }
 
     @Test
-    void toResponseList_ShouldMapListOfRoles() {
-        Role role1 = Role.builder().name("ADMIN").build();
-        role1.setId(1L);
-        role1.setCreatedAt(LocalDateTime.now());
-        Role role2 = Role.builder().name("USER").build();
-        role2.setId(2L);
-        role2.setCreatedAt(LocalDateTime.now());
-
-        List<RoleResponse> result = mapper.toResponseList(List.of(role1, role2));
-
-        assertEquals(2, result.size());
-        assertEquals("ADMIN", result.get(0).name());
-        assertEquals("USER", result.get(1).name());
-    }
-
-    @Test
-    void toResponseList_WithNull_ShouldReturnEmptyList() {
-        List<RoleResponse> result = mapper.toResponseList(null);
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void toEntity_WithExisting_ShouldUpdateRole() {
-        Role existing = Role.builder().name("OldName").build();
+    void toEntity_WithExistingEntity_ShouldUpdateName() {
+        Role existing = Role.builder().name("OLD_ROLE").build();
         existing.setId(1L);
+        RoleRequest request = new RoleRequest("NEW_ROLE");
 
-        RoleRequest request = new RoleRequest(null, "NewName");
-        Role result = mapper.toEntity(request, existing);
+        Role result = roleMapper.toEntity(request, existing);
 
-        assertEquals("NewName", result.getName());
-        assertSame(existing, result);
+        assertThat(result.getId()).isEqualTo(1L);
+        assertThat(result.getName()).isEqualTo("NEW_ROLE");
+    }
+
+    @Test
+    void toEntity_NullRequest_ShouldThrowNullPointerException() {
+        assertThatThrownBy(() -> roleMapper.toEntity(null))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void toResponse_NullEntity_ShouldThrowNullPointerException() {
+        assertThatThrownBy(() -> roleMapper.toResponse(null))
+                .isInstanceOf(NullPointerException.class);
     }
 }

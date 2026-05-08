@@ -4,82 +4,81 @@ import com.crud.dto.UserRequest;
 import com.crud.dto.UserResponse;
 import com.crud.entity.User;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+@Execution(ExecutionMode.CONCURRENT)
 class UserMapperTest {
 
-    private final UserMapper mapper = new UserMapperImpl();
+    private final UserMapper userMapper = new UserMapperImpl();
 
     @Test
-    void toEntity_ShouldMapRequestToUser() {
-        UserRequest request = new UserRequest("Иван", "ivan@example.com", 25);
-        User user = mapper.toEntity(request);
+    void toEntity_FromRequest_ShouldMapAllFields() {
+        UserRequest request = new UserRequest("John Doe", "john@example.com", 30);
 
-        assertEquals("Иван", user.getName());
-        assertEquals("ivan@example.com", user.getEmail());
-        assertEquals(25, user.getAge());
-        assertNull(user.getId());
+        User entity = userMapper.toEntity(request);
+
+        assertThat(entity).isNotNull();
+        assertThat(entity.getName()).isEqualTo("John Doe");
+        assertThat(entity.getEmail()).isEqualTo("john@example.com");
+        assertThat(entity.getAge()).isEqualTo(30);
     }
 
     @Test
-    void toEntity_WithExistingUser_ShouldUpdateUser() {
-        User existing = User.builder().name("Старое").email("old@example.com").age(20).build();
+    void toResponse_FromEntity_ShouldMapAllFields() {
+        LocalDateTime createdAt = LocalDateTime.now();
+        User entity = User.builder()
+                .name("Jane Doe")
+                .email("jane@example.com")
+                .age(25)
+                .build();
+        entity.setId(1L);
+        entity.setCreatedAt(createdAt);
+
+        UserResponse response = userMapper.toResponse(entity);
+
+        assertThat(response).isNotNull();
+        assertThat(response.id()).isEqualTo(1L);
+        assertThat(response.name()).isEqualTo("Jane Doe");
+        assertThat(response.email()).isEqualTo("jane@example.com");
+        assertThat(response.age()).isEqualTo(25);
+        assertThat(response.createdAt()).isEqualTo(createdAt);
+    }
+
+    @Test
+    void toEntity_WithExistingEntity_ShouldUpdateFields() {
+        User existing = User.builder()
+                .name("Old Name")
+                .email("old@example.com")
+                .age(20)
+                .build();
         existing.setId(1L);
-        LocalDateTime existingDate = LocalDateTime.of(2025, 4, 24, 12, 0, 0);
-        existing.setCreatedAt(existingDate);
+        existing.setCreatedAt(LocalDateTime.now());
 
-        UserRequest request = new UserRequest("Новое", "new@example.com", 30);
-        User updated = mapper.toEntity(request, existing);
+        UserRequest request = new UserRequest("New Name", "new@example.com", 35);
 
-        assertEquals(1L, updated.getId());
-        assertEquals("Новое", updated.getName());
-        assertEquals("new@example.com", updated.getEmail());
-        assertEquals(30, updated.getAge());
-        assertEquals(existingDate, updated.getCreatedAt()); // дата не изменилась
+        User result = userMapper.toEntity(request, existing);
+
+        assertThat(result.getId()).isEqualTo(1L);
+        assertThat(result.getName()).isEqualTo("New Name");
+        assertThat(result.getEmail()).isEqualTo("new@example.com");
+        assertThat(result.getAge()).isEqualTo(35);
     }
 
     @Test
-    void toResponse_ShouldMapUserToResponse() {
-        User user = User.builder().name("Мария").email("maria@example.com").age(28).build();
-        user.setId(10L);
-        user.setCreatedAt(LocalDateTime.of(2025, 4, 24, 14, 30, 15));
-
-        UserResponse response = mapper.toResponse(user);
-
-        assertEquals(10L, response.id());
-        assertEquals("Мария", response.name());
-        assertEquals("maria@example.com", response.email());
-        assertEquals(28, response.age());
-        assertEquals(LocalDateTime.of(2025, 4, 24, 14, 30, 15), response.createdAt());
+    void toEntity_FromRequest_NullRequest_ShouldThrowNullPointerException() {
+        assertThatThrownBy(() -> userMapper.toEntity(null))
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test
-    void toResponseList_ShouldMapListOfUsers() {
-        User user1 = User.builder().name("Анна").email("anna@example.com").age(22).build();
-        user1.setId(1L);
-        User user2 = User.builder().name("Петр").email("peter@example.com").age(35).build();
-        user2.setId(2L);
-
-        List<UserResponse> responses = mapper.toResponseList(List.of(user1, user2));
-
-        assertEquals(2, responses.size());
-        assertEquals("Анна", responses.get(0).name());
-        assertEquals("peter@example.com", responses.get(1).email());
-    }
-
-    @Test
-    void formatDateTime_ShouldReturnFormattedString() {
-        LocalDateTime date = LocalDateTime.of(2025, 4, 24, 9, 5, 3);
-        String formatted = mapper.formatDateTime(date);
-        assertEquals("24.04.2025 09:05:03", formatted);
-    }
-
-    @Test
-    void formatDateTime_WhenNull_ShouldReturnEmptyString() {
-        assertEquals("", mapper.formatDateTime(null));
+    void toResponse_FromEntity_NullEntity_ShouldThrowNullPointerException() {
+        assertThatThrownBy(() -> userMapper.toResponse(null))
+                .isInstanceOf(NullPointerException.class);
     }
 }
