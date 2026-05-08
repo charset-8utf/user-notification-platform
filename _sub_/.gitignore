@@ -41,5 +41,11 @@ build/
 postgres_data/
 maven-repo/
 
+### Environment ###
+.env
+
 ### Build artifacts ###
 dependency-reduced-pom.xml
+
+### Cursor ###
+.cursor
