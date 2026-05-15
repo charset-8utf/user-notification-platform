@@ -1,4 +1,4 @@
 /**
- * JPA-сущности.
+ * JPA-сущности
  */
 package com.crud.entity;

@@ -1,47 +1,68 @@
 package com.crud.controller;
 
-import com.crud.dto.Page;
-import com.crud.dto.Pageable;
 import com.crud.dto.RoleRequest;
 import com.crud.dto.RoleResponse;
+import com.crud.service.RoleService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
-/**
- * Контроллер ролей.
- */
-public interface RoleController {
+@RestController
+@RequestMapping("/api/roles")
+@RequiredArgsConstructor
+public class RoleController {
 
-    /**
-     * Создаёт роль.
-     */
-    RoleResponse createRole(RoleRequest request);
+    private final RoleService roleService;
 
-    /**
-     * Находит роль по ID.
-     */
-    RoleResponse findRoleById(Long id);
+    @PostMapping
+    public ResponseEntity<RoleResponse> createRole(@Valid @RequestBody RoleRequest request) {
+        RoleResponse response = roleService.createRole(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
 
-    /**
-     * Возвращает страницу ролей.
-     */
-    Page<RoleResponse> findAllRoles(Pageable pageable);
+    @GetMapping("/{id}")
+    public ResponseEntity<RoleResponse> findRoleById(@PathVariable Long id) {
+        RoleResponse response = roleService.findRoleById(id);
+        return ResponseEntity.ok(response);
+    }
 
-    /**
-     * Обновляет роль.
-     */
-    RoleResponse updateRole(Long id, RoleRequest request);
+    @GetMapping
+    public ResponseEntity<Page<RoleResponse>> findAllRoles(Pageable pageable) {
+        Page<RoleResponse> page = roleService.findAllRoles(pageable);
+        return ResponseEntity.ok(page);
+    }
 
-    /**
-     * Удаляет роль.
-     */
-    void deleteRole(Long id);
+    @PutMapping("/{id}")
+    public ResponseEntity<RoleResponse> updateRole(
+            @PathVariable Long id,
+            @Valid @RequestBody RoleRequest request) {
+        RoleResponse response = roleService.updateRole(id, request);
+        return ResponseEntity.ok(response);
+    }
 
-    /**
-     * Назначает роль пользователю.
-     */
-    void assignRoleToUser(Long userId, Long roleId);
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteRole(@PathVariable Long id) {
+        roleService.deleteRole(id);
+        return ResponseEntity.noContent().build();
+    }
 
-    /**
-     * Отзывает роль у пользователя.
-     */
-    void removeRoleFromUser(Long userId, Long roleId);
+    @PostMapping("/assign")
+    public ResponseEntity<Void> assignRoleToUser(
+            @RequestParam Long userId,
+            @RequestParam Long roleId) {
+        roleService.assignRoleToUser(userId, roleId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/remove")
+    public ResponseEntity<Void> removeRoleFromUser(
+            @RequestParam Long userId,
+            @RequestParam Long roleId) {
+        roleService.removeRoleFromUser(userId, roleId);
+        return ResponseEntity.ok().build();
+    }
 }

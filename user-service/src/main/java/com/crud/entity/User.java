@@ -1,13 +1,11 @@
 package com.crud.entity;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
-import jakarta.persistence.NamedAttributeNode;
-import jakarta.persistence.NamedEntityGraph;
-import jakarta.persistence.NamedQuery;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
@@ -30,15 +28,6 @@ import java.util.Set;
 @Entity
 @Table(name = "users")
 @Cache(usage = CacheConcurrencyStrategy.READ_WRITE, region = "com.crud.entity.User")
-@NamedQuery(name = "User.findByEmail", query = "SELECT u FROM User u WHERE u.email = :email")
-@NamedEntityGraph(
-        name = "User.withAll",
-        attributeNodes = {
-                @NamedAttributeNode("notes"),
-                @NamedAttributeNode("roles"),
-                @NamedAttributeNode("profile")
-        }
-)
 @Getter
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -46,8 +35,13 @@ import java.util.Set;
 @Builder
 public class User extends BaseEntity {
 
+    @Column(nullable = false, length = 100)
     private String name;
+
+    @Column(nullable = false, unique = true, length = 150)
     private String email;
+
+    @Column(nullable = false)
     private Integer age;
 
     @Version

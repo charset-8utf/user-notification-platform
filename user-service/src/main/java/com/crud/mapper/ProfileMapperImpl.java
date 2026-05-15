@@ -3,12 +3,9 @@ package com.crud.mapper;
 import com.crud.dto.ProfileRequest;
 import com.crud.dto.ProfileResponse;
 import com.crud.entity.Profile;
+import org.springframework.stereotype.Component;
 
-import java.util.List;
-
-/**
- * Реализация маппера профилей.
- */
+@Component
 public class ProfileMapperImpl implements ProfileMapper {
 
     @Override
@@ -37,15 +34,5 @@ public class ProfileMapperImpl implements ProfileMapper {
         existing.setPhone(request.phone());
         existing.setAddress(request.address());
         return existing;
-    }
-
-    @Override
-    public List<ProfileResponse> toResponseList(List<Profile> profiles) {
-        if (profiles == null) {
-            return List.of();
-        }
-        return profiles.stream()
-                .map(this::toResponse)
-                .toList();
     }
 }

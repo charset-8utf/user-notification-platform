@@ -1,0 +1,5 @@
+$kind: http-request
+name: Снять роль с пользователя (только ADMIN)
+url: "{{baseUrl}}/api/roles/remove?userId={{secondUserId}}&roleId={{roleIdAdmin}}"
+method: POST
+order: 6000

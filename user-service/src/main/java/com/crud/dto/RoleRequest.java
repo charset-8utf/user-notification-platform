@@ -1,8 +1,18 @@
 package com.crud.dto;
 
-public record RoleRequest(Long id, String name) {
+import com.crud.config.Sanitized;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.constraints.NotBlank;
 
-    public RoleRequest(String name) {
-        this(null, name);
+public record RoleRequest(
+        @JsonProperty("name")
+        @NotBlank(message = "Название роли не может быть пустым")
+        @Sanitized
+        String name) {
+
+    @JsonCreator
+    public RoleRequest(@JsonProperty("name") String name) {
+        this.name = name;
     }
 }

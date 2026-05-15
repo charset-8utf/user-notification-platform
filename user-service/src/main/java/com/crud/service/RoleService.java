@@ -1,9 +1,9 @@
 package com.crud.service;
 
-import com.crud.dto.Page;
-import com.crud.dto.Pageable;
 import com.crud.dto.RoleRequest;
 import com.crud.dto.RoleResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 /**
  * Сервис ролей.
