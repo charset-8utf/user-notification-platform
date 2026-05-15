@@ -1,20 +1,20 @@
 package com.crud.repository;
 
-import com.crud.dto.Page;
-import com.crud.dto.Pageable;
 import com.crud.entity.Profile;
 import java.util.Optional;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Репозиторий профилей.
- */
-public interface ProfileRepository {
+@Repository
+public interface ProfileRepository extends JpaRepository<Profile, Long> {
 
-    Profile save(Profile profile);
-    Optional<Profile> findById(Long id);
-    Page<Profile> findAll(Pageable pageable);
-    Profile update(Profile profile);
-    void deleteById(Long id);
     Optional<Profile> findByUserId(Long userId);
+
+    @Modifying
+    @Transactional
     void deleteByUserId(Long userId);
+
+    boolean existsByUserId(Long userId);
 }

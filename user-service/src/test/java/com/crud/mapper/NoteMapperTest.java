@@ -3,80 +3,60 @@ package com.crud.mapper;
 import com.crud.dto.NoteRequest;
 import com.crud.dto.NoteResponse;
 import com.crud.entity.Note;
-import com.crud.entity.User;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+@Execution(ExecutionMode.CONCURRENT)
 class NoteMapperTest {
 
-    private final NoteMapper mapper = new NoteMapperImpl();
+    private final NoteMapper noteMapper = new NoteMapperImpl();
 
     @Test
-    void toEntity_ShouldMapRequestToNote() {
-        NoteRequest request = new NoteRequest("Test content");
-
-        Note result = mapper.toEntity(request);
-
-        assertEquals("Test content", result.getContent());
-    }
-
-    @Test
-    void toResponse_ShouldMapNoteToResponse() {
-        User user = User.builder().name("John").email("john@example.com").age(25).build();
-        user.setId(1L);
-        Note note = Note.builder().content("Test content").user(user).build();
+    void toResponse_FromEntity_ShouldMapAllFields() {
+        LocalDateTime createdAt = LocalDateTime.now();
+        LocalDateTime updatedAt = LocalDateTime.now();
+        Note note = Note.builder().content("Test content").build();
         note.setId(1L);
-        note.setCreatedAt(LocalDateTime.of(2025, 1, 1, 10, 0));
-        note.setUpdatedAt(LocalDateTime.of(2025, 1, 2, 12, 0));
+        note.setCreatedAt(createdAt);
+        note.setUpdatedAt(updatedAt);
 
-        NoteResponse result = mapper.toResponse(note);
+        NoteResponse response = noteMapper.toResponse(note);
 
-        assertEquals(1L, result.id());
-        assertEquals("Test content", result.content());
-        assertNotNull(result.createdAt());
-        assertNotNull(result.updatedAt());
+        assertThat(response).isNotNull();
+        assertThat(response.id()).isEqualTo(1L);
+        assertThat(response.content()).isEqualTo("Test content");
+        assertThat(response.createdAt()).isEqualTo(createdAt);
+        assertThat(response.updatedAt()).isEqualTo(updatedAt);
     }
 
     @Test
-    void toResponseList_ShouldMapListOfNotes() {
-        User user = User.builder().name("John").email("john@example.com").age(25).build();
-        user.setId(1L);
-        Note note1 = Note.builder().content("Note 1").user(user).build();
-        note1.setId(1L);
-        note1.setCreatedAt(LocalDateTime.now());
-        Note note2 = Note.builder().content("Note 2").user(user).build();
-        note2.setId(2L);
-        note2.setCreatedAt(LocalDateTime.now());
-
-        List<NoteResponse> result = mapper.toResponseList(List.of(note1, note2));
-
-        assertEquals(2, result.size());
-        assertEquals("Note 1", result.get(0).content());
-        assertEquals("Note 2", result.get(1).content());
-    }
-
-    @Test
-    void toResponseList_WithNull_ShouldReturnEmptyList() {
-        List<NoteResponse> result = mapper.toResponseList(null);
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void toEntity_WithExisting_ShouldUpdateNote() {
-        User user = User.builder().name("John").email("john@example.com").age(25).build();
-        user.setId(1L);
-        Note existing = Note.builder().content("Old content").user(user).build();
+    void toEntity_WithExistingEntity_ShouldUpdateContent() {
+        Note existing = Note.builder().content("Old content").build();
         existing.setId(1L);
-
         NoteRequest request = new NoteRequest("New content");
-        Note result = mapper.toEntity(request, existing);
 
-        assertEquals("New content", result.getContent());
-        assertSame(existing, result);
+        Note result = noteMapper.toEntity(request, existing);
+
+        assertThat(result.getId()).isEqualTo(1L);
+        assertThat(result.getContent()).isEqualTo("New content");
+    }
+
+    @Test
+    void toEntity_NullRequest_ShouldThrowNullPointerException() {
+        Note existing = Note.builder().content("Old").build();
+        assertThatThrownBy(() -> noteMapper.toEntity(null, existing))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void toResponse_NullEntity_ShouldThrowNullPointerException() {
+        assertThatThrownBy(() -> noteMapper.toResponse(null))
+                .isInstanceOf(NullPointerException.class);
     }
 }

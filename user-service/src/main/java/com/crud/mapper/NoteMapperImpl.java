@@ -3,12 +3,12 @@ package com.crud.mapper;
 import com.crud.dto.NoteRequest;
 import com.crud.dto.NoteResponse;
 import com.crud.entity.Note;
-
-import java.util.List;
+import org.springframework.stereotype.Component;
 
 /**
  * Реализация маппера заметок.
  */
+@Component
 public class NoteMapperImpl implements NoteMapper {
 
     @Override
@@ -26,16 +26,6 @@ public class NoteMapperImpl implements NoteMapper {
                 note.getCreatedAt(),
                 note.getUpdatedAt()
         );
-    }
-
-    @Override
-    public List<NoteResponse> toResponseList(List<Note> notes) {
-        if (notes == null) {
-            return List.of();
-        }
-        return notes.stream()
-                .map(this::toResponse)
-                .toList();
     }
 
     @Override

@@ -2,36 +2,60 @@ package com.crud.controller;
 
 import com.crud.dto.NoteRequest;
 import com.crud.dto.NoteResponse;
-import com.crud.dto.Page;
-import com.crud.dto.Pageable;
+import com.crud.service.NoteService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
-/**
- * Контроллер заметок.
- */
-public interface NoteController {
+@RestController
+@RequestMapping("/api/users/{userId}/notes")
+@RequiredArgsConstructor
+public class NoteController {
 
-    /**
-     * Создаёт заметку.
-     */
-    NoteResponse createNote(Long userId, NoteRequest request);
+    private final NoteService noteService;
 
-    /**
-     * Находит заметку по ID.
-     */
-    NoteResponse findNoteById(Long id);
+    @PostMapping
+    public ResponseEntity<NoteResponse> createNote(
+            @PathVariable Long userId,
+            @Valid @RequestBody NoteRequest request) {
+        NoteResponse response = noteService.createNote(userId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
 
-    /**
-     * Возвращает страницу заметок пользователя.
-     */
-    Page<NoteResponse> findNotesByUserId(Long userId, Pageable pageable);
+    @GetMapping("/{id}")
+    public ResponseEntity<NoteResponse> findNoteById(
+            @PathVariable Long userId,
+            @PathVariable Long id) {
+        NoteResponse response = noteService.findNoteById(userId, id);
+        return ResponseEntity.ok(response);
+    }
 
-    /**
-     * Обновляет заметку.
-     */
-    NoteResponse updateNote(Long id, NoteRequest request);
+    @GetMapping
+    public ResponseEntity<Page<NoteResponse>> findNotesByUserId(
+            @PathVariable Long userId,
+            Pageable pageable) {
+        Page<NoteResponse> page = noteService.findNotesByUserId(userId, pageable);
+        return ResponseEntity.ok(page);
+    }
 
-    /**
-     * Удаляет заметку.
-     */
-    void deleteNote(Long id);
+    @PutMapping("/{id}")
+    public ResponseEntity<NoteResponse> updateNote(
+            @PathVariable Long userId,
+            @PathVariable Long id,
+            @Valid @RequestBody NoteRequest request) {
+        NoteResponse response = noteService.updateNote(userId, id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteNote(
+            @PathVariable Long userId,
+            @PathVariable Long id) {
+        noteService.deleteNote(userId, id);
+        return ResponseEntity.noContent().build();
+    }
 }

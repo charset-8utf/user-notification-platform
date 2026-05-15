@@ -1,12 +1,13 @@
-# UserService – консольное CRUD-приложение
+# UserServiceSpringBoot – REST-сервис управления пользователями
 
 ![Java](https://img.shields.io/badge/Java-21-blue?logo=openjdk&color=orange)
-![Maven](https://img.shields.io/badge/Maven-3.9.14-blue?logo=apachemaven)
-![Hibernate](https://img.shields.io/badge/Hibernate-7.3.2.Final-purple?logo=hibernate)
-![HikariCP](https://img.shields.io/badge/HikariCP-7.0.2-lightgrey)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.6-green?logo=springboot)
+![Spring Security](https://img.shields.io/badge/Spring%20Security-6.x-green?logo=springsecurity)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-blue?logo=postgresql)
-![SLF4J](https://img.shields.io/badge/SLF4J-2.0.17-yellow)
-![Logback](https://img.shields.io/badge/Logback-1.5.32-brightgreen)
+![Hibernate](https://img.shields.io/badge/Hibernate-7.3.2.Final-purple?logo=hibernate)
+![Maven](https://img.shields.io/badge/Maven-3.9.14-blue?logo=apachemaven)
+![Liquibase](https://img.shields.io/badge/Liquibase-4.x-red?logo=liquibase)
+![Caffeine](https://img.shields.io/badge/Caffeine-Cache-brightgreen)
 ![JUnit](https://img.shields.io/badge/JUnit%20Jupiter-6.0.3-green)
 ![Mockito](https://img.shields.io/badge/Mockito-5.23.0-orange)
 ![Testcontainers](https://img.shields.io/badge/Testcontainers-2.0.5-blue)
@@ -15,14 +16,43 @@
 
 ## Описание проекта
 
-Консольное приложение для управления пользователями с поддержкой операций **Create**, **Read**, **Update**, **Delete** (CRUD).  
-Использует **Hibernate ORM**, **PostgreSQL** в Docker и пул соединений **HikariCP**.  
-**Архитектура:** трёхслойная (Controller → Service → Repository) с DTO, ручным маппером, паттернами GoF.
+REST-сервис для управления пользователями с поддержкой операций **Create**, **Read**, **Update**, **Delete** (CRUD).  
+Построен на **Spring Boot 4** с использованием **Spring Data JPA**, **PostgreSQL** в Docker и пула соединений **HikariCP**.  
+**Архитектура:** трёхслойная (Controller → Service → Repository) с DTO, ручными мапперами.
 
-Схема БД управляется миграциями **Flyway** из `src/main/resources/db/migration` (V1...V6).  
-Покрыт юнит-тестами (JUnit, Mockito) и интеграционными тестами (Testcontainers).  
-Настроен CI (GitHub Actions) с авто-тестами, сборкой Docker-образа и Smoke-тестом.  
-Приложение и PostgreSQL запускаются через `docker-compose`. В образ включён **healthcheck** (класс `HealthCheck`).
+Схема БД управляется миграциями **Liquibase**: точка входа — `src/main/resources/db/changelog/db.changelog-master.yaml`, сами изменения — отдельные SQL-файлы в `src/main/resources/db/changelog/changes/` (формат *Liquibase formatted sql*).
+Покрыт юнит-тестами (JUnit, Mockito) и интеграционными тестами (Testcontainers, H2).  
+Настроен CI (GitHub Actions) с авто-тестами и сборкой Docker-образа.  
+Приложение и PostgreSQL запускаются через `docker-compose`. В образ включён **healthcheck** (Actuator).
+
+## API-эндпоинты
+
+| Метод  | Путь                                | Описание                            |
+|--------|-------------------------------------|-------------------------------------|
+| POST   | `/api/users`                        | Создание пользователя               |
+| GET    | `/api/users/{id}`                   | Получение пользователя по ID        |
+| GET    | `/api/users`                        | Список пользователей (с пагинацией) |
+| PUT    | `/api/users/{id}`                   | Обновление пользователя             |
+| DELETE | `/api/users/{id}`                   | Удаление пользователя               |
+| GET    | `/api/users/by-email?email=`        | Поиск по email                      |
+| GET    | `/api/users/search?email=`          | Поиск по части email                |
+| POST   | `/api/users/{userId}/notes`         | Создание заметки                    |
+| GET    | `/api/users/{userId}/notes`         | Список заметок пользователя         |
+| GET    | `/api/users/{userId}/notes/{id}`    | Получение заметки                   |
+| PUT    | `/api/users/{userId}/notes/{id}`    | Обновление заметки                  |
+| DELETE | `/api/users/{userId}/notes/{id}`    | Удаление заметки                    |
+| POST   | `/api/profiles/user/{userId}`       | Создание профиля                    |
+| GET    | `/api/profiles/user/{userId}`       | Получение профиля пользователя      |
+| GET    | `/api/profiles`                     | Список профилей (с пагинацией)      |
+| PUT    | `/api/profiles/user/{userId}`       | Обновление профиля                  |
+| DELETE | `/api/profiles/user/{userId}`       | Удаление профиля                    |
+| POST   | `/api/roles`                        | Создание роли                       |
+| GET    | `/api/roles/{id}`                   | Получение роли по ID                |
+| GET    | `/api/roles`                        | Список ролей (с пагинацией)         |
+| PUT    | `/api/roles/{id}`                   | Обновление роли                     |
+| DELETE | `/api/roles/{id}`                   | Удаление роли                       |
+| POST   | `/api/roles/assign?userId=&roleId=` | Назначение роли пользователю        |
+| POST   | `/api/roles/remove?userId=&roleId=` | Снятие роли с пользователя          |
 
 ## Требования к окружению
 
@@ -36,94 +66,139 @@
 
 ```bash
 git clone https://github.com/charset-8utf/UserService.git
-cd UserService
+cd UserServiceSpringBoot
 ```
 
-### 2. Запуск PostgreSQL и приложения
+### 2. Настройка переменных окружения
 
-Запустить базу данных:
+Скопируйте пример файла окружения и при необходимости измените значения:
 
 ```bash
-docker-compose up -d postgres
+cp .env.example .env
 ```
 
-Собрать образ приложения:
+По умолчанию `.env.example` содержит:
+
+```properties
+DB_USER=postgres
+DB_PASSWORD=postgres
+KEYSTORE_PASSWORD=changeit
+APP_SEED_ADMIN_PASSWORD=admin123
+APP_SEED_USER_PASSWORD=user123
+APP_HTTPS_PORT=8443
+POSTGRES_PUBLISH_PORT=5432
+```
+
+При необходимости порты приложения или Postgres на хосте можно переопределить через `APP_HTTPS_PORT` и `POSTGRES_PUBLISH_PORT` (см. `.env.example`).
+
+> **Важно:** переменные `APP_SEED_ADMIN_PASSWORD` и `APP_SEED_USER_PASSWORD` задают пароли для начальных пользователей. Если они не заданы, учётные записи не будут созданы и API вернёт 401.
+
+### 3. Запуск PostgreSQL и приложения
+
+При первом запуске нужна сборка образа приложения:
 
 ```bash
-docker-compose build app
+docker compose up --build -d
 ```
 
-Запуск приложения:
+Повторный старт без пересборки: `docker compose up -d`.
+
+Приложение будет доступно по **HTTPS**: **https://localhost:8443** (если не меняли `APP_HTTPS_PORT` в `.env`).
+
+**Режим разработки** (Maven `spring-boot:run`, монтирование `src`):  
+`docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build`.
+
+Если нужна **совсем новая база** (сброс схемы и истории миграций Liquibase во внутреннем томе Postgres):
 
 ```bash
-docker-compose run --rm app
+docker compose down -v && docker compose up --build -d
 ```
 
-### 3. Остановка и очистка
+> **Примечание:** браузер покажет предупреждение о самоподписанном сертификате — нажмите «Дополнительно» → «Перейти на сайт». Учётные данные в URL вида `https://user:pass@localhost/...` современные браузеры обычно **не передают** в HTTP Basic Auth: откройте URL без логина в адресе и введите логин в системном окне, либо используйте **curl** (`-u`) или **Postman** (см. Тестирование). Если ранее сохранили неверный пароль и ответ неожиданный, откройте сайт в режиме инкогнито или сбросьте сохранённые пароли для `localhost`.
+
+### 4. Аутентификация
+
+Приложение использует HTTP Basic авторизацию. При первом запуске создаются два пользователя:
+
+| Логин   | Пароль (из .env)          | Роль         |
+|---------|---------------------------|--------------|
+| `admin` | `APP_SEED_ADMIN_PASSWORD` | ADMIN + USER |
+| `user`  | `APP_SEED_USER_PASSWORD`  | USER         |
+
+### 5. Проверка
+
+Healthcheck (без авторизации)
+```bash
+curl -k https://localhost:8443/actuator/health
+```
+Список пользователей
+```bash
+curl -k -u admin:admin123 https://localhost:8443/api/users
+```
+
+### 6. Остановка и очистка
 
 Остановить контейнеры (данные сохраняются):
 
 ```bash
-docker-compose down
+docker compose down
 ```
 
-Полностью удалить всё (включая том с БД)
+Полностью удалить всё (включая том с БД Postgres):
 
 ```bash
-docker-compose down -v
+docker compose down -v
 ```
 
-## Локальный запуск с PostgreSQL в контейнере:
+## Локальный запуск с PostgreSQL в контейнере
 
 ### 1. Запуск PostgreSQL в Docker
+
 ```bash
 docker run --name user-postgres \
   -e POSTGRES_DB=userdb \
   -e POSTGRES_USER=postgres \
   -e POSTGRES_PASSWORD=postgres \
-  -p 5432:5432 postgres:17-alpine
+  -p 5432:5432 -d postgres:17-alpine
 ```
 
 ### 2. Локальная сборка и запуск приложения
 
 ```bash
-mvn clean package
-java -jar target/UserService-1.0-SNAPSHOT.jar
+mvn clean package -DskipTests
+java -jar target/UserServiceSpringBoot-1.0.0.jar
 ```
 
 Или через Maven:
 
 ```bash
-mvn compile exec:java -Dexec.mainClass="com.crud.api.Console"
+mvn spring-boot:run
+```
+
+Для создания seed-пользователей передайте пароли:
+
+```bash
+APP_SEED_ADMIN_PASSWORD=admin123 APP_SEED_USER_PASSWORD=user123 mvn spring-boot:run
 ```
 
 ## Архитектура проекта
 
 ```text
 com.crud
-├── api/                                    # консольный интерфейс (меню навигации, команды, постраничный вывод)
-├── controller/                             # слой контроллера (работа с DTO)
-├── service/                                # слой сервиса (бизнес-логика, валидация, retry)
-├── repository/                             # слой репозитория (Hibernate, транзакции)
-├── entity/                                 # JPA-сущности User/Note/Role/Profile
-├── dto/                                    # DTO запросов/ответов и пагинации
-├── mapper/                                 # преобразование DTO ↔ Entity
-├── exception/                              # иерархия кастомных исключений
-├── ApplicationBuilder, ApplicationContext  # ручной DI-контейнер
-├── HealthCheck                             # проверка здоровья для Docker
-└── HibernateUtil                           # конфигурация SessionFactory + Flyway
+├── config/      # конфигурация (безопасность, retry, rate limit, санитизация, CORS)
+├── controller/  # REST-контроллеры (API-эндпоинты)
+├── service/     # слой сервиса (бизнес-логика, валидация, retry при оптимистичных блокировках)
+├── repository/  # Spring Data JPA репозитории
+├── entity/      # JPA-сущности с оптимистичными блокировками и кэшированием
+├── dto/         # объекты передачи данных (DTO)
+├── mapper/      # мапперы для преобразования DTO ↔ Entity
+├── exception/   # кастомные исключения и глобальный обработчик ошибок
+└── security/    # Аутентификация через JPA
 ```
 
-**Паттерны GoF:**
-- *Builder* – @Builder для Entity и `ApplicationBuilder` для DI
-- *Command* – инкапсуляция запросов как объектов (команды меню)
-- *Factory* – создание команд меню (`MenuCommandFactory`)
-- *Registry* – регистрация команд по состояниям (`CommandRegistry`)
-- *State* – состояния меню (`MenuState`)
-- *Template Method* – выполнение транзакций в `AbstractRepository`
-- *Strategy* – валидация входных данных (`Validator`)
-
 ## Тестирование
+
+Автоматические тесты дополняются **ручной проверкой API в Postman** (коллекция в каталоге `postman/`, см. раздел «Проверка API в Postman» выше).
 
 ### Запуск тестов
 
@@ -139,61 +214,70 @@ mvn test
 mvn verify
 ```
 
-Интеграционные тесты используют **Testcontainers** и требуют запущенного Docker.
+Интеграционные тесты используют **H2** in-memory БД и/или **Testcontainers** (требуется запущенный Docker).
 
 ### Типы тестов
 
 #### **Модульные тесты** (JUnit + Mockito) проверяют:
 - Сервисы (с моками репозиториев)
 - Контроллеры
-- Команды меню
 - Мапперы (Entity ↔ DTO)
-- Исключения
-- Консольный ввод
-- Постраничный вывод
+- Исключения и глобальный обработчик
 
-#### **Интеграционные тесты** (Testcontainers) проверяют:
-- Репозитории с временным PostgreSQL в Docker
-- SessionFactory и миграции Flyway
-- HealthCheck и подключение к БД
-- **End-to-end** тест через ConsoleE2ETest
+#### **Интеграционные тесты** (H2 / Testcontainers) проверяют:
+- Репозитории с реальной БД
+- Миграции Liquibase
+- Полный цикл запросов через REST API (E2E)
 
 ### Покрытие кода (JaCoCo)
-- Порог покрытия **80% инструкций** для всех пакетов, кроме `com.crud.util` (его тесты запускаются в отдельных процессах, покрытие не собирается).
+- Порог покрытия **80% инструкций** для всех пакетов, кроме `com.crud` и `com.crud.entity`.
 
 Все тесты автоматически запускаются в GitHub Actions при каждом push в ветки `main`/`develop`.
 
+### Проверка API в Postman
+
+Проверка REST API выполняется в **Postman**: в репозитории лежит файловая коллекция и окружение под локальный запуск по HTTPS.
+
+**Коллекция** — каталог [`postman/collections/UserServiceSpringBoot API-1`](postman/collections/UserServiceSpringBoot%20API-1) — запросы сгруппированы по разделам (мониторинг Actuator, пользователи, заметки, профили, роли, сценарии под учёткой USER).
+
+**Окружение** — [`postman/environments/UserServiceSpringBoot local-1.environment.yaml`](postman/environments/UserServiceSpringBoot%20local-1.environment.yaml) — `baseUrl`, логины и пароли по умолчанию совпадают с `.env.example` (при необходимости скорректируйте значения под свой `.env`).
+
+**TLS:** в *Settings → General* временно отключите **SSL certificate verification** для работы с самоподписанным сертификатом `localhost`.
+>Выберите окружение в Postman и отправляйте запросы: так проверяются все маршруты из таблицы API, включая разграничение прав (например, назначение ролей только у **ADMIN**).
 ## CI
 
 Файл `.github/workflows/UserServiceCI.yml`:
 
 - Установка JDK 21 и кеширование Maven.
 - Запуск `mvn clean verify` (тесты).
-- Сборка Docker-образа.
-- Запуск PostgreSQL в отдельном контейнере.
-- Smoke‑тест приложения в docker compose (подача команд `1\n6\n0\n0` в консоль).
+- Сборка Docker-образа с кешем (Buildx).
+- Smoke-тест приложения в docker compose.
 - Загрузка отчётов тестов в артефакты.
 
 ## Логирование
 
-Используется **SLF4J + Logback**. Конфигурация – `src/main/resources/logback.xml`.  
-Все сообщения (меню, результаты операций, ошибки) выводятся через логгер, что обеспечивает единообразие.
+Используется **SLF4J** (вывод через Spring Boot по умолчанию). Уровни и шаблон консоли — в `application.yml`.
 
 ## Особенности реализации
 
-- **4 сущности** со связями:
+- **5 сущностей** со связями:
   - User ↔ Profile (OneToOne)
   - User ↔ Note (OneToMany)
   - User ↔ Role (ManyToMany через `user_role`)
-- **Оптимистичные блокировки** – `@Version` + retry-механизм (3 попытки) при конфликтах
-- **Пессимистичные блокировки** – `PESSIMISTIC_WRITE` для чтения с блокировкой (findByIdWithLock)
-- **Кэш 2-го уровня** – Caffeine с JCache для снижения нагрузки на БД
-- **Постраничный вывод** – `PagedListCommand` для списков с навигацией
+  - User ↔ Credential (OneToOne)
+- **Spring Security** – HTTP Basic аутентификация, ролевая модель (USER, ADMIN), stateless-сессии
+- **HTTPS** – TLS 1.2/1.3 с PKCS12 keystore, порт 8443
+- **Оптимистичные блокировки** – `@Version` + `@Retryable` (3 попытки, backoff 100ms) при конфликтах, fallback через `@Recover`
+- **Кэш 2-го уровня** – Caffeine + JCache (Hibernate L2 cache + query cache)
+- **Rate Limiting** – скользящее окно по IP/Authorization (20 запросов/60с по умолчанию)
+- **XSS-санитизация** – Экранирование HTML параметров запросов через фильтр
+- **CORS** – настраиваемые разрешенные источники
+- **Пагинация** – Spring Data Pageable (макс. 100 на страницу)
+- **Actuator** – health/readiness/liveness пробы и метрики
+- `spring.jpa.hibernate.ddl-auto: validate` – схема изменяется только миграциями Liquibase
 - **Параметризованные логи** – избегание конкатенации строк в `log.error`
-- **Criteria API** в `findAll` вместо динамического HQL (защита от SQL-инъекций)
-- `hibernate.hbm2ddl.auto = validate` – схема изменяется только миграциями Flyway
-- **Кастомные исключения** для бизнес-ошибок
-- **HealthCheck** для мониторинга состояния приложения в Docker
+- **Кастомные исключения** для бизнес-ошибок с глобальным обработчиком (`@RestControllerAdvice`)
+- **Healthcheck** в Docker через Actuator
 
 ## Автор
 [charset-8utf](https://github.com/charset-8utf)

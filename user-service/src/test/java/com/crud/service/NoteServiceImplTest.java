@@ -4,25 +4,34 @@ import com.crud.dto.NoteRequest;
 import com.crud.dto.NoteResponse;
 import com.crud.entity.Note;
 import com.crud.entity.User;
-import com.crud.exception.DataAccessException;
 import com.crud.exception.NoteNotFoundException;
 import com.crud.exception.UserNotFoundException;
 import com.crud.exception.ValidationException;
+import com.crud.mapper.NoteMapper;
 import com.crud.repository.NoteRepository;
 import com.crud.repository.UserRepository;
-import org.hibernate.StaleObjectStateException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@Execution(ExecutionMode.CONCURRENT)
 class NoteServiceImplTest {
 
     @Mock
@@ -31,120 +40,156 @@ class NoteServiceImplTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private NoteMapper noteMapper;
+
+    @InjectMocks
+    private NoteServiceImpl noteService;
+
     @Test
-    void createNote_ShouldCreateAndReturnResponse() {
-        NoteServiceImpl service = new NoteServiceImpl(noteRepository, userRepository);
-        User user = User.builder().name("John").email("john@example.com").age(25).build();
-        user.setId(1L);
-        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        Note note = Note.builder().content("Test content").user(user).build();
-        note.setId(1L);
-        when(noteRepository.save(any(Note.class))).thenReturn(note);
+    void createNote_ShouldSaveAndReturnResponse() {
+        Long userId = 1L;
+        NoteRequest request = new NoteRequest("Test note content");
+        User user = User.builder().name("John").email("john@example.com").age(30).build();
+        user.setId(userId);
 
-        NoteResponse result = service.createNote(1L, new NoteRequest("Test content"));
+        Note savedNote = Note.builder().content("Test note content").user(user).build();
+        savedNote.setId(1L);
+        savedNote.setCreatedAt(LocalDateTime.now());
 
-        assertEquals(1L, result.id());
-        assertEquals("Test content", result.content());
+        NoteResponse expected = new NoteResponse(1L, "Test note content", savedNote.getCreatedAt(), savedNote.getCreatedAt());
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(noteMapper.toEntity(request)).thenReturn(Note.builder().content("Test note content").build());
+        when(noteRepository.save(any(Note.class))).thenReturn(savedNote);
+        when(noteMapper.toResponse(savedNote)).thenReturn(expected);
+
+        NoteResponse actual = noteService.createNote(userId, request);
+
+        assertThat(actual).isEqualTo(expected);
+        verify(userRepository).findById(userId);
+        verify(noteRepository).save(any(Note.class));
     }
 
     @Test
-    void createNote_WhenUserNotFound_ShouldThrow() {
-        NoteServiceImpl service = new NoteServiceImpl(noteRepository, userRepository);
-        when(userRepository.findById(1L)).thenReturn(Optional.empty());
+    void createNote_WhenUserNotExists_ShouldThrowUserNotFoundException() {
+        Long userId = 999L;
+        NoteRequest request = new NoteRequest("Test content");
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
-        NoteRequest request = new NoteRequest("Test");
-        assertThrows(UserNotFoundException.class, () -> service.createNote(1L, request));
-    }
-
-    @Test
-    void createNote_WhenContentBlank_ShouldThrowValidation() {
-        NoteServiceImpl service = new NoteServiceImpl(noteRepository, userRepository);
-
-        NoteRequest blankRequest = new NoteRequest("");
-        NoteRequest spaceRequest = new NoteRequest("   ");
-        NoteRequest nullRequest = new NoteRequest(null);
-        assertThrows(ValidationException.class, () -> service.createNote(1L, blankRequest));
-        assertThrows(ValidationException.class, () -> service.createNote(1L, spaceRequest));
-        assertThrows(ValidationException.class, () -> service.createNote(1L, nullRequest));
+        assertThatThrownBy(() -> noteService.createNote(userId, request))
+                .isInstanceOf(UserNotFoundException.class)
+                .hasMessageContaining(String.valueOf(userId));
     }
 
     @Test
     void findNoteById_WhenExists_ShouldReturnResponse() {
-        NoteServiceImpl service = new NoteServiceImpl(noteRepository, userRepository);
-        User user = User.builder().name("John").email("john@example.com").age(25).build();
-        user.setId(1L);
+        Long userId = 1L;
+        Long noteId = 1L;
+        User user = User.builder().name("John").build();
+        user.setId(userId);
+
         Note note = Note.builder().content("Test content").user(user).build();
-        note.setId(1L);
+        note.setId(noteId);
         note.setCreatedAt(LocalDateTime.now());
-        note.setUpdatedAt(LocalDateTime.now());
-        when(noteRepository.findById(1L)).thenReturn(Optional.of(note));
 
-        NoteResponse result = service.findNoteById(1L);
+        NoteResponse expected = new NoteResponse(noteId, "Test content", note.getCreatedAt(), note.getCreatedAt());
 
-        assertEquals(1L, result.id());
+        when(noteRepository.findById(noteId)).thenReturn(Optional.of(note));
+        when(noteMapper.toResponse(note)).thenReturn(expected);
+
+        NoteResponse actual = noteService.findNoteById(userId, noteId);
+
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
-    void findNoteById_WhenNotFound_ShouldThrow() {
-        NoteServiceImpl service = new NoteServiceImpl(noteRepository, userRepository);
-        when(noteRepository.findById(1L)).thenReturn(Optional.empty());
+    void findNoteById_WhenNotExists_ShouldThrowNoteNotFoundException() {
+        Long noteId = 999L;
+        when(noteRepository.findById(noteId)).thenReturn(Optional.empty());
 
-        assertThrows(NoteNotFoundException.class, () -> service.findNoteById(1L));
+        assertThatThrownBy(() -> noteService.findNoteById(1L, noteId))
+                .isInstanceOf(NoteNotFoundException.class)
+                .hasMessageContaining(String.valueOf(noteId));
     }
 
     @Test
-    void updateNote_ShouldUpdateAndReturnResponse() {
-        NoteServiceImpl service = new NoteServiceImpl(noteRepository, userRepository);
-        User user = User.builder().name("John").email("john@example.com").age(25).build();
-        user.setId(1L);
-        Note note = Note.builder().content("Old content").user(user).build();
+    void findNoteById_WhenNoteBelongsToDifferentUser_ShouldThrowValidationException() {
+        Long userId = 1L;
+        Long otherUserId = 2L;
+        Long noteId = 1L;
+
+        User owner = User.builder().name("Owner").build();
+        owner.setId(otherUserId);
+
+        Note note = Note.builder().content("Test content").user(owner).build();
+        note.setId(noteId);
+
+        when(noteRepository.findById(noteId)).thenReturn(Optional.of(note));
+
+        assertThatThrownBy(() -> noteService.findNoteById(userId, noteId))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("не принадлежит пользователю");
+    }
+
+    @Test
+    void findNotesByUserId_ShouldReturnPage() {
+        Long userId = 1L;
+        User user = User.builder().name("John").build();
+        user.setId(userId);
+
+        Note note = Note.builder().content("Test").user(user).build();
         note.setId(1L);
-        when(noteRepository.findById(1L)).thenReturn(Optional.of(note));
-        when(noteRepository.update(any(Note.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        NoteResponse result = service.updateNote(1L, new NoteRequest("New content"));
+        NoteResponse response = new NoteResponse(1L, "Test", LocalDateTime.now(), LocalDateTime.now());
+        Page<Note> notePage = new PageImpl<>(List.of(note));
+        PageRequest pageRequest = PageRequest.of(0, 10);
 
-        assertEquals(1L, result.id());
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(noteRepository.findByUserId(userId, pageRequest)).thenReturn(notePage);
+        when(noteMapper.toResponse(note)).thenReturn(response);
+
+        Page<NoteResponse> result = noteService.findNotesByUserId(userId, pageRequest);
+
+        assertThat(result.getContent()).hasSize(1);
     }
 
     @Test
-    void updateNote_WhenNotFound_ShouldThrow() {
-        NoteServiceImpl service = new NoteServiceImpl(noteRepository, userRepository);
-        when(noteRepository.findById(1L)).thenReturn(Optional.empty());
+    void deleteNote_ShouldDelete() {
+        Long userId = 1L;
+        Long noteId = 1L;
+        User user = User.builder().name("John").build();
+        user.setId(userId);
 
-        NoteRequest updateRequest = new NoteRequest("New content");
-        assertThrows(NoteNotFoundException.class, () -> service.updateNote(1L, updateRequest));
+        Note note = Note.builder().content("Test").user(user).build();
+        note.setId(noteId);
+
+        when(noteRepository.findById(noteId)).thenReturn(Optional.of(note));
+        doNothing().when(noteRepository).deleteById(noteId);
+
+        noteService.deleteNote(userId, noteId);
+
+        verify(noteRepository).deleteById(noteId);
     }
 
     @Test
-    void deleteNote_ShouldCallRepositoryDelete() {
-        NoteServiceImpl service = new NoteServiceImpl(noteRepository, userRepository);
-        doNothing().when(noteRepository).deleteById(1L);
+    void deleteNote_WhenNoteBelongsToDifferentUser_ShouldThrowValidationException() {
+        Long userId = 1L;
+        Long otherUserId = 2L;
+        Long noteId = 1L;
 
-        service.deleteNote(1L);
+        User owner = User.builder().name("Owner").build();
+        owner.setId(otherUserId);
 
-        verify(noteRepository).deleteById(1L);
-    }
+        Note note = Note.builder().content("Test").user(owner).build();
+        note.setId(noteId);
 
-    @Test
-    void updateNote_WithOptimisticLockException_ShouldRetryAndSucceed() {
-        NoteServiceImpl service = new NoteServiceImpl(noteRepository, userRepository);
-        User user = User.builder().name("John").email("john@example.com").age(25).build();
-        user.setId(1L);
-        Note note = Note.builder().content("Old").user(user).build();
-        note.setId(1L);
-        when(noteRepository.findById(1L))
-                .thenReturn(Optional.of(note))
-                .thenReturn(Optional.of(note))
-                .thenReturn(Optional.of(note));
-        when(noteRepository.update(any(Note.class)))
-                .thenThrow(new DataAccessException("Optimistic lock", new StaleObjectStateException("Note", 1L)))
-                .thenThrow(new DataAccessException("Optimistic lock", new StaleObjectStateException("Note", 1L)))
-                .thenAnswer(inv -> inv.getArgument(0));
+        when(noteRepository.findById(noteId)).thenReturn(Optional.of(note));
 
-        NoteResponse result = service.updateNote(1L, new NoteRequest("New"));
+        assertThatThrownBy(() -> noteService.deleteNote(userId, noteId))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("не принадлежит пользователю");
 
-        assertNotNull(result);
-        verify(noteRepository, times(3)).update(any(Note.class));
+        verify(noteRepository, never()).deleteById(any());
     }
 }

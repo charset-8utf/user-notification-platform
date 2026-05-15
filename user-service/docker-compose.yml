@@ -1,3 +1,6 @@
+# Запуск: скопировать .env из .env.example и выполнить
+#   docker compose up --build -d
+# Свежая БД без старых миграций (Liquibase): docker compose down -v
 services:
   postgres:
     image: postgres:17-alpine
@@ -5,12 +8,14 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_DB: userdb
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PUBLISH_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d userdb"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d userdb"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -18,22 +23,24 @@ services:
       - app-network
 
   app:
-    image: user-service:latest
     build:
       context: .
-      cache_from:
-        - user-service:latest
-        - type=local,src=/tmp/.buildx-cache
+      dockerfile: Dockerfile
+    image: user-service:latest
     container_name: user-app
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/userdb
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-    stdin_open: true
-    tty: true
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      KEYSTORE_PASSWORD: ${KEYSTORE_PASSWORD:-changeit}
+      APP_SEED_ADMIN_PASSWORD: ${APP_SEED_ADMIN_PASSWORD:-admin123}
+      APP_SEED_USER_PASSWORD: ${APP_SEED_USER_PASSWORD:-user123}
+    ports:
+      - "${APP_HTTPS_PORT:-8443}:8443"
     networks:
       - app-network
 

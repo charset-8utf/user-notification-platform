@@ -1,0 +1,10 @@
+$kind: collection
+description: Запросы от имени роли USER (учётная запись user) — для проверки отличий доступа от ADMIN.
+auth:
+  - id: f21deccd-0a6a-42ea-9101-4818e5aafc43
+    type: basic
+    name: Базовая авторизация (USER)
+    credentials:
+      username: "{{regularUser}}"
+      password: "{{regularPass}}"
+order: 6000

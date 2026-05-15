@@ -2,8 +2,8 @@ package com.crud.service;
 
 import com.crud.dto.NoteRequest;
 import com.crud.dto.NoteResponse;
-import com.crud.dto.Page;
-import com.crud.dto.Pageable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 /**
  * Сервис заметок.
@@ -11,8 +11,8 @@ import com.crud.dto.Pageable;
 public interface NoteService {
 
     NoteResponse createNote(Long userId, NoteRequest request);
-    NoteResponse findNoteById(Long id);
+    NoteResponse findNoteById(Long userId, Long id);
     Page<NoteResponse> findNotesByUserId(Long userId, Pageable pageable);
-    NoteResponse updateNote(Long id, NoteRequest request);
-    void deleteNote(Long id);
+    NoteResponse updateNote(Long userId, Long id, NoteRequest request);
+    void deleteNote(Long userId, Long id);
 }
