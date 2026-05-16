@@ -1,0 +1,11 @@
+spring:
+  kafka:
+    listener:
+      ack-mode: manual_immediate
+
+management:
+  endpoint:
+    health:
+      group:
+        readiness:
+          include: readinessState, kafkaConsumerLag
