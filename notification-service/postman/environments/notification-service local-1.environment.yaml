@@ -1,0 +1,10 @@
+name: notification-service local-1
+values:
+  - key: baseUrl
+    value: 'http://localhost:8081'
+  - key: mailpitUrl
+    value: 'http://localhost:8025'
+  - key: testEmail
+    value: apitest@example.com
+  - key: secondTestEmail
+    value: apitest-deleted@example.com

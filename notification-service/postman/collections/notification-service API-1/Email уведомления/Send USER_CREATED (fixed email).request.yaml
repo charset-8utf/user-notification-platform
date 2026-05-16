@@ -1,0 +1,16 @@
+$kind: http-request
+name: Отправить USER_CREATED (фиксированный email)
+url: "{{baseUrl}}/api/notifications/email"
+method: POST
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "eventId": "770e8400-e29b-41d4-a716-446655440000",
+      "operation": "USER_CREATED",
+      "email": "user@example.com"
+    }
+order: 3000

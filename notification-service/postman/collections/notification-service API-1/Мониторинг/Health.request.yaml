@@ -1,0 +1,5 @@
+$kind: http-request
+name: Проверка здоровья (health)
+url: "{{baseUrl}}/actuator/health"
+method: GET
+order: 1000

@@ -1,0 +1,8 @@
+$kind: collection
+name: notification-service API
+description: "REST API уведомлений (HTTP, порт 8081). Профиль `rest` должен быть активен. Выберите окружение «notification-service local-1» (файл в postman/environments). После успешных POST /api/notifications/email письма смотрите в Mailpit: {{mailpitUrl}}. Контракт JSON совпадает с событиями Kafka топика `user-notifications` из user-service."
+variables:
+  baseUrl: http://localhost:8081
+  mailpitUrl: http://localhost:8025
+  testEmail: apitest@example.com
+  secondTestEmail: apitest-deleted@example.com
