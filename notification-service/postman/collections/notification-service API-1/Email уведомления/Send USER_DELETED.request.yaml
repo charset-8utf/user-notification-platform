@@ -1,0 +1,16 @@
+$kind: http-request
+name: Отправить USER_DELETED
+url: "{{baseUrl}}/api/notifications/email"
+method: POST
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "eventId": "{{$guid}}",
+      "operation": "USER_DELETED",
+      "email": "{{secondTestEmail}}"
+    }
+order: 2000

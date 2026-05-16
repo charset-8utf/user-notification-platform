@@ -1,0 +1,15 @@
+$kind: http-request
+name: Неизвестный путь (ожидается 404)
+url: "{{baseUrl}}/api/notifications/unknown"
+method: POST
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "operation": "USER_CREATED",
+      "email": "{{testEmail}}"
+    }
+order: 5000
