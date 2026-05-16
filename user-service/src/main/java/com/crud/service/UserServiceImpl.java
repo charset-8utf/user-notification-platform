@@ -1,5 +1,7 @@
 package com.crud.service;
 
+import com.crud.cache.UserCachePort;
+import com.crud.cache.UserCacheView;
 import com.crud.dto.UserRequest;
 import com.crud.dto.UserResponse;
 import com.crud.entity.User;
@@ -7,6 +9,9 @@ import com.crud.exception.UserNotFoundException;
 import com.crud.exception.UserServiceException;
 import com.crud.exception.ValidationException;
 import com.crud.mapper.UserMapper;
+import com.crud.notification.UserNotificationEvent;
+import com.crud.notification.UserNotificationOperation;
+import com.crud.notification.UserNotificationPort;
 import com.crud.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +36,8 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final UserCachePort userCache;
+    private final UserNotificationPort notificationPort;
 
     @Override
     @Transactional
@@ -39,6 +46,9 @@ public class UserServiceImpl implements UserService {
             User user = userMapper.toEntity(request);
             User saved = userRepository.save(user);
             log.info("Создан пользователь: id={}, email={}", saved.getId(), saved.getEmail());
+            userCache.put(UserCacheView.active(saved.getId(), saved.getEmail()));
+            notificationPort.publish(
+                    UserNotificationEvent.create(UserNotificationOperation.USER_CREATED, saved.getEmail()));
             return userMapper.toResponse(saved);
         } catch (DataIntegrityViolationException e) {
             throw new ValidationException("Email уже используется: " + request.email());
@@ -70,6 +80,7 @@ public class UserServiceImpl implements UserService {
         User updated = userMapper.toEntity(request, existing);
         User saved = userRepository.save(updated);
         log.info("Обновлён пользователь: id={}, email={}", saved.getId(), saved.getEmail());
+        userCache.put(UserCacheView.active(saved.getId(), saved.getEmail()));
         return userMapper.toResponse(saved);
     }
 
@@ -82,11 +93,14 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public void deleteUser(Long id) {
-        if (!userRepository.existsById(id)) {
-            throw new UserNotFoundException(id);
-        }
+        // email читаем ДО deleteById, чтобы успеть положить его в событие USER_DELETED
+        User existing = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+        String email = existing.getEmail();
         userRepository.deleteById(id);
-        log.info("Удалён пользователь: id={}", id);
+        log.info("Удалён пользователь: id={}, email={}", id, email);
+        userCache.evict(id);
+        notificationPort.publish(UserNotificationEvent.create(UserNotificationOperation.USER_DELETED, email));
     }
 
     @Override

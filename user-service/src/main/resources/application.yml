@@ -2,6 +2,9 @@ spring:
   application:
     name: user-service
 
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:kafka,redis}
+
   docker:
     compose:
       enabled: false
@@ -61,8 +64,12 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus
       base-path: /actuator
+  prometheus:
+    metrics:
+      export:
+        enabled: true
   # Без этого info.* из конфигурации не попадают в /actuator/info (по умолчанию false в Spring Boot 4)
   info:
     env:
@@ -90,6 +97,17 @@ app:
   seed:
     admin-password: ${APP_SEED_ADMIN_PASSWORD:}
     user-password: ${APP_SEED_USER_PASSWORD:}
+  notification:
+    kafka:
+      topic: ${APP_NOTIFICATION_KAFKA_TOPIC:user-notifications}
+      partitions: ${APP_NOTIFICATION_KAFKA_PARTITIONS:3}
+      replicas: ${APP_NOTIFICATION_KAFKA_REPLICAS:1}
+      outbox:
+        relay-interval-ms: ${APP_NOTIFICATION_OUTBOX_RELAY_MS:1000}
+        batch-size: ${APP_NOTIFICATION_OUTBOX_BATCH_SIZE:50}
+  cache:
+    redis:
+      ttl: ${APP_CACHE_REDIS_TTL:PT1H}
 
 logging:
   level:
