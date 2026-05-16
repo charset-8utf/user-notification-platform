@@ -1,4 +1,4 @@
-# UserServiceSpringBoot – REST-сервис управления пользователями
+# user-service – REST-сервис управления пользователями
 
 ![Java](https://img.shields.io/badge/Java-21-blue?logo=openjdk&color=orange)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.6-green?logo=springboot)
@@ -18,12 +18,71 @@
 
 REST-сервис для управления пользователями с поддержкой операций **Create**, **Read**, **Update**, **Delete** (CRUD).  
 Построен на **Spring Boot 4** с использованием **Spring Data JPA**, **PostgreSQL** в Docker и пула соединений **HikariCP**.  
-**Архитектура:** трёхслойная (Controller → Service → Repository) с DTO, ручными мапперами.
+**Архитектура:** трёхслойная (Controller → Service → Repository) с DTO и ручными мапперами.
 
-Схема БД управляется миграциями **Liquibase**: точка входа — `src/main/resources/db/changelog/db.changelog-master.yaml`, сами изменения — отдельные SQL-файлы в `src/main/resources/db/changelog/changes/` (формат *Liquibase formatted sql*).
+Схема БД управляется миграциями **Liquibase** (`src/main/resources/db/changelog/`).  
 Покрыт юнит-тестами (JUnit, Mockito) и интеграционными тестами (Testcontainers, H2).  
-Настроен CI (GitHub Actions) с авто-тестами и сборкой Docker-образа.  
-Приложение и PostgreSQL запускаются через `docker-compose`. В образ включён **healthcheck** (Actuator).
+Настроен CI (GitHub Actions) с авто-тестами и сборкой Docker-образа.
+
+При локальном запуске поднимаются PostgreSQL, Redis, Kafka и Zookeeper (`docker-compose`).  
+Полный стек с **notification-service** — через корневой `docker-compose` монорепозитория `user-notification-platform`.
+
+## Интеграция с notification-service
+
+При создании и удалении пользователя сервис формирует событие для **notification-service**:
+
+```json
+{
+  "eventId": "550e8400-e29b-41d4-a716-446655440000",
+  "operation": "USER_CREATED",
+  "email": "user@example.com"
+}
+```
+
+**Профиль `kafka` (по умолчанию):** transactional outbox — запись в таблицу `notification_outbox` в той же транзакции, что и пользователь; фоновый `KafkaOutboxRelay` публикует в топик `user-notifications` с **partition key = email**. Producer: `acks=all`, `enable.idempotence=true`.
+
+**Профиль `rest`:** синхронный `POST /api/notifications/email` в notification-service (Resilience4j Circuit Breaker).
+
+Параллельно в **Redis** кэшируется срез пользователя (`user:{id}`):
+
+```json
+{ "id": 42, "email": "user@example.com", "status": "ACTIVE" }
+```
+
+TTL — `app.cache.redis.ttl` (по умолчанию `PT1H`).
+
+### Spring-профили
+
+| Профиль | Назначение |
+|---------|------------|
+| `kafka` | Outbox + Kafka producer (`application-kafka.yml`) |
+| `rest` | HTTP-клиент в notification-service (`application-rest.yml`) |
+| `redis` | Кэш пользователя в Redis (`application-redis.yml`) |
+
+Дефолт: `kafka,redis`. Для REST-режима: `SPRING_PROFILES_ACTIVE=rest,redis`.
+
+Профили **`kafka` и `rest` взаимоисключающие** — при одновременной активации Spring завершит старт с `NoUniqueBeanDefinitionException`.
+
+### REST-режим (notification-service)
+
+```
+POST {base-url}/api/notifications/email
+Content-Type: application/json
+
+{
+  "eventId": "660e8400-e29b-41d4-a716-446655440001",
+  "operation": "USER_CREATED",
+  "email": "user@example.com"
+}
+```
+
+| Свойство | По умолчанию |
+|----------|--------------|
+| `APP_NOTIFICATION_REST_BASE_URL` | `http://notification-service:8081` |
+| `APP_NOTIFICATION_REST_CONNECT_TIMEOUT` | `PT2S` |
+| `APP_NOTIFICATION_REST_READ_TIMEOUT` | `PT5S` |
+
+При недоступности notification-service срабатывает fallback: пользователь сохраняется, событие теряется (лог WARN).
 
 ## API-эндпоинты
 
@@ -56,69 +115,53 @@ REST-сервис для управления пользователями с п
 
 ## Требования к окружению
 
-- **Docker Desktop** (для локального запуска PostgreSQL и интеграционных тестов)
-- **Java 21** (установлена и настроена)
-- **Maven 3.9+** (или использовать встроенный Maven в IDEA)
+- **Docker Desktop** (PostgreSQL, Redis, Kafka, интеграционные тесты)
+- **Java 21**
+- **Maven 3.9+**
 
 ## Быстрый старт через Docker
 
-### 1. Клонирование репозитория
+### 1. Клонирование
 
 ```bash
-git clone https://github.com/charset-8utf/UserService.git
-cd UserServiceSpringBoot
+git clone https://github.com/charset-8utf/UserService.git user-service
+cd user-service
 ```
 
-### 2. Настройка переменных окружения
-
-Скопируйте пример файла окружения и при необходимости измените значения:
+### 2. Переменные окружения
 
 ```bash
 cp .env.example .env
 ```
 
-По умолчанию `.env.example` содержит:
+По умолчанию в `.env.example`: `DB_USER`, `DB_PASSWORD`, `KEYSTORE_PASSWORD`, seed-пароли, порты `8443` / `5432`.
 
-```properties
-DB_USER=postgres
-DB_PASSWORD=postgres
-KEYSTORE_PASSWORD=changeit
-APP_SEED_ADMIN_PASSWORD=admin123
-APP_SEED_USER_PASSWORD=user123
-APP_HTTPS_PORT=8443
-POSTGRES_PUBLISH_PORT=5432
-```
+> Без `APP_SEED_ADMIN_PASSWORD` и `APP_SEED_USER_PASSWORD` учётные записи не создаются — API вернёт 401.
 
-При необходимости порты приложения или Postgres на хосте можно переопределить через `APP_HTTPS_PORT` и `POSTGRES_PUBLISH_PORT` (см. `.env.example`).
-
-> **Важно:** переменные `APP_SEED_ADMIN_PASSWORD` и `APP_SEED_USER_PASSWORD` задают пароли для начальных пользователей. Если они не заданы, учётные записи не будут созданы и API вернёт 401.
-
-### 3. Запуск PostgreSQL и приложения
-
-При первом запуске нужна сборка образа приложения:
+### 3. Запуск
 
 ```bash
 docker compose up --build -d
 ```
 
-Повторный старт без пересборки: `docker compose up -d`.
+Приложение: **https://localhost:8443**
 
-Приложение будет доступно по **HTTPS**: **https://localhost:8443** (если не меняли `APP_HTTPS_PORT` в `.env`).
+Режим разработки (только инфра в Docker, приложение через Maven):
 
-**Режим разработки** (Maven `spring-boot:run`, монтирование `src`):  
-`docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build`.
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+mvn spring-boot:run
+```
 
-Если нужна **совсем новая база** (сброс схемы и истории миграций Liquibase во внутреннем томе Postgres):
+Сброс БД:
 
 ```bash
 docker compose down -v && docker compose up --build -d
 ```
 
-> **Примечание:** браузер покажет предупреждение о самоподписанном сертификате — нажмите «Дополнительно» → «Перейти на сайт». Учётные данные в URL вида `https://user:pass@localhost/...` современные браузеры обычно **не передают** в HTTP Basic Auth: откройте URL без логина в адресе и введите логин в системном окне, либо используйте **curl** (`-u`) или **Postman** (см. Тестирование). Если ранее сохранили неверный пароль и ответ неожиданный, откройте сайт в режиме инкогнито или сбросьте сохранённые пароли для `localhost`.
+> Самоподписанный TLS: в браузере примите исключение; для API удобнее **curl** (`-k -u`) или **Postman**.
 
 ### 4. Аутентификация
-
-Приложение использует HTTP Basic авторизацию. При первом запуске создаются два пользователя:
 
 | Логин   | Пароль (из .env)          | Роль         |
 |---------|---------------------------|--------------|
@@ -127,32 +170,19 @@ docker compose down -v && docker compose up --build -d
 
 ### 5. Проверка
 
-Healthcheck (без авторизации)
 ```bash
 curl -k https://localhost:8443/actuator/health
-```
-Список пользователей
-```bash
 curl -k -u admin:admin123 https://localhost:8443/api/users
 ```
 
-### 6. Остановка и очистка
-
-Остановить контейнеры (данные сохраняются):
+### 6. Остановка
 
 ```bash
-docker compose down
+docker compose down      # данные сохраняются
+docker compose down -v   # полная очистка томов
 ```
 
-Полностью удалить всё (включая том с БД Postgres):
-
-```bash
-docker compose down -v
-```
-
-## Локальный запуск с PostgreSQL в контейнере
-
-### 1. Запуск PostgreSQL в Docker
+## Локальный запуск (PostgreSQL в Docker)
 
 ```bash
 docker run --name user-postgres \
@@ -160,24 +190,9 @@ docker run --name user-postgres \
   -e POSTGRES_USER=postgres \
   -e POSTGRES_PASSWORD=postgres \
   -p 5432:5432 -d postgres:17-alpine
-```
 
-### 2. Локальная сборка и запуск приложения
-
-```bash
-mvn clean package -DskipTests
-java -jar target/UserServiceSpringBoot-1.0.0.jar
-```
-
-Или через Maven:
-
-```bash
 mvn spring-boot:run
-```
-
-Для создания seed-пользователей передайте пароли:
-
-```bash
+# или
 APP_SEED_ADMIN_PASSWORD=admin123 APP_SEED_USER_PASSWORD=user123 mvn spring-boot:run
 ```
 
@@ -185,99 +200,49 @@ APP_SEED_ADMIN_PASSWORD=admin123 APP_SEED_USER_PASSWORD=user123 mvn spring-boot:
 
 ```text
 com.crud
-├── config/      # конфигурация (безопасность, retry, rate limit, санитизация, CORS)
-├── controller/  # REST-контроллеры (API-эндпоинты)
-├── service/     # слой сервиса (бизнес-логика, валидация, retry при оптимистичных блокировках)
-├── repository/  # Spring Data JPA репозитории
-├── entity/      # JPA-сущности с оптимистичными блокировками и кэшированием
-├── dto/         # объекты передачи данных (DTO)
-├── mapper/      # мапперы для преобразования DTO ↔ Entity
-├── exception/   # кастомные исключения и глобальный обработчик ошибок
-└── security/    # Аутентификация через JPA
+├── config/       # безопасность, Kafka, REST-клиент, CORS, rate limit
+├── controller/   # REST API
+├── service/      # бизнес-логика
+├── repository/   # Spring Data JPA
+├── entity/       # JPA-сущности
+├── dto/          # DTO
+├── mapper/       # DTO ↔ Entity
+├── notification/ # события, outbox, Kafka/REST-публикация
+├── cache/        # Redis-кэш пользователя
+├── exception/    # исключения и @RestControllerAdvice
+└── security/     # учётные записи
 ```
 
 ## Тестирование
 
-Автоматические тесты дополняются **ручной проверкой API в Postman** (коллекция в каталоге `postman/`, см. раздел «Проверка API в Postman» выше).
-
-### Запуск тестов
-
-Только модульные (unit) тесты:
-
 ```bash
-mvn test
+mvn test      # unit
+mvn verify    # unit + integration
 ```
 
-Все тесты (unit + интеграционные + E2E)
+Интеграционные тесты используют **Testcontainers** (нужен Docker).
 
-```bash
-mvn verify
-```
+### Postman
 
-Интеграционные тесты используют **H2** in-memory БД и/или **Testcontainers** (требуется запущенный Docker).
+- Коллекция: [`postman/collections/user-service API-1`](postman/collections/user-service%20API-1)
+- Окружение: [`postman/environments/user-service local-1.environment.yaml`](postman/environments/user-service%20local-1.environment.yaml)
 
-### Типы тестов
+В Postman отключите **SSL certificate verification** для `localhost` и выберите окружение **user-service local-1**.
 
-#### **Модульные тесты** (JUnit + Mockito) проверяют:
-- Сервисы (с моками репозиториев)
-- Контроллеры
-- Мапперы (Entity ↔ DTO)
-- Исключения и глобальный обработчик
-
-#### **Интеграционные тесты** (H2 / Testcontainers) проверяют:
-- Репозитории с реальной БД
-- Миграции Liquibase
-- Полный цикл запросов через REST API (E2E)
-
-### Покрытие кода (JaCoCo)
-- Порог покрытия **80% инструкций** для всех пакетов, кроме `com.crud` и `com.crud.entity`.
-
-Все тесты автоматически запускаются в GitHub Actions при каждом push в ветки `main`/`develop`.
-
-### Проверка API в Postman
-
-Проверка REST API выполняется в **Postman**: в репозитории лежит файловая коллекция и окружение под локальный запуск по HTTPS.
-
-**Коллекция** — каталог [`postman/collections/UserServiceSpringBoot API-1`](postman/collections/UserServiceSpringBoot%20API-1) — запросы сгруппированы по разделам (мониторинг Actuator, пользователи, заметки, профили, роли, сценарии под учёткой USER).
-
-**Окружение** — [`postman/environments/UserServiceSpringBoot local-1.environment.yaml`](postman/environments/UserServiceSpringBoot%20local-1.environment.yaml) — `baseUrl`, логины и пароли по умолчанию совпадают с `.env.example` (при необходимости скорректируйте значения под свой `.env`).
-
-**TLS:** в *Settings → General* временно отключите **SSL certificate verification** для работы с самоподписанным сертификатом `localhost`.
->Выберите окружение в Postman и отправляйте запросы: так проверяются все маршруты из таблицы API, включая разграничение прав (например, назначение ролей только у **ADMIN**).
 ## CI
 
-Файл `.github/workflows/UserServiceCI.yml`:
-
-- Установка JDK 21 и кеширование Maven.
-- Запуск `mvn clean verify` (тесты).
-- Сборка Docker-образа с кешем (Buildx).
-- Smoke-тест приложения в docker compose.
-- Загрузка отчётов тестов в артефакты.
-
-## Логирование
-
-Используется **SLF4J** (вывод через Spring Boot по умолчанию). Уровни и шаблон консоли — в `application.yml`.
+`.github/workflows/UserServiceCI.yml` — `mvn verify`, сборка Docker-образа, smoke-тест в compose.
 
 ## Особенности реализации
 
-- **5 сущностей** со связями:
-  - User ↔ Profile (OneToOne)
-  - User ↔ Note (OneToMany)
-  - User ↔ Role (ManyToMany через `user_role`)
-  - User ↔ Credential (OneToOne)
-- **Spring Security** – HTTP Basic аутентификация, ролевая модель (USER, ADMIN), stateless-сессии
-- **HTTPS** – TLS 1.2/1.3 с PKCS12 keystore, порт 8443
-- **Оптимистичные блокировки** – `@Version` + `@Retryable` (3 попытки, backoff 100ms) при конфликтах, fallback через `@Recover`
-- **Кэш 2-го уровня** – Caffeine + JCache (Hibernate L2 cache + query cache)
-- **Rate Limiting** – скользящее окно по IP/Authorization (20 запросов/60с по умолчанию)
-- **XSS-санитизация** – Экранирование HTML параметров запросов через фильтр
-- **CORS** – настраиваемые разрешенные источники
-- **Пагинация** – Spring Data Pageable (макс. 100 на страницу)
-- **Actuator** – health/readiness/liveness пробы и метрики
-- `spring.jpa.hibernate.ddl-auto: validate` – схема изменяется только миграциями Liquibase
-- **Параметризованные логи** – избегание конкатенации строк в `log.error`
-- **Кастомные исключения** для бизнес-ошибок с глобальным обработчиком (`@RestControllerAdvice`)
-- **Healthcheck** в Docker через Actuator
+- **Spring Security** — HTTP Basic, роли USER / ADMIN
+- **HTTPS** — TLS 1.2/1.3, порт 8443
+- **Оптимистичные блокировки** — `@Version` + `@Retryable`
+- **Кэш 2-го уровня** — Caffeine + JCache
+- **Rate limiting** — 20 запросов / 60 с (по умолчанию)
+- **Actuator** — health, metrics, prometheus
+- **Liquibase** — `ddl-auto: validate`
 
 ## Автор
+
 [charset-8utf](https://github.com/charset-8utf)
