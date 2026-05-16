@@ -36,7 +36,7 @@ public class SecurityConfig {
             .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/info", "/actuator/prometheus").permitAll()
                         .requestMatchers("/api/users/**").hasAnyRole(ROLE_USER, ROLE_ADMIN)
                         .requestMatchers("/api/profiles/**").hasAnyRole(ROLE_USER, ROLE_ADMIN)
                         .requestMatchers("/api/roles/assign", "/api/roles/remove").hasRole(ROLE_ADMIN)

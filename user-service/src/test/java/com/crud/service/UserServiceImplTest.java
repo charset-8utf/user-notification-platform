@@ -1,10 +1,15 @@
 package com.crud.service;
 
+import com.crud.cache.UserCachePort;
+import com.crud.cache.UserCacheView;
 import com.crud.dto.UserRequest;
 import com.crud.dto.UserResponse;
 import com.crud.entity.User;
 import com.crud.exception.UserNotFoundException;
 import com.crud.mapper.UserMapper;
+import com.crud.notification.UserNotificationEvent;
+import com.crud.notification.UserNotificationOperation;
+import com.crud.notification.UserNotificationPort;
 import com.crud.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
@@ -23,6 +28,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,6 +40,12 @@ class UserServiceImplTest {
 
     @Mock
     private UserMapper userMapper;
+
+    @Mock
+    private UserCachePort userCache;
+
+    @Mock
+    private UserNotificationPort notificationPort;
 
     @InjectMocks
     private UserServiceImpl userService;
@@ -57,6 +69,11 @@ class UserServiceImplTest {
         verify(userRepository).save(user);
         verify(userMapper).toEntity(request);
         verify(userMapper).toResponse(savedUser);
+        verify(userCache).put(UserCacheView.active(1L, "john@example.com"));
+        verify(notificationPort).publish(argThat(event ->
+                event.operation() == UserNotificationOperation.USER_CREATED
+                        && "john@example.com".equals(event.email())
+                        && event.eventId() != null));
     }
 
     @Test
@@ -107,25 +124,35 @@ class UserServiceImplTest {
     }
 
     @Test
-    void deleteUser_WhenExists_ShouldDelete() {
+    void deleteUser_WhenExists_ShouldDeleteAndPublishEventWithEmail() {
         Long userId = 1L;
+        String email = "to-delete@example.com";
+        User existing = User.builder().name("John").email(email).age(30).build();
+        existing.setId(userId);
 
-        when(userRepository.existsById(userId)).thenReturn(true);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(existing));
         doNothing().when(userRepository).deleteById(userId);
 
         userService.deleteUser(userId);
 
-        verify(userRepository).existsById(userId);
+        verify(userRepository).findById(userId);
         verify(userRepository).deleteById(userId);
+        verify(userCache).evict(userId);
+        verify(notificationPort).publish(argThat(event ->
+                event.operation() == UserNotificationOperation.USER_DELETED
+                        && email.equals(event.email())
+                        && event.eventId() != null));
     }
 
     @Test
     void deleteUser_WhenNotExists_ShouldThrowUserNotFoundException() {
         Long userId = 999L;
-        when(userRepository.existsById(userId)).thenReturn(false);
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.deleteUser(userId))
                 .isInstanceOf(UserNotFoundException.class);
+        verify(userRepository, never()).deleteById(any());
+        verify(notificationPort, never()).publish(any());
     }
 
     @Test

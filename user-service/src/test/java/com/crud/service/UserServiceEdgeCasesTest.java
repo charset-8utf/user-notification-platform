@@ -1,11 +1,13 @@
 package com.crud.service;
 
+import com.crud.cache.UserCachePort;
 import com.crud.dto.UserRequest;
 import com.crud.dto.UserResponse;
 import com.crud.entity.User;
 import com.crud.exception.UserNotFoundException;
 import com.crud.exception.ValidationException;
 import com.crud.mapper.UserMapper;
+import com.crud.notification.UserNotificationPort;
 import com.crud.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
@@ -36,6 +38,12 @@ class UserServiceEdgeCasesTest {
     @Mock
     private UserMapper userMapper;
 
+    @Mock
+    private UserCachePort userCache;
+
+    @Mock
+    private UserNotificationPort notificationPort;
+
     @InjectMocks
     private UserServiceImpl userService;
 
@@ -64,11 +72,12 @@ class UserServiceEdgeCasesTest {
 
     @Test
     void deleteUser_WhenUserNotFound_ShouldThrowException() {
-        when(userRepository.existsById(999L)).thenReturn(false);
+        when(userRepository.findById(999L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.deleteUser(999L))
                 .isInstanceOf(UserNotFoundException.class)
                 .hasMessageContaining("999");
+        verify(notificationPort, never()).publish(any());
     }
 
     @Test
