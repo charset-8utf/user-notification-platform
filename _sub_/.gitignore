@@ -1,5 +1,8 @@
 target/
 !.mvn/wrapper/maven-wrapper.jar
+
+### Cursor ###
+.cursor
 *.iml
 *.ipr
 *.iws

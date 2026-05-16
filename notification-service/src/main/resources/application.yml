@@ -1,6 +1,30 @@
 spring:
   application:
     name: notification-service
+  profiles:
+    active: rest, kafka
+  # Spring Boot 4: клиент Mongo настраивается через spring.mongodb.* (модуль spring-boot-mongodb),
+  # а не spring.data.mongodb.uri — последнее больше не подключает MongoClient.
+  mongodb:
+    uri: mongodb://localhost:27017/notification
+  mail:
+    host: localhost
+    port: 1025
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: notification-service
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      # Сериализаторы заданы программно в KafkaConsumerConfig / KafkaProducerConfig
+      # (Spring Kafka JacksonJsonSerializer/Deserializer на Jackson 3, tools.jackson)
 
 server:
   port: 8081
@@ -20,7 +44,33 @@ management:
       export:
         enabled: true
 
+app:
+  notification:
+    site-name: "ваш сайт"
+    mail-from: "noreply@localhost"
+    kafka:
+      topic: user-notifications
+      partitions: ${APP_NOTIFICATION_KAFKA_PARTITIONS:3}
+      replicas: ${APP_NOTIFICATION_KAFKA_REPLICAS:1}
+      dlt-suffix: ".DLT"
+      retry:
+        max-attempts: 3
+        backoff-ms: 1000
+
 logging:
   level:
     root: INFO
     com.notification: INFO
+
+---
+# Без профиля redis Redis-автоконфиг не нужен: иначе Lettuce и health-индикатор
+# ходят на localhost:6379 и блокируют /actuator/health в Docker.
+spring:
+  config:
+    activate:
+      on-profile: "!redis"
+  autoconfigure:
+    exclude:
+      # Spring Boot 4: Redis в spring-boot-data-redis, не в spring-boot-autoconfigure
+      - org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration
+      - org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration
