@@ -1,0 +1,15 @@
+spring:
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      client-id: user-service-producer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+        # Сериализаторы и тип-хедеры выставляются программно в KafkaProducerConfig
+        # (Spring Kafka JacksonJsonSerializer на Jackson 3, tools.jackson)
+
+# Transactional outbox: UserNotificationPort → notification_outbox → KafkaOutboxRelay → Kafka
+# Partition key при отправке = email (порядок событий одного пользователя в одной partition)
