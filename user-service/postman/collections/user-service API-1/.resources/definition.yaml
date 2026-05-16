@@ -1,0 +1,22 @@
+$kind: collection
+name: user-service API
+description: "REST API (HTTPS, порт 8443). Перед запросами: Postman → Settings → General → отключите «SSL certificate verification» для самоподписанного localhost. Выберите окружение «user-service local-1» (файл в postman/environments). Коллекция по умолчанию использует Basic Auth (учётка admin). Папка «Мониторинг» — запросы без авторизации. Назначение ролей пользователям — только у роли ADMIN."
+variables:
+  baseUrl: https://localhost:8443
+  adminUser: admin
+  adminPass: admin123
+  regularUser: user
+  regularPass: user123
+  userId: "1"
+  secondUserId: "2"
+  noteId: "1"
+  roleId: "1"
+  roleIdUser: "2"
+  customRoleId: "3"
+auth:
+  - id: e26b059c-1a5a-4ba6-a88e-56b2df855138
+    type: basic
+    name: Базовая авторизация
+    credentials:
+      username: "{{adminUser}}"
+      password: "{{adminPass}}"

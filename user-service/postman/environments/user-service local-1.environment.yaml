@@ -1,4 +1,4 @@
-name: UserServiceSpringBoot local-1
+name: user-service local-1
 values:
   - key: baseUrl
     value: 'https://localhost:8443'
