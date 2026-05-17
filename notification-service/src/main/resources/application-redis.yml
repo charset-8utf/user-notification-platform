@@ -3,4 +3,24 @@ spring:
     redis:
       host: ${SPRING_DATA_REDIS_HOST:localhost}
       port: ${SPRING_DATA_REDIS_PORT:6379}
-      timeout: 1s
+      database: ${SPRING_DATA_REDIS_DATABASE:0}
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
+      timeout: 2s
+      connect-timeout: 2s
+      client-type: lettuce
+      lettuce:
+        pool:
+          enabled: true
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+management:
+  health:
+    redis:
+      enabled: true
+  endpoint:
+    health:
+      group:
+        readiness:
+          include: readinessState,redis
