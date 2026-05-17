@@ -1,6 +1,7 @@
 package com.crud.config;
 
 import com.crud.exception.KafkaSecurityConfigurationException;
+import com.crud.util.SecureTempFiles;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.config.SslConfigs;
@@ -57,7 +58,7 @@ public final class KafkaSecuritySupport {
             if (resource.isFile()) {
                 return resource.getFile().getAbsolutePath();
             }
-            Path temp = Files.createTempFile("kafka-truststore-", ".p12");
+            Path temp = SecureTempFiles.createTempFile("kafka-truststore-", ".p12");
             temp.toFile().deleteOnExit();
             try (InputStream in = resource.getInputStream()) {
                 Files.copy(in, temp, StandardCopyOption.REPLACE_EXISTING);
