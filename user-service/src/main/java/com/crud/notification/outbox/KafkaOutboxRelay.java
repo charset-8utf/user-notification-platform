@@ -1,12 +1,12 @@
 package com.crud.notification.outbox;
 
 import com.crud.notification.UserNotificationEvent;
+import com.crud.notification.kafka.UserNotificationKafkaProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * Читает {@link OutboxStatus#PENDING} записи и публикует в Kafka (partition key = email).
+ * Читает {@link OutboxStatus#PENDING} записи и публикует через {@link UserNotificationKafkaProducer}.
  */
 @Component
 @Profile("kafka")
@@ -24,10 +24,7 @@ import java.util.List;
 public class KafkaOutboxRelay {
 
     private final NotificationOutboxRepository outboxRepository;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
-
-    @Value("${app.notification.kafka.topic}")
-    private String topic;
+    private final UserNotificationKafkaProducer kafkaProducer;
 
     @Value("${app.notification.kafka.outbox.batch-size:50}")
     private int batchSize;
@@ -48,16 +45,18 @@ public class KafkaOutboxRelay {
     private void publishOne(NotificationOutbox row) {
         UserNotificationEvent event = new UserNotificationEvent(row.getEventId(), row.getOperation(), row.getEmail());
         try {
-            kafkaTemplate.send(topic, row.getEmail(), event).get();
+            kafkaProducer.send(event, row.getEmail());
             int updated = outboxRepository.markPublished(
                     row.getEventId(), OutboxStatus.PENDING, OutboxStatus.PUBLISHED, LocalDateTime.now());
-            if (updated == 1) {
-                log.info("Outbox → Kafka: eventId={}, operation={}, email={}, partitionKey={}",
-                        row.getEventId(), row.getOperation(), row.getEmail(), row.getEmail());
+            if (updated == 0) {
+                log.debug("Outbox eventId={} уже обработан другим relay", row.getEventId());
             }
         } catch (Exception ex) {
             log.error("Не удалось опубликовать outbox eventId={}: {}", row.getEventId(), ex.toString());
-            outboxRepository.markFailed(row.getEventId(), OutboxStatus.PENDING, OutboxStatus.FAILED);
+            int failed = outboxRepository.markFailed(row.getEventId(), OutboxStatus.PENDING, OutboxStatus.FAILED);
+            if (failed == 0) {
+                log.debug("Outbox eventId={} не помечен FAILED (уже обработан другим relay)", row.getEventId());
+            }
         }
     }
 }
