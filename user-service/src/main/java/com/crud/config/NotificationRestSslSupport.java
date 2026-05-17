@@ -63,6 +63,7 @@ public final class NotificationRestSslSupport {
         }
     }
 
+    @SuppressWarnings("java:S4830")
     private static final class InsecureDevTrustManager implements X509TrustManager {
 
         @Override
@@ -73,6 +74,7 @@ public final class NotificationRestSslSupport {
 
         @Override
         public void checkServerTrusted(X509Certificate[] chain, String authType) {
+            // Только dev (insecure-ssl=true): проверка сертификата сервера намеренно отключена.
         }
 
         @Override
