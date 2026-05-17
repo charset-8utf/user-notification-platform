@@ -15,6 +15,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -41,7 +42,7 @@ class RedisRefreshTokenStoreTest {
     void store_writesJsonWithTtl() {
         RefreshTokenRecord tokenRecord = new RefreshTokenRecord("admin", List.of("ADMIN"));
         store.store("id1", tokenRecord, Duration.ofHours(1));
-        verify(valueOps).set("auth:refresh:id1", any(String.class), Duration.ofHours(1));
+        verify(valueOps).set(eq("auth:refresh:id1"), any(String.class), eq(Duration.ofHours(1)));
     }
 
     @Test
