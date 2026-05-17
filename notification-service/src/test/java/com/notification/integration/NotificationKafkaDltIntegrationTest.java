@@ -1,4 +1,4 @@
-package com.notification;
+package com.notification.integration;
 
 import com.notification.dto.NotificationEmailRequest;
 import com.notification.entity.NotificationDeliveryStatus;
@@ -19,7 +19,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.MongoDBContainer;
+import org.testcontainers.mongodb.MongoDBContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.kafka.ConfluentKafkaContainer;
 import org.testcontainers.utility.DockerImageName;
@@ -32,11 +32,6 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-/**
- * Проверка DLT: при необработанной ошибке listener'а (битый email -> AddressException)
- * после исчерпания retry-попыток сообщение перенаправляется в DLT-топик,
- * а сам listener делает ровно {@code max-attempts} попыток.
- */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @Testcontainers(disabledWithoutDocker = true)
 @ActiveProfiles("kafka")
@@ -54,11 +49,8 @@ class NotificationKafkaDltIntegrationTest {
 
     @DynamicPropertySource
     static void registerProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.mongodb.uri",
-                () -> "mongodb://" + MONGO.getHost() + ":" + MONGO.getMappedPort(27017) + "/notification");
+        registry.add("spring.mongodb.uri", () -> MONGO.getConnectionString() + "/notification");
         registry.add("spring.kafka.bootstrap-servers", KAFKA::getBootstrapServers);
-        // Указываем заведомо «битый» mail-from, который не пройдёт InternetAddress.parse(...)
-        // в MimeMessageHelper.setFrom — это надёжный триггер бизнес-ошибки на любой записи.
         registry.add("spring.mail.host", () -> "127.0.0.1");
         registry.add("spring.mail.port", () -> "2599");
         registry.add("spring.mail.properties.mail.smtp.auth", () -> "false");
@@ -111,7 +103,6 @@ class NotificationKafkaDltIntegrationTest {
             });
         }
 
-        // Каждая неудачная попытка пишет в лог FAILED, retry-попыток ровно max-attempts (2).
         await().atMost(Duration.ofSeconds(5)).untilAsserted(() ->
                 assertThat(notificationLogRepository.findAll())
                         .hasSize(2)
