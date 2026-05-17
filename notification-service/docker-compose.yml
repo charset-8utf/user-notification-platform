@@ -1,10 +1,3 @@
-# Локальная инфраструктура для разработки notification-service.
-# По умолчанию поднимаются: Mongo, Mailpit, Zookeeper, Kafka.
-# Само приложение — за профилем app:
-#     docker compose --profile app up --build -d
-# Запуск без приложения (только инфра + локально mvn spring-boot:run):
-#     docker compose up -d mongo mailpit kafka
-#     SPRING_PROFILES_ACTIVE=rest,kafka mvn spring-boot:run
 services:
   mongo:
     image: mongo:7
@@ -89,6 +82,7 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: "rest,kafka"
+      APP_SERVICE_JWT_SECRET: ${APP_SERVICE_JWT_SECRET:-dev-service-jwt-secret-change-in-production-min-32b}
       SPRING_MONGODB_URI: mongodb://mongo:27017/notification
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SPRING_MAIL_HOST: mailpit
@@ -96,8 +90,9 @@ services:
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: "false"
       APP_NOTIFICATION_SITE_NAME: "${APP_NOTIFICATION_SITE_NAME:-ваш сайт}"
       APP_NOTIFICATION_MAIL_FROM: "${APP_NOTIFICATION_MAIL_FROM:-noreply@localhost}"
+      KEYSTORE_PASSWORD: ${KEYSTORE_PASSWORD:-changeit}
     ports:
-      - "${APP_PORT:-8081}:8081"
+      - "${APP_HTTPS_PORT:-8444}:8443"
     networks:
       - notification-network
 

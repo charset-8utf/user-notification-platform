@@ -3,6 +3,8 @@ name: Некорректный email (ожидается 400)
 url: "{{baseUrl}}/api/notifications/email"
 method: POST
 headers:
+  - key: Authorization
+    value: "Bearer {{serviceAuthToken}}"
   - key: Content-Type
     value: application/json
 body:
