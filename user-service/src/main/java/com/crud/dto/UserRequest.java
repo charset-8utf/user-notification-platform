@@ -1,11 +1,9 @@
 package com.crud.dto;
 
-import com.crud.config.Sanitized;
 import jakarta.validation.constraints.*;
 
 public record UserRequest(
         @NotBlank(message = "Имя не может быть пустым")
-        @Sanitized
         String name,
 
         @NotBlank(message = "Email не может быть пустым")
