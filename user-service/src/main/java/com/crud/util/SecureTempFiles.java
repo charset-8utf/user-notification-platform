@@ -11,42 +11,35 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Set;
 
 /**
- * Временные файлы с правами только для владельца (Sonar java:S5443).
+ * Временные файлы по рекомендациям Sonar java:S5443.
  */
 public final class SecureTempFiles {
 
-    private static final FileAttribute<Set<PosixFilePermission>> OWNER_READ_WRITE =
-            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------"));
+    private static final FileAttribute<Set<PosixFilePermission>> OWNER_ONLY =
+            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"));
 
     private SecureTempFiles() {
     }
 
     public static Path createTempFile(String prefix, String suffix) throws IOException {
         if (isPosix()) {
-            return Files.createTempFile(prefix, suffix, OWNER_READ_WRITE);
+            return Files.createTempFile(prefix, suffix, OWNER_ONLY);
         }
-        Path temp = Files.createTempFile(prefix, suffix);
-        restrictToOwnerOnly(temp.toFile());
-        return temp;
+        File file = Files.createTempFile(prefix, suffix).toFile();
+        requireApplied(file, "readable", file.setReadable(true, true));
+        requireApplied(file, "writable", file.setWritable(true, true));
+        requireApplied(file, "executable", file.setExecutable(true, true));
+        return file.toPath();
+    }
+
+    private static void requireApplied(File file, String operation, boolean applied) throws IOException {
+        if (!applied) {
+            throw new IOException(
+                    "Не удалось установить права (" + operation + ") для временного файла: " + file.getAbsolutePath());
+        }
     }
 
     private static boolean isPosix() {
         return FileSystems.getDefault().supportedFileAttributeViews().contains("posix");
-    }
-
-    private static void restrictToOwnerOnly(File file) throws IOException {
-        requirePermission(file, "world-readable", file.setReadable(false, false));
-        requirePermission(file, "world-writable", file.setWritable(false, false));
-        requirePermission(file, "world-executable", file.setExecutable(false, false));
-        requirePermission(file, "owner-readable", file.setReadable(true, true));
-        requirePermission(file, "owner-writable", file.setWritable(true, true));
-        requirePermission(file, "owner-executable", file.setExecutable(false, false));
-    }
-
-    private static void requirePermission(File file, String permission, boolean applied) throws IOException {
-        if (!applied) {
-            throw new IOException(
-                    "Не удалось ограничить права доступа к временным файлам (" + permission + "): " + file.getAbsolutePath());
-        }
     }
 }
