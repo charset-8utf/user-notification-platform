@@ -24,3 +24,7 @@ values:
     value: '2'
   - key: customRoleId
     value: '3'
+  - key: accessToken
+    value: ''
+  - key: refreshToken
+    value: ''

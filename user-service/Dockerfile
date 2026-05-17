@@ -19,7 +19,8 @@ RUN apk add --no-cache wget tini \
 COPY --from=builder /build/target/user-service-1.0.0.jar app.jar
 ENV JAVA_OPTS="-XX:InitialRAMPercentage=20.0 -XX:MaxRAMPercentage=75.0 -Dfile.encoding=UTF-8"
 USER appuser
-EXPOSE 8443
+EXPOSE 8443 8081
 ENTRYPOINT ["/sbin/tini", "--", "sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
-  CMD wget -q --spider --no-check-certificate https://localhost:8443/actuator/health || exit 1
+  CMD wget -q --spider http://127.0.0.1:8081/actuator/health 2>/dev/null \
+  || wget -q --spider --no-check-certificate https://127.0.0.1:8443/actuator/health || exit 1

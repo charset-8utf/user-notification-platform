@@ -70,7 +70,6 @@ management:
     metrics:
       export:
         enabled: true
-  # Без этого info.* из конфигурации не попадают в /actuator/info (по умолчанию false в Spring Boot 4)
   info:
     env:
       enabled: true
@@ -97,6 +96,9 @@ app:
   seed:
     admin-password: ${APP_SEED_ADMIN_PASSWORD:}
     user-password: ${APP_SEED_USER_PASSWORD:}
+  kafka:
+    security:
+      enabled: ${APP_KAFKA_SECURITY_ENABLED:false}
   notification:
     kafka:
       topic: ${APP_NOTIFICATION_KAFKA_TOPIC:user-notifications}

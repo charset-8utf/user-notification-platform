@@ -23,10 +23,30 @@ services:
     image: redis:7-alpine
     container_name: user-redis
     restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    command:
+      - sh
+      - -c
+      - |
+        if [ -n "$$REDIS_PASSWORD" ]; then
+          exec redis-server /usr/local/etc/redis/redis.conf --requirepass "$$REDIS_PASSWORD"
+        else
+          exec redis-server /usr/local/etc/redis/redis.conf
+        fi
+    volumes:
+      - ../infra/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
     ports:
       - "${REDIS_PUBLISH_PORT:-6379}:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+        - CMD-SHELL
+        - |
+          if [ -n "$$REDIS_PASSWORD" ]; then
+            redis-cli -a "$$REDIS_PASSWORD" --no-auth-warning ping | grep -q PONG
+          else
+            redis-cli ping | grep -q PONG
+          fi
       interval: 5s
       timeout: 3s
       retries: 5
@@ -88,10 +108,13 @@ services:
       KEYSTORE_PASSWORD: ${KEYSTORE_PASSWORD:-changeit}
       APP_SEED_ADMIN_PASSWORD: ${APP_SEED_ADMIN_PASSWORD:-admin123}
       APP_SEED_USER_PASSWORD: ${APP_SEED_USER_PASSWORD:-user123}
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-kafka,redis}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-kafka,redis,jwt}
+      APP_JWT_SECRET: ${APP_JWT_SECRET:-dev-jwt-secret-change-in-production-min-32-chars}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: "6379"
+      SPRING_DATA_REDIS_DATABASE: "0"
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:-}
     ports:
       - "${APP_HTTPS_PORT:-8443}:8443"
     networks:
