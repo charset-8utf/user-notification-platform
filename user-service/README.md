@@ -5,13 +5,15 @@
 ![Spring Security](https://img.shields.io/badge/Spring%20Security-6.x-green?logo=springsecurity)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-blue?logo=postgresql)
 ![Hibernate](https://img.shields.io/badge/Hibernate-7.3.2.Final-purple?logo=hibernate)
+![Kafka](https://img.shields.io/badge/Apache%20Kafka-7.4-black?logo=apachekafka)
+![Redis](https://img.shields.io/badge/Redis-7-red?logo=redis)
 ![Maven](https://img.shields.io/badge/Maven-3.9.14-blue?logo=apachemaven)
 ![Liquibase](https://img.shields.io/badge/Liquibase-4.x-red?logo=liquibase)
 ![Caffeine](https://img.shields.io/badge/Caffeine-Cache-brightgreen)
 ![JUnit](https://img.shields.io/badge/JUnit%20Jupiter-6.0.3-green)
 ![Mockito](https://img.shields.io/badge/Mockito-5.23.0-orange)
 ![Testcontainers](https://img.shields.io/badge/Testcontainers-2.0.5-blue)
-[![CI](https://github.com/charset-8utf/UserService/actions/workflows/UserServiceCI.yml/badge.svg)](https://github.com/charset-8utf/UserService/actions/workflows/UserServiceCI.yml)
+[![CI](https://github.com/charset-8utf/UserServiceSpringBoot/actions/workflows/UserServiceCI.yml/badge.svg)](https://github.com/charset-8utf/UserServiceSpringBoot/actions/workflows/UserServiceCI.yml)
 ![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)
 
 ## Описание проекта
@@ -20,82 +22,21 @@ REST-сервис для управления пользователями с п
 Построен на **Spring Boot 4** с использованием **Spring Data JPA**, **PostgreSQL** в Docker и пула соединений **HikariCP**.  
 **Архитектура:** трёхслойная (Controller → Service → Repository) с DTO и ручными мапперами.
 
-Схема БД управляется миграциями **Liquibase** (`src/main/resources/db/changelog/`).  
+Схема БД управляется миграциями **Liquibase**: точка входа — `src/main/resources/db/changelog/db.changelog-master.yaml`, изменения — SQL-файлы в `src/main/resources/db/changelog/changes/` (*Liquibase formatted sql*).  
 Покрыт юнит-тестами (JUnit, Mockito) и интеграционными тестами (Testcontainers, H2).  
 Настроен CI (GitHub Actions) с авто-тестами и сборкой Docker-образа.
 
-При локальном запуске поднимаются PostgreSQL, Redis, Kafka и Zookeeper (`docker compose` в каталоге сервиса).
+При локальном запуске через `docker compose` поднимаются **PostgreSQL**, **Redis**, **Kafka** и **Zookeeper**; приложение доступно по **HTTPS** на порту **8443**.
 
-## Исходящие уведомления
-
-При создании и удалении пользователя сервис формирует событие для **notification-service**:
-
-```json
-{
-  "eventId": "550e8400-e29b-41d4-a716-446655440000",
-  "operation": "USER_CREATED",
-  "email": "user@example.com"
-}
-```
-
-**Профиль `kafka` (по умолчанию):** transactional outbox — запись в `notification_outbox` в той же транзакции, что и пользователь; `KafkaOutboxRelay` вызывает `UserNotificationKafkaProducer` → топик `user-notifications`, **partition key = email**. Producer: `acks=all`, `enable.idempotence=true`.
-
-**Профиль `rest`:** синхронный `POST /api/notifications/email` во внешний notification-service (Resilience4j Circuit Breaker).
-
-Параллельно в **Redis** кэшируется срез пользователя (`user:{id}`):
-
-```json
-{ "id": 42, "email": "user@example.com", "status": "ACTIVE" }
-```
-
-TTL — `app.cache.redis.ttl` (по умолчанию `PT1H`).
-
-### Spring-профили
-
-| Профиль | Назначение |
-|---------|------------|
-| `kafka` | Outbox + Kafka producer (`application-kafka.yml`) |
-| `rest` | HTTP-клиент в notification-service (`application-rest.yml`) |
-| `redis` | Кэш пользователя в Redis (`application-redis.yml`) |
-| `jwt` | OAuth2 Resource Server + `AuthController` (`application-jwt.yml`) |
-| `local` | HTTP Basic **вместе** с JWT (удобно для Postman) |
-
-Дефолт в compose платформы: `kafka,redis,jwt`. Для REST-режима: `SPRING_PROFILES_ACTIVE=rest,redis,jwt`.
-
-Профили **`kafka` и `rest` взаимоисключающие** — при одновременной активации Spring завершит старт с `NoUniqueBeanDefinitionException`.
-
-### REST-режим
-
-```
-POST {base-url}/api/notifications/email
-Authorization: Bearer {service-jwt}
-Content-Type: application/json
-
-{
-  "eventId": "660e8400-e29b-41d4-a716-446655440001",
-  "operation": "USER_CREATED",
-  "email": "user@example.com"
-}
-```
-
-| Свойство | По умолчанию |
-|----------|--------------|
-| `APP_NOTIFICATION_REST_BASE_URL` | `https://notification-service:8443` |
-| `APP_NOTIFICATION_REST_INSECURE_SSL` | `false` — проверка TLS через truststore; `true` только для отладки |
-| `APP_NOTIFICATION_REST_TRUST_STORE` | `classpath:notification-truststore.p12` (CA dev PKI) |
-| `APP_SERVICE_JWT_SECRET` | общий секрет с notification-service (HS256, ≥32 байт; см. `application-rest.yml`) |
-| `APP_SERVICE_JWT_ISSUER` / `SUBJECT` / `AUDIENCE` / `SCOPE` | по умолчанию `user-notification-platform`, `user-service`, `notification-service`, `notifications:write` |
-
-Перегенерация dev-сертификатов (compose SAN `notification-service`): `../infra/tls/generate-dev-certs.sh`
-| `APP_NOTIFICATION_REST_CONNECT_TIMEOUT` | `PT2S` |
-| `APP_NOTIFICATION_REST_READ_TIMEOUT` | `PT5S` |
-
-При недоступности downstream notification-service срабатывает fallback: пользователь сохраняется, событие теряется (лог WARN).
+При создании и удалении пользователя сервис может отправлять события во внешний **notification-service** (профили `kafka` или `rest`, см. ниже).
 
 ## API-эндпоинты
 
 | Метод  | Путь                                | Описание                            |
 |--------|-------------------------------------|-------------------------------------|
+| POST   | `/api/auth/login`                   | Выдача JWT (access + refresh)       |
+| POST   | `/api/auth/refresh`                 | Обновление пары токенов             |
+| POST   | `/api/auth/logout`                  | Отзыв refresh-токена                |
 | POST   | `/api/users`                        | Создание пользователя               |
 | GET    | `/api/users/{id}`                   | Получение пользователя по ID        |
 | GET    | `/api/users`                        | Список пользователей (с пагинацией) |
@@ -123,55 +64,73 @@ Content-Type: application/json
 
 ## Требования к окружению
 
-- **Docker Desktop** (PostgreSQL, Redis, Kafka, интеграционные тесты)
+- **Docker Desktop** (для PostgreSQL, Redis, Kafka и интеграционных тестов)
 - **Java 21**
-- **Maven 3.9+**
+- **Maven 3.9+** (или встроенный Maven в IDEA)
 
 ## Быстрый старт через Docker
 
-### 1. Клонирование
+### 1. Клонирование репозитория
 
 ```bash
-git clone https://github.com/charset-8utf/UserService.git user-service
-cd user-service
+git clone https://github.com/charset-8utf/UserServiceSpringBoot.git
+cd UserServiceSpringBoot
 ```
 
-### 2. Переменные окружения
+### 2. Настройка переменных окружения
 
 ```bash
 cp .env.example .env
 ```
 
-По умолчанию в `.env.example`: `DB_USER`, `DB_PASSWORD`, `KEYSTORE_PASSWORD`, seed-пароли, порты `8443` / `5432`.
+По умолчанию `.env.example` содержит:
 
-> Без `APP_SEED_ADMIN_PASSWORD` и `APP_SEED_USER_PASSWORD` учётные записи не создаются — API вернёт 401.
+```properties
+DB_USER=postgres
+DB_PASSWORD=postgres
+KEYSTORE_PASSWORD=changeit
+APP_SEED_ADMIN_PASSWORD=admin123
+APP_SEED_USER_PASSWORD=user123
+SPRING_PROFILES_ACTIVE=kafka,redis,jwt
+APP_JWT_SECRET=dev-jwt-secret-change-in-production-min-32-chars
+APP_HTTPS_PORT=8443
+POSTGRES_PUBLISH_PORT=5432
+```
 
-### 3. Запуск
+Порты приложения и Postgres на хосте можно переопределить через `APP_HTTPS_PORT` и `POSTGRES_PUBLISH_PORT`.
+
+> **Важно:** без `APP_SEED_ADMIN_PASSWORD` и `APP_SEED_USER_PASSWORD` seed-учётки не создаются — API вернёт **401**.
+
+### 3. Запуск PostgreSQL, Redis, Kafka и приложения
+
+При первом запуске нужна сборка образа:
 
 ```bash
 docker compose up --build -d
 ```
 
-Приложение: **https://localhost:8443**
+Повторный старт: `docker compose up -d`.
 
-Режим разработки (только инфра в Docker, приложение через Maven):
+Приложение: **https://localhost:8443** (если не меняли `APP_HTTPS_PORT`).
+
+**Режим разработки** (инфраструктура в Docker, приложение через Maven):
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 mvn spring-boot:run
 ```
 
-Сброс БД:
+Полностью новая БД (сброс тома Postgres и миграций Liquibase):
 
 ```bash
 docker compose down -v && docker compose up --build -d
 ```
 
-> Самоподписанный TLS: в браузере примите исключение; для API удобнее **curl** (`-k -u`) или **Postman**.
+> Браузер покажет предупреждение о самоподписанном сертификате. Для API удобнее **curl** (`-k`) или **Postman** (см. раздел «Тестирование»).
 
-### 4. Аутентификация (JWT, профиль `jwt`)
+### 4. Аутентификация
 
-Получение токена:
+По умолчанию активен профиль **`jwt`**: access/refresh JWT (HS256).
 
 ```bash
 curl -k -X POST https://localhost:8443/api/auth/login \
@@ -179,23 +138,18 @@ curl -k -X POST https://localhost:8443/api/auth/login \
   -d '{"username":"admin","password":"admin123"}'
 ```
 
-Ответ: `accessToken`, `refreshToken`, `expiresIn`. Дальше: `Authorization: Bearer <accessToken>`.
-
-| Эндпоинт | Назначение |
-|----------|------------|
-| `POST /api/auth/login` | Выдача пары токенов |
-| `POST /api/auth/refresh` | Rotation refresh → новая пара |
-| `POST /api/auth/logout` | Отзыв refresh (blacklist) |
+Ответ: `accessToken`, `refreshToken`, `expiresIn`. Дальнейшие запросы: `Authorization: Bearer <accessToken>`.
 
 | Переменная | По умолчанию |
 |------------|--------------|
-| `APP_JWT_SECRET` | мин. 32 символа (HS256) |
+| `APP_JWT_SECRET` | мин. 32 символа |
 | `APP_JWT_ACCESS_TTL` | `PT15M` |
 | `APP_JWT_REFRESH_TTL` | `P7D` |
 
-Для Postman с HTTP Basic добавьте профиль **`local`** (`SPRING_PROFILES_ACTIVE=kafka,redis,jwt,local`).
+Для Postman с **HTTP Basic** добавьте профиль **`local`**:  
+`SPRING_PROFILES_ACTIVE=kafka,redis,jwt,local`.
 
-Учётные записи seed:
+Seed-учётки:
 
 | Логин   | Пароль (из .env)          | Роль         |
 |---------|---------------------------|--------------|
@@ -204,19 +158,50 @@ curl -k -X POST https://localhost:8443/api/auth/login \
 
 ### 5. Проверка
 
+Health (без авторизации, management-порт внутри контейнера — при пробросе `8081`):
+
 ```bash
 curl -k https://localhost:8443/actuator/health
-curl -k -u admin:admin123 https://localhost:8443/api/users
 ```
 
-### 6. Остановка
+Список пользователей (JWT):
 
 ```bash
-docker compose down      # данные сохраняются
-docker compose down -v   # полная очистка томов
+TOKEN=$(curl -ks -X POST https://localhost:8443/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"admin123"}' | sed -n 's/.*"accessToken":"\([^"]*\)".*/\1/p')
+curl -k -H "Authorization: Bearer $TOKEN" https://localhost:8443/api/users
 ```
 
-## Локальный запуск (PostgreSQL в Docker)
+### 6. Остановка и очистка
+
+```bash
+docker compose down      # данные Postgres сохраняются
+docker compose down -v   # удалить том БД
+```
+
+## Исходящие уведомления (опционально)
+
+Формат события:
+
+```json
+{
+  "eventId": "550e8400-e29b-41d4-a716-446655440000",
+  "operation": "USER_CREATED",
+  "email": "user@example.com"
+}
+```
+
+| Профиль | Канал |
+|---------|--------|
+| `kafka` | Transactional outbox → топик `user-notifications` (partition key = `email`) |
+| `rest`  | Синхронный `POST /api/notifications/email` с **service JWT** и HTTPS |
+
+Профили **`kafka` и `rest` взаимоисключающие** — не включайте оба одновременно.
+
+Параллельно (профиль `redis`) в Redis кэшируется срез пользователя: ключ `user:{id}`, TTL — `app.cache.redis.ttl` (по умолчанию `PT1H`).
+
+## Локальный запуск с PostgreSQL в контейнере
 
 ```bash
 docker run --name user-postgres \
@@ -225,9 +210,16 @@ docker run --name user-postgres \
   -e POSTGRES_PASSWORD=postgres \
   -p 5432:5432 -d postgres:17-alpine
 
-mvn spring-boot:run
-# или
-APP_SEED_ADMIN_PASSWORD=admin123 APP_SEED_USER_PASSWORD=user123 mvn spring-boot:run
+mvn clean package -DskipTests
+java -jar target/user-service-1.0.0.jar
+```
+
+Или:
+
+```bash
+APP_SEED_ADMIN_PASSWORD=admin123 APP_SEED_USER_PASSWORD=user123 \
+  SPRING_PROFILES_ACTIVE=kafka,redis,jwt \
+  mvn spring-boot:run
 ```
 
 ## Архитектура проекта
@@ -235,50 +227,90 @@ APP_SEED_ADMIN_PASSWORD=admin123 APP_SEED_USER_PASSWORD=user123 mvn spring-boot:
 ```text
 com.crud
 ├── config/       # безопасность, Kafka, REST-клиент, CORS, rate limit
-├── controller/   # REST API
-├── service/      # бизнес-логика
+├── controller/   # REST API, AuthController
+├── service/      # бизнес-логика, retry при optimistic lock
 ├── repository/   # Spring Data JPA
-├── entity/       # JPA-сущности
-├── dto/          # DTO
+├── entity/       # JPA-сущности, @Version, L2 cache
+├── dto/          # DTO и auth-запросы
 ├── mapper/       # DTO ↔ Entity
-├── notification/ # события, outbox, Kafka/REST-публикация
-│   ├── kafka/    # UserNotificationKafkaProducer (отправка в топик)
-│   └── outbox/   # transactional outbox + KafkaOutboxRelay
-├── cache/        # Redis-кэш пользователя
-├── exception/    # исключения и @RestControllerAdvice
-└── security/     # учётные записи
+├── notification/ # события, outbox, Kafka/REST
+│   ├── kafka/    # UserNotificationKafkaProducer
+│   └── outbox/   # KafkaOutboxRelay
+├── cache/        # Redis UserCachePort
+├── exception/    # @RestControllerAdvice
+└── security/     # JWT, AuthService, ApiOutputSanitizer
 ```
 
 ## Тестирование
 
+Автоматические тесты дополняются **ручной проверкой в Postman** (каталог `postman/`).
+
+### Запуск тестов
+
+Только unit:
+
 ```bash
-mvn test      # unit
-mvn verify    # unit + integration
+mvn test
 ```
 
-Интеграционные тесты используют **Testcontainers** (нужен Docker).
+Unit + интеграционные + E2E:
 
-### Postman
+```bash
+mvn verify
+```
 
-- Коллекция: [`postman/collections/user-service API-1`](postman/collections/user-service%20API-1)
-- Окружение: [`postman/environments/user-service local-1.environment.yaml`](postman/environments/user-service%20local-1.environment.yaml)
+Интеграционные тесты используют **H2** и/или **Testcontainers** (нужен Docker).
 
-В Postman отключите **SSL certificate verification** для `localhost` и выберите окружение **user-service local-1**.
+### Типы тестов
+
+**Модульные (JUnit + Mockito):** сервисы, контроллеры, мапперы, JWT, исключения.
+
+**Интеграционные (H2 / Testcontainers):** репозитории, Kafka/outbox, REST resilience, auth.
+
+### Покрытие кода (JaCoCo)
+
+Порог **80% инструкций** для пакетов, кроме `com.crud` и `com.crud.entity`.
+
+Тесты запускаются в GitHub Actions при push в `main` / `develop`.
+
+### Проверка API в Postman
+
+**Коллекция** — [`postman/collections/user-service API-1`](postman/collections/user-service%20API-1): пользователи, заметки, профили, роли, аутентификация, Actuator.
+
+**Окружение** — [`postman/environments/user-service local-1.environment.yaml`](postman/environments/user-service%20local-1.environment.yaml): `baseUrl`, учётные данные по умолчанию как в `.env.example`.
+
+**TLS:** в *Settings → General* отключите **SSL certificate verification** для `localhost`.  
+Выберите окружение и отправляйте запросы; для CRUD используйте `accessToken` после **Login (JWT)**.
 
 ## CI
 
-`.github/workflows/UserServiceCI.yml` — `mvn verify`, сборка Docker-образа, smoke-тест в compose.
+Файл `.github/workflows/UserServiceCI.yml`:
+
+- JDK 21, кеш Maven
+- `mvn clean verify`
+- Сборка Docker-образа (Buildx)
+- Smoke-тест в docker compose
+- Артефакты отчётов тестов
+
+## Логирование
+
+**SLF4J** (Spring Boot). Уровни и шаблон консоли — в `application.yml`.
 
 ## Особенности реализации
 
-- **Spring Security** — JWT (профиль `jwt`), опционально HTTP Basic (`local`), роли USER / ADMIN
-- **HTTPS** — TLS 1.2/1.3, порт 8443; actuator/prometheus — профиль `management`, порт 8081
-- **Rate limit** — по `sub` JWT (не по заголовку Authorization целиком)
-- **Оптимистичные блокировки** — `@Version` + `@Retryable`
-- **Кэш 2-го уровня** — Caffeine + JCache
-- **Rate limiting** — 20 запросов / 60 с (по умолчанию)
-- **Actuator** — health, metrics, prometheus
-- **Liquibase** — `ddl-auto: validate`
+- **5 сущностей:** User, Profile, Note, Role, Credential (связи OneToOne / OneToMany / ManyToMany)
+- **Spring Security** — JWT (`jwt`), опционально HTTP Basic (`local`), роли USER / ADMIN
+- **HTTPS** — TLS 1.2/1.3, PKCS12, порт 8443; профиль `management` — actuator на порту **8081**
+- **Оптимистичные блокировки** — `@Version` + `@Retryable` (3 попытки, backoff 100 ms)
+- **Кэш 2-го уровня** — Caffeine + JCache (Hibernate L2 + query cache)
+- **Rate limiting** — по `sub` из JWT или IP для `/api/auth/*`
+- **Санитизация ответов** — `ApiOutputSanitizer` в контроллерах
+- **CORS** — настраиваемые allowed origins
+- **Пагинация** — Spring Data Pageable (макс. 100)
+- **Kafka outbox** — at-least-once доставка событий; опционально SASL_SSL (`APP_KAFKA_SECURITY_ENABLED=true`)
+- **REST к notification-service** — service JWT, TLS truststore, Resilience4j Circuit Breaker
+- **Liquibase** — `spring.jpa.hibernate.ddl-auto: validate`
+- **Healthcheck** в Docker через Actuator
 
 ## Автор
 
