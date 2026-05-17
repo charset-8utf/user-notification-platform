@@ -290,6 +290,7 @@
                                     <excludes>
                                         <exclude>com.crud</exclude>
                                         <exclude>com.crud.entity</exclude>
+                                        <exclude>com.crud.util</exclude>
                                     </excludes>
                                     <limits>
                                         <limit>
