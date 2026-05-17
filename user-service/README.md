@@ -140,11 +140,11 @@ curl -k -X POST https://localhost:8443/api/auth/login \
 
 Ответ: `accessToken`, `refreshToken`, `expiresIn`. Дальнейшие запросы: `Authorization: Bearer <accessToken>`.
 
-| Переменная | По умолчанию |
-|------------|--------------|
-| `APP_JWT_SECRET` | мин. 32 символа |
-| `APP_JWT_ACCESS_TTL` | `PT15M` |
-| `APP_JWT_REFRESH_TTL` | `P7D` |
+| Переменная            | По умолчанию    |
+|-----------------------|-----------------|
+| `APP_JWT_SECRET`      | мин. 32 символа |
+| `APP_JWT_ACCESS_TTL`  | `PT15M`         |
+| `APP_JWT_REFRESH_TTL` | `P7D`           |
 
 Для Postman с **HTTP Basic** добавьте профиль **`local`**:  
 `SPRING_PROFILES_ACTIVE=kafka,redis,jwt,local`.
@@ -176,8 +176,8 @@ curl -k -H "Authorization: Bearer $TOKEN" https://localhost:8443/api/users
 ### 6. Остановка и очистка
 
 ```bash
-docker compose down      # данные Postgres сохраняются
-docker compose down -v   # удалить том БД
+docker compose down
+docker compose down -v
 ```
 
 ## Исходящие уведомления (опционально)
@@ -192,10 +192,10 @@ docker compose down -v   # удалить том БД
 }
 ```
 
-| Профиль | Канал |
-|---------|--------|
+| Профиль | Канал                                                                       |
+|---------|-----------------------------------------------------------------------------|
 | `kafka` | Transactional outbox → топик `user-notifications` (partition key = `email`) |
-| `rest`  | Синхронный `POST /api/notifications/email` с **service JWT** и HTTPS |
+| `rest`  | Синхронный `POST /api/notifications/email` с **service JWT** и HTTPS        |
 
 Профили **`kafka` и `rest` взаимоисключающие** — не включайте оба одновременно.
 
