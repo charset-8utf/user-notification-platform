@@ -14,20 +14,26 @@ import tools.jackson.databind.json.JsonMapper;
 import java.util.Map;
 
 /**
- * Явный producer-конфиг для профиля {@code kafka}: {@link JacksonJsonSerializer} на Jackson 3
- * ({@code tools.jackson}), без type-headers — тот же контракт, что читает notification-service.
+ * Producer для профиля {@code kafka}: JSON через {@link JacksonJsonSerializer}.
  */
 @Configuration
 @Profile("kafka")
 public class KafkaProducerConfig {
 
     @Bean
-    public ProducerFactory<String, Object> producerFactory(KafkaProperties properties, JsonMapper jsonMapper) {
+    public JacksonJsonSerializer<Object> kafkaValueSerializer(JsonMapper jsonMapper) {
+        return new JacksonJsonSerializer<>(jsonMapper).noTypeInfo();
+    }
+
+    @Bean(destroyMethod = "destroy")
+    public ProducerFactory<String, Object> producerFactory(
+            KafkaProperties properties,
+            JacksonJsonSerializer<Object> kafkaValueSerializer) {
         Map<String, Object> config = properties.buildProducerProperties();
         return new DefaultKafkaProducerFactory<>(
                 config,
                 new StringSerializer(),
-                new JacksonJsonSerializer<>(jsonMapper).noTypeInfo()
+                kafkaValueSerializer
         );
     }
 

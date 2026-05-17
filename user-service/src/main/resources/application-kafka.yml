@@ -8,8 +8,19 @@ spring:
       properties:
         enable.idempotence: true
         max.in.flight.requests.per.connection: 5
-        # Сериализаторы и тип-хедеры выставляются программно в KafkaProducerConfig
-        # (Spring Kafka JacksonJsonSerializer на Jackson 3, tools.jackson)
 
-# Transactional outbox: UserNotificationPort → notification_outbox → KafkaOutboxRelay → Kafka
-# Partition key при отправке = email (порядок событий одного пользователя в одной partition)
+---
+spring:
+  config:
+    activate:
+      on-property: app.kafka.security.enabled=true
+
+app:
+  kafka:
+    security:
+      username: ${APP_KAFKA_USERNAME:user-service}
+      password: ${APP_KAFKA_PASSWORD}
+      trust-store: ${APP_KAFKA_SSL_TRUSTSTORE:classpath:kafka-truststore.p12}
+      trust-store-password: ${APP_KAFKA_SSL_TRUSTSTORE_PASSWORD:${KEYSTORE_PASSWORD:changeit}}
+      trust-store-type: ${APP_KAFKA_SSL_TRUSTSTORE_TYPE:PKCS12}
+      endpoint-identification-algorithm: ${APP_KAFKA_SSL_ENDPOINT_ID_ALGO:}
