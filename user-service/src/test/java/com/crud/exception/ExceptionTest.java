@@ -71,4 +71,9 @@ class ExceptionTest {
         assertThat(ex.getMessage()).isEqualTo("validation failed");
         assertThat(ex.getCause()).isEqualTo(cause);
     }
+
+    @Test
+    void kafkaSecurityConfigurationException_ShouldExtendUserServiceException() {
+        assertThat(UserServiceException.class).isAssignableFrom(KafkaSecurityConfigurationException.class);
+    }
 }

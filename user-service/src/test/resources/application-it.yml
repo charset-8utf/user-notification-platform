@@ -21,6 +21,9 @@ spring:
     enabled: false
 
 app:
+  security:
+    jwt:
+      secret: test-jwt-secret-for-integration-tests-min-32b
   seed:
     admin-password: admin123
     user-password: user123
