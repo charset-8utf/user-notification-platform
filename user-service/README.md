@@ -24,10 +24,9 @@ REST-сервис для управления пользователями с п
 Покрыт юнит-тестами (JUnit, Mockito) и интеграционными тестами (Testcontainers, H2).  
 Настроен CI (GitHub Actions) с авто-тестами и сборкой Docker-образа.
 
-При локальном запуске поднимаются PostgreSQL, Redis, Kafka и Zookeeper (`docker-compose`).  
-Полный стек с **notification-service** — через корневой `docker-compose` монорепозитория `user-notification-platform`.
+При локальном запуске поднимаются PostgreSQL, Redis, Kafka и Zookeeper (`docker compose` в каталоге сервиса).
 
-## Интеграция с notification-service
+## Исходящие уведомления
 
 При создании и удалении пользователя сервис формирует событие для **notification-service**:
 
@@ -39,9 +38,9 @@ REST-сервис для управления пользователями с п
 }
 ```
 
-**Профиль `kafka` (по умолчанию):** transactional outbox — запись в таблицу `notification_outbox` в той же транзакции, что и пользователь; фоновый `KafkaOutboxRelay` публикует в топик `user-notifications` с **partition key = email**. Producer: `acks=all`, `enable.idempotence=true`.
+**Профиль `kafka` (по умолчанию):** transactional outbox — запись в `notification_outbox` в той же транзакции, что и пользователь; `KafkaOutboxRelay` вызывает `UserNotificationKafkaProducer` → топик `user-notifications`, **partition key = email**. Producer: `acks=all`, `enable.idempotence=true`.
 
-**Профиль `rest`:** синхронный `POST /api/notifications/email` в notification-service (Resilience4j Circuit Breaker).
+**Профиль `rest`:** синхронный `POST /api/notifications/email` во внешний notification-service (Resilience4j Circuit Breaker).
 
 Параллельно в **Redis** кэшируется срез пользователя (`user:{id}`):
 
@@ -58,15 +57,18 @@ TTL — `app.cache.redis.ttl` (по умолчанию `PT1H`).
 | `kafka` | Outbox + Kafka producer (`application-kafka.yml`) |
 | `rest` | HTTP-клиент в notification-service (`application-rest.yml`) |
 | `redis` | Кэш пользователя в Redis (`application-redis.yml`) |
+| `jwt` | OAuth2 Resource Server + `AuthController` (`application-jwt.yml`) |
+| `local` | HTTP Basic **вместе** с JWT (удобно для Postman) |
 
-Дефолт: `kafka,redis`. Для REST-режима: `SPRING_PROFILES_ACTIVE=rest,redis`.
+Дефолт в compose платформы: `kafka,redis,jwt`. Для REST-режима: `SPRING_PROFILES_ACTIVE=rest,redis,jwt`.
 
 Профили **`kafka` и `rest` взаимоисключающие** — при одновременной активации Spring завершит старт с `NoUniqueBeanDefinitionException`.
 
-### REST-режим (notification-service)
+### REST-режим
 
 ```
 POST {base-url}/api/notifications/email
+Authorization: Bearer {service-jwt}
 Content-Type: application/json
 
 {
@@ -78,11 +80,17 @@ Content-Type: application/json
 
 | Свойство | По умолчанию |
 |----------|--------------|
-| `APP_NOTIFICATION_REST_BASE_URL` | `http://notification-service:8081` |
+| `APP_NOTIFICATION_REST_BASE_URL` | `https://notification-service:8443` |
+| `APP_NOTIFICATION_REST_INSECURE_SSL` | `false` — проверка TLS через truststore; `true` только для отладки |
+| `APP_NOTIFICATION_REST_TRUST_STORE` | `classpath:notification-truststore.p12` (CA dev PKI) |
+| `APP_SERVICE_JWT_SECRET` | общий секрет с notification-service (HS256, ≥32 байт; см. `application-rest.yml`) |
+| `APP_SERVICE_JWT_ISSUER` / `SUBJECT` / `AUDIENCE` / `SCOPE` | по умолчанию `user-notification-platform`, `user-service`, `notification-service`, `notifications:write` |
+
+Перегенерация dev-сертификатов (compose SAN `notification-service`): `../infra/tls/generate-dev-certs.sh`
 | `APP_NOTIFICATION_REST_CONNECT_TIMEOUT` | `PT2S` |
 | `APP_NOTIFICATION_REST_READ_TIMEOUT` | `PT5S` |
 
-При недоступности notification-service срабатывает fallback: пользователь сохраняется, событие теряется (лог WARN).
+При недоступности downstream notification-service срабатывает fallback: пользователь сохраняется, событие теряется (лог WARN).
 
 ## API-эндпоинты
 
@@ -161,7 +169,33 @@ docker compose down -v && docker compose up --build -d
 
 > Самоподписанный TLS: в браузере примите исключение; для API удобнее **curl** (`-k -u`) или **Postman**.
 
-### 4. Аутентификация
+### 4. Аутентификация (JWT, профиль `jwt`)
+
+Получение токена:
+
+```bash
+curl -k -X POST https://localhost:8443/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"admin123"}'
+```
+
+Ответ: `accessToken`, `refreshToken`, `expiresIn`. Дальше: `Authorization: Bearer <accessToken>`.
+
+| Эндпоинт | Назначение |
+|----------|------------|
+| `POST /api/auth/login` | Выдача пары токенов |
+| `POST /api/auth/refresh` | Rotation refresh → новая пара |
+| `POST /api/auth/logout` | Отзыв refresh (blacklist) |
+
+| Переменная | По умолчанию |
+|------------|--------------|
+| `APP_JWT_SECRET` | мин. 32 символа (HS256) |
+| `APP_JWT_ACCESS_TTL` | `PT15M` |
+| `APP_JWT_REFRESH_TTL` | `P7D` |
+
+Для Postman с HTTP Basic добавьте профиль **`local`** (`SPRING_PROFILES_ACTIVE=kafka,redis,jwt,local`).
+
+Учётные записи seed:
 
 | Логин   | Пароль (из .env)          | Роль         |
 |---------|---------------------------|--------------|
@@ -208,6 +242,8 @@ com.crud
 ├── dto/          # DTO
 ├── mapper/       # DTO ↔ Entity
 ├── notification/ # события, outbox, Kafka/REST-публикация
+│   ├── kafka/    # UserNotificationKafkaProducer (отправка в топик)
+│   └── outbox/   # transactional outbox + KafkaOutboxRelay
 ├── cache/        # Redis-кэш пользователя
 ├── exception/    # исключения и @RestControllerAdvice
 └── security/     # учётные записи
@@ -235,8 +271,9 @@ mvn verify    # unit + integration
 
 ## Особенности реализации
 
-- **Spring Security** — HTTP Basic, роли USER / ADMIN
-- **HTTPS** — TLS 1.2/1.3, порт 8443
+- **Spring Security** — JWT (профиль `jwt`), опционально HTTP Basic (`local`), роли USER / ADMIN
+- **HTTPS** — TLS 1.2/1.3, порт 8443; actuator/prometheus — профиль `management`, порт 8081
+- **Rate limit** — по `sub` JWT (не по заголовку Authorization целиком)
 - **Оптимистичные блокировки** — `@Version` + `@Retryable`
 - **Кэш 2-го уровня** — Caffeine + JCache
 - **Rate limiting** — 20 запросов / 60 с (по умолчанию)
