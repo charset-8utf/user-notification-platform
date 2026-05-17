@@ -50,7 +50,7 @@ class RoleServiceEdgeCasesTest {
     @Test
     void createRole_WithDuplicateName_ShouldThrowException() {
         RoleRequest request = new RoleRequest("ADMIN");
-        Role role = Role.builder().name("ADMIN").build();
+        Role role = roleNamed("ADMIN");
         when(roleMapper.toEntity(request)).thenReturn(role);
         when(roleRepository.save(any())).thenThrow(new DataIntegrityViolationException("duplicate key"));
 
@@ -136,7 +136,7 @@ class RoleServiceEdgeCasesTest {
     @ValueSource(strings = {"ADMIN", "USER", "MODERATOR", "SUPER_ADMIN"})
     void createRole_WithValidNames_ShouldWork(String roleName) {
         RoleRequest request = new RoleRequest(roleName);
-        Role role = Role.builder().name(roleName).build();
+        Role role = roleNamed(roleName);
         role.setId(1L);
         role.setCreatedAt(LocalDateTime.now());
         role.setUpdatedAt(LocalDateTime.now());
@@ -170,5 +170,11 @@ class RoleServiceEdgeCasesTest {
         }
 
         verify(roleRepository).existsById(id);
+    }
+
+    private static Role roleNamed(String name) {
+        Role role = Role.builder().build();
+        role.setName(name);
+        return role;
     }
 }

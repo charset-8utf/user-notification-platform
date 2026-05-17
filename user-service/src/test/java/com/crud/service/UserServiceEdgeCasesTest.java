@@ -1,6 +1,5 @@
 package com.crud.service;
 
-import com.crud.cache.UserCachePort;
 import com.crud.dto.UserRequest;
 import com.crud.dto.UserResponse;
 import com.crud.entity.User;
@@ -37,9 +36,6 @@ class UserServiceEdgeCasesTest {
 
     @Mock
     private UserMapper userMapper;
-
-    @Mock
-    private UserCachePort userCache;
 
     @Mock
     private UserNotificationPort notificationPort;

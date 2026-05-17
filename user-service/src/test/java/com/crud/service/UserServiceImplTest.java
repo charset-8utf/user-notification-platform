@@ -7,7 +7,6 @@ import com.crud.dto.UserResponse;
 import com.crud.entity.User;
 import com.crud.exception.UserNotFoundException;
 import com.crud.mapper.UserMapper;
-import com.crud.notification.UserNotificationEvent;
 import com.crud.notification.UserNotificationOperation;
 import com.crud.notification.UserNotificationPort;
 import com.crud.repository.UserRepository;

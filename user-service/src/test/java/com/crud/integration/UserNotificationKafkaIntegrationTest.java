@@ -3,11 +3,13 @@ package com.crud.integration;
 import com.crud.dto.UserRequest;
 import com.crud.dto.UserResponse;
 import com.crud.notification.UserNotificationOperation;
+import com.crud.support.JwtAuthTestSupport;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -16,7 +18,6 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -40,7 +41,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles({"test", "it", "kafka", "redis"})
+@ActiveProfiles({"test", "it", "kafka", "redis", "jwt"})
 @Testcontainers(disabledWithoutDocker = true)
 class UserNotificationKafkaIntegrationTest {
 
@@ -48,19 +49,20 @@ class UserNotificationKafkaIntegrationTest {
     static final ConfluentKafkaContainer KAFKA =
             new ConfluentKafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.1"));
 
-    @Container
-    static final GenericContainer<?> REDIS =
-            new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
-                    .withExposedPorts(6379);
+    static final GenericContainer<?> REDIS = startRedisContainer();
 
     @DynamicPropertySource
     static void overrideProps(DynamicPropertyRegistry registry) {
         registry.add("spring.kafka.bootstrap-servers", KAFKA::getBootstrapServers);
         registry.add("spring.data.redis.host", REDIS::getHost);
         registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
-        // ускоряем — кэш с дефолтным TTL не критичен в тесте
         registry.add("app.cache.redis.ttl", () -> "PT5M");
         registry.add("app.notification.kafka.outbox.relay-interval-ms", () -> "200");
+    }
+
+    @AfterAll
+    static void stopRedisContainer() {
+        REDIS.close();
     }
 
     @LocalServerPort
@@ -73,7 +75,7 @@ class UserNotificationKafkaIntegrationTest {
     ObjectMapper objectMapper;
 
     @Test
-    void createUser_ShouldWriteRedisAndPublishUserCreated() throws Exception {
+    void createUser_ShouldWriteRedisAndPublishUserCreated() {
         String email = "kafka-create-" + UUID.randomUUID() + "@example.com";
 
         try (KafkaConsumer<String, String> consumer = newConsumer("user-svc-it-create")) {
@@ -83,21 +85,21 @@ class UserNotificationKafkaIntegrationTest {
             UserResponse created = postUser(new UserRequest("Kafka Create", email, 30));
 
             JsonNode payload = pollUntil(consumer, UserNotificationOperation.USER_CREATED, email);
-            assertThat(payload.get("email").asText()).isEqualTo(email);
-            assertThat(payload.get("eventId").asText()).isNotBlank();
+            assertThat(jsonField(payload, "email")).isEqualTo(email);
+            assertThat(jsonField(payload, "eventId")).isNotBlank();
 
             await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
                 String cached = redis.opsForValue().get("user:" + created.id());
                 assertThat(cached).isNotNull();
                 JsonNode view = objectMapper.readTree(cached);
-                assertThat(view.get("email").asText()).isEqualTo(email);
-                assertThat(view.get("status").asText()).isEqualTo("ACTIVE");
+                assertThat(jsonField(view, "email")).isEqualTo(email);
+                assertThat(jsonField(view, "status")).isEqualTo("ACTIVE");
             });
         }
     }
 
     @Test
-    void deleteUser_ShouldEvictRedisAndPublishUserDeletedWithEmail() throws Exception {
+    void deleteUser_ShouldEvictRedisAndPublishUserDeletedWithEmail() {
         String email = "kafka-delete-" + UUID.randomUUID() + "@example.com";
         UserResponse created = postUser(new UserRequest("Kafka Delete", email, 31));
 
@@ -108,18 +110,27 @@ class UserNotificationKafkaIntegrationTest {
             deleteUser(created.id());
 
             JsonNode payload = pollUntil(consumer, UserNotificationOperation.USER_DELETED, email);
-            assertThat(payload.get("email").asText()).isEqualTo(email);
+            assertThat(jsonField(payload, "email")).isEqualTo(email);
 
             await().atMost(Duration.ofSeconds(5))
                     .untilAsserted(() -> assertThat(redis.opsForValue().get("user:" + created.id())).isNull());
         }
     }
 
+    @SuppressWarnings("resource")
+    private static GenericContainer<?> startRedisContainer() {
+        GenericContainer<?> container = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
+                .withExposedPorts(6379);
+        container.start();
+        return container;
+    }
+
     private UserResponse postUser(UserRequest request) {
         ResponseEntity<UserResponse> response = restTemplate().exchange(
                 baseUrl() + "/users", HttpMethod.POST, new HttpEntity<>(request, authHeaders()), UserResponse.class);
-        assertThat(response.getBody()).isNotNull();
-        return response.getBody();
+        UserResponse body = response.getBody();
+        assertThat(body).isNotNull();
+        return body;
     }
 
     private void deleteUser(Long id) {
@@ -136,10 +147,9 @@ class UserNotificationKafkaIntegrationTest {
     }
 
     private HttpHeaders authHeaders() {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBasicAuth("admin", "admin123");
-        return headers;
+        RestTemplate client = restTemplate();
+        String token = JwtAuthTestSupport.obtainAccessToken(client, port, "admin", "admin123");
+        return JwtAuthTestSupport.bearerHeaders(token);
     }
 
     private KafkaConsumer<String, String> newConsumer(String groupId) {
@@ -154,26 +164,26 @@ class UserNotificationKafkaIntegrationTest {
         return new KafkaConsumer<>(props);
     }
 
-    /**
-     * Читает топик, пока не найдёт сообщение с заданными {@code operation} и {@code email}
-     * (топик может содержать события от других тестов — пропускаем их).
-     */
     private JsonNode pollUntil(
             KafkaConsumer<String, String> consumer,
             UserNotificationOperation expectedOperation,
             String expectedEmail
-    ) throws Exception {
+    ) {
         long deadline = System.currentTimeMillis() + 10_000;
         while (System.currentTimeMillis() < deadline) {
             ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(500));
-            for (ConsumerRecord<String, String> record : records) {
-                JsonNode payload = objectMapper.readTree(record.value());
-                if (expectedOperation.name().equals(payload.get("operation").asText())
-                        && expectedEmail.equals(payload.get("email").asText())) {
+            for (ConsumerRecord<String, String> kafkaRecord : records) {
+                JsonNode payload = objectMapper.readTree(kafkaRecord.value());
+                if (expectedOperation.name().equals(jsonField(payload, "operation"))
+                        && expectedEmail.equals(jsonField(payload, "email"))) {
                     return payload;
                 }
             }
         }
         throw new AssertionError("Не дождались события " + expectedOperation + " для " + expectedEmail);
+    }
+
+    private static String jsonField(JsonNode node, String field) {
+        return node.get(field).asString();
     }
 }
