@@ -134,7 +134,6 @@ java -cp "target/test-classes:target/classes:$(cat cp.txt)" \
 
 ```bash
 curl -k https://localhost:8444/actuator/health
-# при spring-boot:run:
 curl -k https://localhost:8443/actuator/health
 ```
 
@@ -144,25 +143,25 @@ curl -k https://localhost:8443/actuator/health
 
 ```bash
 docker compose down
-docker compose down -v   # с томом Mongo
+docker compose down -v
 ```
 
 ## Spring-профили
 
-| Профиль      | Назначение                                                                 |
-|--------------|----------------------------------------------------------------------------|
-| `rest`       | `NotificationController` — HTTP API                                        |
-| `kafka`      | `UserNotificationKafkaConsumer`, DLT, идемпотентность, lag health           |
-| `redis`      | `RedisUserLookupPort` — чтение `user:email:{email}`                        |
-| `management` | Actuator и Prometheus на отдельном порту                                   |
+| Профиль      | Назначение                                                        |
+|--------------|-------------------------------------------------------------------|
+| `rest`       | `NotificationController` — HTTP API                               |
+| `kafka`      | `UserNotificationKafkaConsumer`, DLT, идемпотентность, lag health |
+| `redis`      | `RedisUserLookupPort` — чтение `user:email:{email}`               |
+| `management` | Actuator и Prometheus на отдельном порту                          |
 
 Дефолт в `application.yml`: **`kafka`**.
 
-| Сценарий              | `SPRING_PROFILES_ACTIVE`   |
-|-----------------------|----------------------------|
-| Только Kafka          | `kafka`                    |
-| Kafka + REST          | `rest,kafka`               |
-| Kafka + Redis         | `kafka,redis`              |
+| Сценарий              | `SPRING_PROFILES_ACTIVE`      |
+|-----------------------|-------------------------------|
+| Только Kafka          | `kafka`                       |
+| Kafka + REST          | `rest,kafka`                  |
+| Kafka + Redis         | `kafka,redis`                 |
 | Полный локальный стек | `rest,kafka,redis,management` |
 
 ## Локальный запуск
@@ -197,8 +196,8 @@ com.notification
 ### Запуск тестов
 
 ```bash
-mvn test      # unit (WebMvc + service JWT)
-mvn verify    # unit + *IntegrationTest (Testcontainers, Docker)
+mvn test
+mvn verify
 ```
 
 ### Проверка API в Postman
