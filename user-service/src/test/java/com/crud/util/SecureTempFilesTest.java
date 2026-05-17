@@ -34,7 +34,11 @@ class SecureTempFilesTest {
         try {
             var permissions = Files.getPosixFilePermissions(temp);
             assertThat(permissions)
-                    .containsOnly(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE);
+                    .containsOnly(
+                            PosixFilePermission.OWNER_READ,
+                            PosixFilePermission.OWNER_WRITE,
+                            PosixFilePermission.OWNER_EXECUTE
+                    );
         } finally {
             Files.deleteIfExists(temp);
         }
