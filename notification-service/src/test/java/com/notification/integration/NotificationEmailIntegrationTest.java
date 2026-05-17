@@ -1,4 +1,4 @@
-package com.notification;
+package com.notification.integration;
 
 import com.icegreen.greenmail.util.GreenMail;
 import com.icegreen.greenmail.util.GreenMailUtil;
@@ -6,6 +6,7 @@ import com.icegreen.greenmail.util.ServerSetup;
 import com.notification.entity.NotificationDeliveryStatus;
 import com.notification.entity.UserNotificationOperation;
 import com.notification.repository.NotificationLogRepository;
+import com.notification.support.ServiceJwtTestSupport;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,7 +17,7 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.MongoDBContainer;
+import org.testcontainers.mongodb.MongoDBContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
@@ -53,14 +54,17 @@ class NotificationEmailIntegrationTest {
             greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
             greenMail.start();
         }
-        registry.add("spring.mongodb.uri",
-                () -> "mongodb://" + MONGO.getHost() + ":" + MONGO.getMappedPort(27017) + "/notification");
+        registry.add("spring.mongodb.uri", () -> MONGO.getConnectionString() + "/notification");
         registry.add("spring.mail.host", () -> "127.0.0.1");
         registry.add("spring.mail.port", () -> String.valueOf(greenMail.getSmtp().getPort()));
         registry.add("spring.mail.properties.mail.smtp.auth", () -> "false");
         registry.add("app.notification.site-name", () -> "интеграционный сайт");
         registry.add("app.notification.mail-from", () -> "noreply@test.local");
+        registry.add("app.security.service-jwt.secret", () -> ServiceJwtTestSupport.TEST_SECRET);
+        registry.add("server.ssl.enabled", () -> "false");
     }
+
+    private static final String BEARER = ServiceJwtTestSupport.bearerToken();
 
     @LocalServerPort
     private int port;
@@ -97,6 +101,7 @@ class NotificationEmailIntegrationTest {
                 """;
         HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/notifications/email"))
                 .header("Content-Type", "application/json")
+                .header("Authorization", BEARER)
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
 
@@ -133,6 +138,7 @@ class NotificationEmailIntegrationTest {
                 """;
         HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/notifications/email"))
                 .header("Content-Type", "application/json")
+                .header("Authorization", BEARER)
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
 
