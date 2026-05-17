@@ -24,11 +24,6 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.util.Map;
 
-/**
- * Consumer-конфиг для профиля {@code kafka}: {@link JacksonJsonDeserializer} (Jackson 3)
- * без опоры на type-headers, целевой тип — {@link NotificationEmailRequest};
- * плюс ограниченное число попыток и DLT для «битых» сообщений.
- */
 @Configuration
 @Profile("kafka")
 @EnableKafka
@@ -53,21 +48,18 @@ public class KafkaConsumerConfig {
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, NotificationEmailRequest> kafkaListenerContainerFactory(
             ConsumerFactory<String, NotificationEmailRequest> consumerFactory,
-            DefaultErrorHandler kafkaErrorHandler
+            DefaultErrorHandler kafkaErrorHandler,
+            @Value("${app.notification.kafka.listener.concurrency:3}") int concurrency
     ) {
         ConcurrentKafkaListenerContainerFactory<String, NotificationEmailRequest> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory);
+        factory.setConcurrency(concurrency);
         factory.setCommonErrorHandler(kafkaErrorHandler);
-        // at-least-once: commit offset только после acknowledge в listener
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
         return factory;
     }
 
-    /**
-     * После {@code maxAttempts} неуспешных попыток (включая первую) сообщение публикуется
-     * в DLT-топик с суффиксом {@code dltSuffix} и тем же партиционированием.
-     */
     @Bean
     public DefaultErrorHandler kafkaErrorHandler(
             KafkaOperations<String, Object> kafkaTemplate,

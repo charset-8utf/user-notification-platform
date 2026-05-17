@@ -18,13 +18,14 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Actuator health: суммарный lag consumer group (конспект — мониторинг отставания consumer).
+ * Actuator health: суммарный lag consumer group.
  */
 @Component("kafkaConsumerLag")
 @Profile("kafka")
 public class KafkaConsumerLagHealthIndicator implements HealthIndicator {
 
     private static final long ADMIN_TIMEOUT_SEC = 5;
+    private static final String DETAIL_GROUP_ID = "groupId";
 
     private final KafkaAdmin kafkaAdmin;
     private final KafkaProperties kafkaProperties;
@@ -73,14 +74,20 @@ public class KafkaConsumerLagHealthIndicator implements HealthIndicator {
                 lagByPartition.put(tp.topic() + "-" + tp.partition(), lag);
             }
             return Health.up()
-                    .withDetail("groupId", groupId)
+                    .withDetail(DETAIL_GROUP_ID, groupId)
                     .withDetail("topic", topic)
                     .withDetail("totalLag", totalLag)
                     .withDetail("lagByPartition", lagByPartition)
                     .build();
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            return Health.down()
+                    .withDetail(DETAIL_GROUP_ID, groupId)
+                    .withException(ex)
+                    .build();
         } catch (Exception ex) {
             return Health.down()
-                    .withDetail("groupId", groupId)
+                    .withDetail(DETAIL_GROUP_ID, groupId)
                     .withException(ex)
                     .build();
         }
