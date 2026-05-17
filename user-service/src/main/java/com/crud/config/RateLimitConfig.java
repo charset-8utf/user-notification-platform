@@ -20,7 +20,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Configuration
@@ -35,7 +34,7 @@ public class RateLimitConfig {
         FilterRegistrationBean<RateLimitFilter> registration = new FilterRegistrationBean<>();
         registration.setFilter(new RateLimitFilter(jsonMapper, maxRequests, windowSeconds));
         registration.addUrlPatterns("/api/*");
-        registration.setOrder(1);
+        registration.setOrder(-99);
         return registration;
     }
 
@@ -59,7 +58,7 @@ public class RateLimitConfig {
         @Override
         protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                         FilterChain filterChain) throws ServletException, IOException {
-            String key = resolveKey(request);
+            String key = RateLimitKeyResolver.resolve(request);
             RequestWindow window = windows.asMap().compute(
                     key,
                     (k, existing) ->
@@ -67,8 +66,7 @@ public class RateLimitConfig {
             );
 
             if (window.increment() > maxRequests) {
-                String logSubject = authorizationPresent(request) ? "authenticated" : resolveRemoteAddr(request);
-                log.warn("Rate limit exceeded for {} on {} {}", logSubject, request.getMethod(), request.getRequestURI());
+                log.warn("Rate limit exceeded for {} on {} {}", key, request.getMethod(), request.getRequestURI());
                 response.setStatus(429);
                 response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                 response.setCharacterEncoding(StandardCharsets.UTF_8.name());
@@ -86,22 +84,6 @@ public class RateLimitConfig {
             }
 
             filterChain.doFilter(request, response);
-        }
-
-        private String resolveKey(HttpServletRequest request) {
-            return Optional.ofNullable(request.getHeader("Authorization"))
-                    .filter(h -> !h.isBlank())
-                    .orElseGet(request::getRemoteAddr);
-        }
-
-        private static boolean authorizationPresent(HttpServletRequest request) {
-            return Optional.ofNullable(request.getHeader("Authorization"))
-                    .filter(h -> !h.isBlank())
-                    .isPresent();
-        }
-
-        private static String resolveRemoteAddr(HttpServletRequest request) {
-            return Optional.ofNullable(request.getRemoteAddr()).filter(s -> !s.isBlank()).orElse("unknown");
         }
 
         private static class RequestWindow {
