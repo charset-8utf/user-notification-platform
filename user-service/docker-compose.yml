@@ -35,7 +35,7 @@ services:
           exec redis-server /usr/local/etc/redis/redis.conf
         fi
     volumes:
-      - ../infra/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - ./infra/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
     ports:
       - "${REDIS_PUBLISH_PORT:-6379}:6379"
     healthcheck:
