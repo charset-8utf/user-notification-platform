@@ -9,22 +9,20 @@ import com.notification.lookup.UserLookupPort;
 import com.notification.mapper.NotificationLogMapper;
 import com.notification.repository.NotificationLogRepository;
 import jakarta.mail.internet.MimeMessage;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 
 /**
  * Реализация сервиса уведомлений.
  */
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class NotificationServiceImpl implements NotificationService {
 
     private static final int MAX_ERROR_MESSAGE_LENGTH = 2000;
@@ -33,19 +31,31 @@ public class NotificationServiceImpl implements NotificationService {
     private final NotificationLogRepository notificationLogRepository;
     private final NotificationLogMapper notificationLogMapper;
     private final UserLookupPort userLookup;
+    private final Optional<NotificationIdempotencyService> idempotency;
+    private final String siteName;
+    private final String mailFrom;
 
-    @Autowired(required = false)
-    private NotificationIdempotencyService idempotency;
-
-    @Value("${app.notification.site-name}")
-    private String siteName;
-
-    @Value("${app.notification.mail-from}")
-    private String mailFrom;
+    public NotificationServiceImpl(
+            JavaMailSender mailSender,
+            NotificationLogRepository notificationLogRepository,
+            NotificationLogMapper notificationLogMapper,
+            UserLookupPort userLookup,
+            Optional<NotificationIdempotencyService> idempotency,
+            @Value("${app.notification.site-name}") String siteName,
+            @Value("${app.notification.mail-from}") String mailFrom
+    ) {
+        this.mailSender = mailSender;
+        this.notificationLogRepository = notificationLogRepository;
+        this.notificationLogMapper = notificationLogMapper;
+        this.userLookup = userLookup;
+        this.idempotency = idempotency;
+        this.siteName = siteName;
+        this.mailFrom = mailFrom;
+    }
 
     @Override
     public void sendEmailNotification(NotificationEmailRequest request) {
-        if (idempotency != null && idempotency.isAlreadyProcessed(request.eventId())) {
+        if (idempotency.map(service -> service.isAlreadyProcessed(request.eventId())).orElse(false)) {
             log.info("Пропуск дубликата уведомления: eventId={}", request.eventId());
             return;
         }
@@ -66,9 +76,7 @@ public class NotificationServiceImpl implements NotificationService {
 
             notificationLogRepository.save(
                     notificationLogMapper.toEntity(request, NotificationDeliveryStatus.SENT, null));
-            if (idempotency != null) {
-                idempotency.markProcessed(request.eventId());
-            }
+            idempotency.ifPresent(service -> service.markProcessed(request.eventId()));
             log.info("Отправлено уведомление: operation={}, email={}", request.operation(), request.email());
         } catch (Exception e) {
             notificationLogRepository.save(

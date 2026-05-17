@@ -2,18 +2,15 @@ package com.notification.config;
 
 import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.kafka.config.TopicBuilder;
 
-/**
- * Декларативное создание Kafka-топиков. KafkaAdmin создаёт топики, если их ещё нет
- * (на брокерах с {@code auto.create.topics.enable=true} это страховка; на проде, где
- * автосоздание выключено, — основной способ).
- */
 @Configuration
 @Profile("kafka")
+@ConditionalOnProperty(name = "app.kafka.security.enabled", havingValue = "false", matchIfMissing = true)
 public class KafkaTopicsConfig {
 
     @Bean
