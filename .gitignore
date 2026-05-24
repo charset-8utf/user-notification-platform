@@ -1,0 +1,12 @@
+# Сервисы — отдельные git-репозитории
+user-service/
+notification-service/
+
+.idea/
+.env
+.DS_Store
+
+# Секреты и сгенерированные сертификаты
+infra/kafka/secrets/*
+!infra/kafka/secrets/.gitignore
+infra/tls/.work/
