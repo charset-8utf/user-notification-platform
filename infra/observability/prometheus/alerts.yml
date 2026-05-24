@@ -1,0 +1,49 @@
+groups:
+  - name: platform
+    rules:
+      - alert: UserServiceDown
+        expr: up{job="user-service"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "user-service недоступен для Prometheus"
+      - alert: NotificationServiceDown
+        expr: up{job="notification-service"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "notification-service недоступен для Prometheus"
+      - alert: HighHttp5xxRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) by (application)
+            /
+          sum(rate(http_server_requests_seconds_count[5m])) by (application)
+            > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Высокая доля HTTP 5xx ({{ $labels.application }})"
+      - alert: OutboxBacklog
+        expr: app_outbox_pending > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Большая очередь outbox ({{ $value }} pending)"
+      - alert: KafkaConsumerLagHigh
+        expr: app_kafka_consumer_lag_total > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Высокий Kafka consumer lag ({{ $value }})"
+      - alert: NotificationCircuitOpen
+        expr: resilience4j_circuitbreaker_state{name="notification-service",state="open"} == 1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Circuit breaker notification-service открыт"
