@@ -7,6 +7,7 @@ import com.notification.exception.EmailDeliveryException;
 import com.notification.idempotency.NotificationIdempotencyService;
 import com.notification.lookup.UserLookupPort;
 import com.notification.mapper.NotificationLogMapper;
+import com.notification.metrics.NotificationMetrics;
 import com.notification.repository.NotificationLogRepository;
 import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,7 @@ public class NotificationServiceImpl implements NotificationService {
     private final NotificationLogMapper notificationLogMapper;
     private final UserLookupPort userLookup;
     private final Optional<NotificationIdempotencyService> idempotency;
+    private final NotificationMetrics notificationMetrics;
     private final String siteName;
     private final String mailFrom;
 
@@ -41,6 +43,7 @@ public class NotificationServiceImpl implements NotificationService {
             NotificationLogMapper notificationLogMapper,
             UserLookupPort userLookup,
             Optional<NotificationIdempotencyService> idempotency,
+            NotificationMetrics notificationMetrics,
             @Value("${app.notification.site-name}") String siteName,
             @Value("${app.notification.mail-from}") String mailFrom
     ) {
@@ -49,6 +52,7 @@ public class NotificationServiceImpl implements NotificationService {
         this.notificationLogMapper = notificationLogMapper;
         this.userLookup = userLookup;
         this.idempotency = idempotency;
+        this.notificationMetrics = notificationMetrics;
         this.siteName = siteName;
         this.mailFrom = mailFrom;
     }
@@ -56,6 +60,7 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     public void sendEmailNotification(NotificationEmailRequest request) {
         if (idempotency.map(service -> service.isAlreadyProcessed(request.eventId())).orElse(false)) {
+            notificationMetrics.duplicateSkipped();
             log.info("Пропуск дубликата уведомления: eventId={}", request.eventId());
             return;
         }
@@ -77,8 +82,10 @@ public class NotificationServiceImpl implements NotificationService {
             notificationLogRepository.save(
                     notificationLogMapper.toEntity(request, NotificationDeliveryStatus.SENT, null));
             idempotency.ifPresent(service -> service.markProcessed(request.eventId()));
+            notificationMetrics.emailSent(request.operation());
             log.info("Отправлено уведомление: operation={}, email={}", request.operation(), request.email());
         } catch (Exception e) {
+            notificationMetrics.emailFailed(request.operation());
             notificationLogRepository.save(
                     notificationLogMapper.toEntity(request, NotificationDeliveryStatus.FAILED, truncate(e.getMessage())));
             log.error("Не удалось отправить уведомление: operation={}, email={}",
