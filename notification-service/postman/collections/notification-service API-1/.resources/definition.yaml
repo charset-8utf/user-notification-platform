@@ -1,9 +1,0 @@
-$kind: collection
-name: notification-service API
-description: "REST API (HTTPS, 8444). Bearer {{serviceAuthToken}} = service JWT (ServiceJwtSmokeToken). SSL verification off. Окружение «notification-service local-1». Mailpit: {{mailpitUrl}}."
-variables:
-  baseUrl: https://localhost:8444
-  mailpitUrl: http://localhost:8025
-  serviceAuthToken: ""
-  testEmail: apitest@example.com
-  secondTestEmail: apitest-deleted@example.com

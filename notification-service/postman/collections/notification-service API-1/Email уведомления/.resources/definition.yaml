@@ -1,3 +1,0 @@
-$kind: collection
-description: "POST /api/notifications/email — отправка письма и запись аудита в MongoDB. Ожидаемый ответ при успехе: 204 No Content."
-order: 2000

@@ -1,5 +1,0 @@
-$kind: http-request
-name: Информация о приложении (info)
-url: "{{baseUrl}}/actuator/info"
-method: GET
-order: 2000

@@ -1,8 +1,0 @@
-$kind: http-request
-name: GET вместо POST (ожидается 405)
-url: "{{baseUrl}}/api/notifications/email"
-method: GET
-headers:
-  - key: Authorization
-    value: "Bearer {{serviceAuthToken}}"
-order: 4000
