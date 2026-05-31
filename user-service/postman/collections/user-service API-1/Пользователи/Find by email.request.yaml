@@ -1,5 +1,0 @@
-$kind: http-request
-name: Найти пользователя по email
-url: "{{baseUrl}}/api/users/by-email?email=admin@userservice.local"
-method: GET
-order: 5000

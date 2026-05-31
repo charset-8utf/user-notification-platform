@@ -1,3 +1,0 @@
-$kind: collection
-name: Аутентификация
-description: JWT login / refresh (фаза 5). Сначала выполните Login.

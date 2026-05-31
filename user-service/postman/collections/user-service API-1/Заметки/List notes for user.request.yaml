@@ -1,5 +1,0 @@
-$kind: http-request
-name: Список заметок пользователя
-url: "{{baseUrl}}/api/users/{{userId}}/notes?page=0&size=20"
-method: GET
-order: 2000

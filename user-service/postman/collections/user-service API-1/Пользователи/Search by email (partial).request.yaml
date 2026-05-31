@@ -1,5 +1,0 @@
-$kind: http-request
-name: Поиск по части email
-url: "{{baseUrl}}/api/users/search?email=admin&page=0&size=20"
-method: GET
-order: 6000

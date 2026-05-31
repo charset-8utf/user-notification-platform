@@ -1,5 +1,0 @@
-$kind: http-request
-name: Назначить роль пользователю (только ADMIN)
-url: "{{baseUrl}}/api/roles/assign?userId={{secondUserId}}&roleId={{roleIdAdmin}}"
-method: POST
-order: 5000

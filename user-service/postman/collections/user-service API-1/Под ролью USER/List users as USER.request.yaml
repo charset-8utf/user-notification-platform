@@ -1,5 +1,0 @@
-$kind: http-request
-name: Список пользователей под учёткой USER
-url: "{{baseUrl}}/api/users?page=0&size=5"
-method: GET
-order: 1000
