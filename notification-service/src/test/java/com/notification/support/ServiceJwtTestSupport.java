@@ -23,6 +23,22 @@ public final class ServiceJwtTestSupport {
     public static final String AUDIENCE = "notification-service";
     public static final String SCOPE = "notifications:write";
 
+    private static final Instant CONTRACT_TOKEN_ISSUED_AT = Instant.parse("2026-05-30T00:00:00Z");
+
+    /**
+     * Фиксированный Bearer для Spring Cloud Contract (producer + stub-runner consumer).
+     * TTL ~10 лет; secret/claims совпадают с {@code application-contract.yml}.
+     */
+    public static final String CONTRACT_AUTHORIZATION = "Bearer "
+            + accessToken(
+            TEST_SECRET,
+            ISSUER,
+            SUBJECT,
+            AUDIENCE,
+            SCOPE,
+            CONTRACT_TOKEN_ISSUED_AT,
+            Duration.ofDays(3650));
+
     private ServiceJwtTestSupport() {
     }
 
@@ -42,19 +58,30 @@ public final class ServiceJwtTestSupport {
             String scope,
             Duration ttl
     ) {
+        return accessToken(secret, issuer, subject, audience, scope, Instant.now(), ttl);
+    }
+
+    public static String accessToken(
+            String secret,
+            String issuer,
+            String subject,
+            String audience,
+            String scope,
+            Instant issuedAt,
+            Duration ttl
+    ) {
         byte[] secretBytes = secret.getBytes(StandardCharsets.UTF_8);
         OctetSequenceKey jwk = new OctetSequenceKey.Builder(secretBytes)
                 .algorithm(JWSAlgorithm.HS256)
                 .keyID("test-service-jwt")
                 .build();
         var encoder = new NimbusJwtEncoder(new ImmutableJWKSet<>(new JWKSet(jwk)));
-        Instant now = Instant.now();
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer(issuer)
                 .subject(subject)
                 .audience(List.of(audience))
-                .issuedAt(now)
-                .expiresAt(now.plus(ttl))
+                .issuedAt(issuedAt)
+                .expiresAt(issuedAt.plus(ttl))
                 .claim("scope", scope)
                 .build();
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();

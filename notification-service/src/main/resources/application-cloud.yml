@@ -1,0 +1,11 @@
+spring:
+  config:
+    import: optional:classpath:platform/eureka-defaults.yml
+
+eureka:
+  instance:
+    instance-id: ${spring.application.name}:${spring.application.instance-id:${random.value}}
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:${HOSTNAME:notification-service}}
+    secure-port-enabled: true
+    secure-port: 8443
+    non-secure-port-enabled: false
