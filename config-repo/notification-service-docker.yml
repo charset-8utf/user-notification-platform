@@ -1,0 +1,12 @@
+spring:
+  mongodb:
+    uri: mongodb://mongo:27017/notification
+  kafka:
+    bootstrap-servers: kafka:29092
+  mail:
+    host: mailpit
+    port: 1025
+  data:
+    redis:
+      host: redis
+      port: 6379

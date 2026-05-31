@@ -34,7 +34,10 @@ jobs:
         env:
           APP_SERVICE_JWT_SECRET: e2e-smoke-service-jwt-secret-minimum-32b
           NOTIFICATION_SERVICE_PROFILES: rest,kafka,redis
-        run: docker compose up -d --build
+        run: |
+          echo "deploy_image_user=$(git rev-parse --short HEAD)-user" >> "$GITHUB_ENV"
+          echo "deploy_image_notification=$(git rev-parse --short HEAD)-notification" >> "$GITHUB_ENV"
+          docker compose up -d --build
 
       - name: Выпуск service JWT для smoke
         env:
@@ -122,3 +125,61 @@ jobs:
       - name: Очистка
         if: always()
         run: docker compose down -v --remove-orphans
+
+  e2e-cloud:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Сборка platform-модулей
+        run: mvn -B install -pl platform-commons,config-server,eureka-server,api-gateway,web-bff -am
+
+      - name: Сборка user-service и notification-service
+        run: |
+          mvn -B -DskipTests package -f user-service/pom.xml
+          mvn -B -DskipTests package -f notification-service/pom.xml
+
+      - name: Поднятие платформы (profile cloud)
+        env:
+          APP_SERVICE_JWT_SECRET: e2e-smoke-service-jwt-secret-minimum-32b
+          USER_SERVICE_PROFILES: kafka,redis,jwt,management,docker,cloud
+          NOTIFICATION_SERVICE_PROFILES: rest,kafka,redis,management,docker,cloud
+        run: docker compose --profile cloud up -d --build
+
+      - name: Ожидание api-gateway
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8080/actuator/health >/dev/null 2>&1; then exit 0; fi
+            sleep 5
+          done
+          docker compose logs api-gateway | tail -100
+          exit 1
+
+      - name: Smoke - JWT login через gateway
+        run: |
+          RESP=$(curl -fsS -X POST http://localhost:8080/api/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"username":"admin","password":"admin123"}')
+          echo "$RESP" | grep -q accessToken
+          echo "ACCESS_TOKEN=$(echo "$RESP" | sed -n 's/.*"accessToken":"\([^"]*\)".*/\1/p')" >> "$GITHUB_ENV"
+
+      - name: Smoke - users через gateway
+        run: |
+          curl -fsS "http://localhost:8080/api/users?page=0&size=1" \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}" | head -c 200
+
+      - name: Smoke - BFF /bff/me
+        run: |
+          curl -fsS http://localhost:8090/bff/me \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}" | grep -q '"user"'
+
+      - name: Очистка
+        if: always()
+        run: docker compose --profile cloud down -v --remove-orphans

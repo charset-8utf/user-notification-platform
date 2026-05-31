@@ -1,0 +1,13 @@
+# Docker Compose network hostnames
+platform:
+  environment: docker
+
+# Eureka server не регистрируется в реестре; LoadBalancer должен знать его URI напрямую.
+spring:
+  cloud:
+    discovery:
+      client:
+        simple:
+          instances:
+            eureka-server:
+              - uri: http://${EUREKA_HOST:eureka-server}:${EUREKA_SERVER_PORT:8761}

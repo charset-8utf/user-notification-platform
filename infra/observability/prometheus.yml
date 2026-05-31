@@ -1,6 +1,9 @@
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
+  external_labels:
+    cluster: user-notification-platform
+    environment: local
 
 rule_files:
   - /etc/prometheus/alerts.yml
@@ -16,7 +19,6 @@ scrape_configs:
       - targets: ['user-service:8081']
         labels:
           service: user-service
-          environment: local
 
   - job_name: 'notification-service'
     metrics_path: /actuator/prometheus
@@ -24,4 +26,31 @@ scrape_configs:
       - targets: ['notification-service:8081']
         labels:
           service: notification-service
-          environment: local
+
+  - job_name: 'api-gateway'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['api-gateway:8080']
+        labels:
+          service: api-gateway
+
+  - job_name: 'web-bff'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['web-bff:8090']
+        labels:
+          service: web-bff
+
+  - job_name: 'eureka-server'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['eureka-server:8761']
+        labels:
+          service: eureka-server
+
+  - job_name: 'config-server'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['config-server:8888']
+        labels:
+          service: config-server

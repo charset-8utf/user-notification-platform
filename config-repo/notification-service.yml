@@ -1,0 +1,11 @@
+app:
+  notification:
+    site-name: "ваш сайт"
+    mail-from: "noreply@localhost"
+    kafka:
+      topic: user-notifications
+      dlt-suffix: ".DLT"
+      compensation-topic: notification-compensations
+      retry:
+        max-attempts: 3
+        backoff-ms: 1000

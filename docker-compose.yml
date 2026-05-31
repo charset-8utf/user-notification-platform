@@ -1,17 +1,3 @@
-# Единый docker-compose для всей платформы user-notification.
-#
-# Базовый стек (по умолчанию):
-#     docker compose up -d
-#       -> postgres, mongo, redis, mailpit, zookeeper, kafka, user-service, notification-service
-#
-# Только инфраструктура (для локального запуска приложений через mvn spring-boot:run):
-#     docker compose up -d postgres mongo redis mailpit kafka
-#
-# Стек наблюдаемости (Prometheus + Grafana + Loki + Promtail):
-#     docker compose --profile observability up -d
-#
-# Полный набор (приложения + observability):
-#     docker compose --profile observability up -d
 services:
   postgres:
     image: postgres:17-alpine
@@ -133,14 +119,61 @@ services:
     networks:
       - unp-network
 
+  eureka-server:
+    build:
+      context: ./eureka-server
+      dockerfile: Dockerfile
+    image: eureka-server:latest
+    container_name: unp-eureka-server
+    restart: unless-stopped
+    environment:
+      EUREKA_SELF_PRESERVATION: "false"
+      EUREKA_SERVER_PORT: "8761"
+    ports:
+      - "${EUREKA_SERVER_PORT:-8761}:8761"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8761/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - unp-network
+
+  config-server:
+    build:
+      context: ./config-server
+      dockerfile: Dockerfile
+    image: config-server:latest
+    container_name: unp-config-server
+    restart: unless-stopped
+    environment:
+      CONFIG_SERVER_PROFILE: native
+      CONFIG_REPO_PATH: file:/config-repo
+      CONFIG_SERVER_PORT: "8888"
+    volumes:
+      - ./config-repo:/config-repo:ro
+    ports:
+      - "${CONFIG_SERVER_PORT:-8888}:8888"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8888/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - unp-network
+
   user-service:
     build:
-      context: ./user-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: user-service/Dockerfile
     image: user-service:latest
     container_name: unp-user-service
     restart: unless-stopped
     depends_on:
+      config-server:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       redis:
@@ -148,15 +181,21 @@ services:
       kafka:
         condition: service_healthy
     environment:
+      EUREKA_HOST: eureka-server
       SPRING_DOCKER_COMPOSE_ENABLED: "false"
       DB_URL: jdbc:postgresql://postgres:5432/userdb
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       KEYSTORE_PASSWORD: ${KEYSTORE_PASSWORD:-changeit}
+      TRACING_ENABLED: ${TRACING_ENABLED:-false}
+      ZIPKIN_ENDPOINT: ${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}
       APP_SEED_ADMIN_PASSWORD: ${APP_SEED_ADMIN_PASSWORD:-admin123}
       APP_SEED_USER_PASSWORD: ${APP_SEED_USER_PASSWORD:-user123}
-      SPRING_PROFILES_ACTIVE: ${USER_SERVICE_PROFILES:-kafka,redis,jwt,management}
-      MANAGEMENT_SERVER_PORT: ${USER_SERVICE_MANAGEMENT_PORT:-8081}
+      CONFIG_SERVER_HOST: config-server
+      CONFIG_SERVER_PORT: "8888"
+      CONFIG_FAIL_FAST: ${CONFIG_FAIL_FAST:-false}
+      SPRING_PROFILES_ACTIVE: ${USER_SERVICE_PROFILES:-kafka,redis,jwt,management,docker,cloud}
+      MANAGEMENT_SERVER_PORT: "8081"
       APP_JWT_SECRET: ${APP_JWT_SECRET:-dev-jwt-secret-change-in-production-min-32-chars}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       APP_KAFKA_SECURITY_ENABLED: "false"
@@ -166,7 +205,7 @@ services:
       SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       APP_SERVICE_JWT_SECRET: ${APP_SERVICE_JWT_SECRET:-dev-service-jwt-secret-change-in-production-min-32b}
       APP_RATE_LIMIT_MAX_REQUESTS: ${APP_RATE_LIMIT_MAX_REQUESTS:-200}
-      APP_NOTIFICATION_REST_BASE_URL: https://notification-service:8443
+      APP_NOTIFICATION_REST_BASE_URL: https://notification-service
       APP_NOTIFICATION_REST_INSECURE_SSL: "false"
       GRPC_SERVER_PORT: ${USER_SERVICE_GRPC_PORT:-9090}
     ports:
@@ -178,12 +217,16 @@ services:
 
   notification-service:
     build:
-      context: ./notification-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: notification-service/Dockerfile
     image: notification-service:latest
     container_name: unp-notification-service
     restart: unless-stopped
     depends_on:
+      config-server:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
       mongo:
         condition: service_healthy
       mailpit:
@@ -193,9 +236,14 @@ services:
       redis:
         condition: service_healthy
     environment:
-      SPRING_PROFILES_ACTIVE: ${NOTIFICATION_SERVICE_PROFILES:-rest,kafka,redis,management}
-      MANAGEMENT_SERVER_PORT: ${NOTIFICATION_SERVICE_MANAGEMENT_PORT:-8081}
+      EUREKA_HOST: eureka-server
+      CONFIG_SERVER_HOST: config-server
+      CONFIG_SERVER_PORT: "8888"
+      CONFIG_FAIL_FAST: ${CONFIG_FAIL_FAST:-false}
+      SPRING_PROFILES_ACTIVE: ${NOTIFICATION_SERVICE_PROFILES:-rest,kafka,redis,management,docker,cloud}
+      MANAGEMENT_SERVER_PORT: "8081"
       APP_SERVICE_JWT_SECRET: ${APP_SERVICE_JWT_SECRET:-dev-service-jwt-secret-change-in-production-min-32b}
+      APP_JWT_SECRET: ${APP_JWT_SECRET:-dev-jwt-secret-change-in-production-min-32-chars}
       SPRING_MONGODB_URI: mongodb://mongo:27017/notification
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       APP_KAFKA_SECURITY_ENABLED: "false"
@@ -209,15 +257,93 @@ services:
       APP_NOTIFICATION_SITE_NAME: ${APP_NOTIFICATION_SITE_NAME:-ваш сайт}
       APP_NOTIFICATION_MAIL_FROM: ${APP_NOTIFICATION_MAIL_FROM:-noreply@localhost}
       KEYSTORE_PASSWORD: ${KEYSTORE_PASSWORD:-changeit}
+      TRACING_ENABLED: ${TRACING_ENABLED:-false}
+      ZIPKIN_ENDPOINT: ${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}
     ports:
       - "${NOTIFICATION_SERVICE_HTTPS_PORT:-8444}:8443"
       - "${NOTIFICATION_SERVICE_MANAGEMENT_PORT:-8082}:8081"
     networks:
       - unp-network
 
-  # ============================================================
-  #                Observability (опционально)
-  # ============================================================
+  api-gateway:
+    profiles: ["cloud"]
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    image: api-gateway:latest
+    container_name: unp-api-gateway
+    restart: unless-stopped
+    depends_on:
+      config-server:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      user-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+    environment:
+      EUREKA_HOST: eureka-server
+      CONFIG_SERVER_HOST: config-server
+      CONFIG_SERVER_PORT: "8888"
+      SPRING_PROFILES_ACTIVE: cloud,docker
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: "6379"
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      APP_GATEWAY_INSECURE_SSL: "true"
+      APP_JWT_SECRET: ${APP_JWT_SECRET:-dev-jwt-secret-change-in-production-min-32-chars}
+      API_GATEWAY_PORT: "8080"
+      TRACING_ENABLED: ${TRACING_ENABLED:-false}
+      ZIPKIN_ENDPOINT: ${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}
+    ports:
+      - "${API_GATEWAY_PORT:-8080}:8080"
+    networks:
+      - unp-network
+
+  web-bff:
+    profiles: ["cloud"]
+    build:
+      context: ./web-bff
+      dockerfile: Dockerfile
+    image: web-bff:latest
+    container_name: unp-web-bff
+    restart: unless-stopped
+    depends_on:
+      config-server:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      user-service:
+        condition: service_started
+    environment:
+      EUREKA_HOST: eureka-server
+      CONFIG_SERVER_HOST: config-server
+      CONFIG_SERVER_PORT: "8888"
+      SPRING_PROFILES_ACTIVE: cloud,docker
+      APP_JWT_SECRET: ${APP_JWT_SECRET:-dev-jwt-secret-change-in-production-min-32-chars}
+      APP_BFF_USER_SERVICE_BASE_URL: http://api-gateway:8080
+      APP_BFF_NOTIFICATION_SERVICE_BASE_URL: http://api-gateway:8080
+      APP_BFF_INSECURE_SSL: "false"
+      WEB_BFF_PORT: "8090"
+      TRACING_ENABLED: ${TRACING_ENABLED:-false}
+      ZIPKIN_ENDPOINT: ${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}
+    ports:
+      - "${WEB_BFF_PORT:-8090}:8090"
+    networks:
+      - unp-network
+
+  zipkin:
+    profiles: ["observability"]
+    image: openzipkin/zipkin:3.4
+    container_name: unp-zipkin
+    restart: unless-stopped
+    ports:
+      - "${ZIPKIN_PORT:-9411}:9411"
+    networks:
+      - unp-network
+
   prometheus:
     profiles: ["observability"]
     image: prom/prometheus:v3.0.1
@@ -286,6 +412,7 @@ services:
     depends_on:
       - prometheus
       - loki
+      - zipkin
     networks:
       - unp-network
 
