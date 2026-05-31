@@ -2,6 +2,7 @@ package com.crud.config;
 
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
+import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import javax.net.ssl.SSLContext;
@@ -14,14 +15,12 @@ import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 
 /**
- * TLS для RestClient → notification-service.
+ * TLS для RestClient - notification-service.
  */
-public final class NotificationRestSslSupport {
+@Component
+public class NotificationRestSslContextFactory {
 
-    private NotificationRestSslSupport() {
-    }
-
-    public static SSLContext sslContextFromTrustStore(
+    public SSLContext sslContextFromTrustStore(
             ResourceLoader resourceLoader,
             NotificationRestTlsProperties tls
     ) {
@@ -52,7 +51,7 @@ public final class NotificationRestSslSupport {
         }
     }
 
-    public static SSLContext insecureSslContext() {
+    public SSLContext insecureSslContext() {
         try {
             TrustManager[] trustManagers = new TrustManager[]{new InsecureDevTrustManager()};
             SSLContext context = SSLContext.getInstance("TLS");
@@ -74,7 +73,7 @@ public final class NotificationRestSslSupport {
 
         @Override
         public void checkServerTrusted(X509Certificate[] chain, String authType) {
-            // Только dev (insecure-ssl=true): проверка сертификата сервера намеренно отключена.
+            // Проверка сертификата сервера намеренно отключена.
         }
 
         @Override

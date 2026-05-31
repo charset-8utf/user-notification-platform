@@ -12,6 +12,7 @@ import com.crud.mapper.UserMapper;
 import com.crud.notification.UserNotificationEvent;
 import com.crud.notification.UserNotificationOperation;
 import com.crud.notification.UserNotificationPort;
+import com.crud.repository.CredentialRepository;
 import com.crud.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final CredentialRepository credentialRepository;
     private final UserMapper userMapper;
     private final UserCachePort userCache;
     private final UserNotificationPort notificationPort;
@@ -47,9 +49,11 @@ public class UserServiceImpl implements UserService {
             User saved = userRepository.save(user);
             log.info("Создан пользователь: id={}, email={}", saved.getId(), saved.getEmail());
             userCache.put(UserCacheView.active(saved.getId(), saved.getEmail()));
+            UserResponse response = userMapper.toResponse(saved);
+            userCache.putResponse(response);
             notificationPort.publish(
                     UserNotificationEvent.create(UserNotificationOperation.USER_CREATED, saved.getEmail()));
-            return userMapper.toResponse(saved);
+            return response;
         } catch (DataIntegrityViolationException e) {
             throw new ValidationException("Email уже используется: " + request.email());
         }
@@ -57,9 +61,15 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserResponse findUserById(Long id) {
-        return userRepository.findById(id)
-                .map(userMapper::toResponse)
-                .orElseThrow(() -> new UserNotFoundException(id));
+        return userCache.findResponseById(id)
+                .orElseGet(() -> loadUserByIdFromDatabase(id));
+    }
+
+    private UserResponse loadUserByIdFromDatabase(Long id) {
+        User user = userRepository.findById(id).orElseThrow(() -> new UserNotFoundException(id));
+        UserResponse response = userMapper.toResponse(user);
+        userCache.putResponse(response);
+        return response;
     }
 
     @Override
@@ -81,7 +91,9 @@ public class UserServiceImpl implements UserService {
         User saved = userRepository.save(updated);
         log.info("Обновлён пользователь: id={}, email={}", saved.getId(), saved.getEmail());
         userCache.put(UserCacheView.active(saved.getId(), saved.getEmail()));
-        return userMapper.toResponse(saved);
+        UserResponse response = userMapper.toResponse(saved);
+        userCache.putResponse(response);
+        return response;
     }
 
     @Recover
@@ -108,6 +120,13 @@ public class UserServiceImpl implements UserService {
         return userRepository.findByEmail(email)
                 .map(userMapper::toResponse)
                 .orElseThrow(() -> new UserNotFoundException("Пользователь с email " + email + " не найден"));
+    }
+
+    @Override
+    public UserResponse findUserByUsername(String username) {
+        return credentialRepository.findByUsername(username)
+                .map(credential -> userMapper.toResponse(credential.getUser()))
+                .orElseThrow(() -> new UserNotFoundException("Пользователь '" + username + "' не найден"));
     }
 
     @Override

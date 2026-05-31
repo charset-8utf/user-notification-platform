@@ -1,5 +1,6 @@
 package com.crud.config;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -10,28 +11,30 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfigurationSource;
-import tools.jackson.databind.json.JsonMapper;
 
 @Configuration
 @EnableWebSecurity
 @Profile("!jwt")
+@RequiredArgsConstructor
 public class SecurityConfig {
+
+    private final ApiAuthorizationRules apiAuthorizationRules;
+    private final ApiHttpSecurityCustomizer apiHttpSecurityCustomizer;
 
     @Bean
     public SecurityFilterChain basicSecurityFilterChain(
             HttpSecurity http,
-            CorsConfigurationSource corsConfigurationSource,
-            JsonMapper jsonMapper
+            CorsConfigurationSource corsConfigurationSource
     ) {
         http.csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(SecuritySupport::configureAuthorization)
+                .authorizeHttpRequests(apiAuthorizationRules::configure)
                 .httpBasic(Customizer.withDefaults());
 
-        SecuritySupport.configureApiSecurityHeaders(http);
-        SecuritySupport.configureJsonUnauthorized(http, jsonMapper);
+        apiHttpSecurityCustomizer.configureSecurityHeaders(http);
+        apiHttpSecurityCustomizer.configureJsonUnauthorized(http);
         return http.build();
     }
 }

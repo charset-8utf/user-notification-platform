@@ -1,4 +1,9 @@
 spring:
+  cloud:
+    discovery:
+      enabled: false
+    loadbalancer:
+      enabled: false
   docker:
     compose:
       enabled: false
@@ -28,6 +33,12 @@ server:
   port: 0
   ssl:
     enabled: false
+
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
 
 app:
   rate-limit:

@@ -1,7 +1,9 @@
 package com.crud.exception;
 
 import com.crud.security.ApiOutputSanitizer;
+import com.platform.commons.observability.ExceptionMetrics;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -20,7 +22,11 @@ import java.util.Map;
 
 @RestControllerAdvice
 @Slf4j
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    private final ExceptionMetrics exceptionMetrics;
+    private final ApiOutputSanitizer apiOutputSanitizer;
 
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleUserNotFound(UserNotFoundException ex) {
@@ -89,6 +95,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex) {
+        exceptionMetrics.recordException(ex, "rest-controller");
         log.error("Необработанная ошибка: ", ex);
         return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Внутренняя ошибка сервера");
     }
@@ -98,7 +105,7 @@ public class GlobalExceptionHandler {
                 LocalDateTime.now(),
                 status.value(),
                 status.getReasonPhrase(),
-                ApiOutputSanitizer.sanitize(message)
+                apiOutputSanitizer.sanitize(message)
         );
         return ResponseEntity.status(status).body(error);
     }

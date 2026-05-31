@@ -1,6 +1,7 @@
 package com.crud.security.jwt;
 
 import com.crud.config.JwtProperties;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.User;
@@ -20,6 +21,7 @@ import java.util.stream.Collectors;
 
 @Service
 @Profile("jwt")
+@RequiredArgsConstructor
 public class JwtTokenService {
 
     private static final String ROLE_PREFIX = "ROLE_";
@@ -28,15 +30,13 @@ public class JwtTokenService {
     private final JwtProperties jwtProperties;
     private final RefreshTokenStore refreshTokenStore;
 
-    public JwtTokenService(JwtEncoder jwtEncoder, JwtProperties jwtProperties, RefreshTokenStore refreshTokenStore) {
-        this.jwtEncoder = jwtEncoder;
-        this.jwtProperties = jwtProperties;
-        this.refreshTokenStore = refreshTokenStore;
+    public TokenPair issueTokenPair(UserDetails user) {
+        return issueTokenPair(user, null);
     }
 
-    public TokenPair issueTokenPair(UserDetails user) {
-        String accessToken = encodeAccessToken(user);
-        String refreshToken = issueRefreshToken(user);
+    public TokenPair issueTokenPair(UserDetails user, String email) {
+        String accessToken = encodeAccessToken(user, email);
+        String refreshToken = issueRefreshToken(user, email);
         return new TokenPair(accessToken, refreshToken, jwtProperties.accessTokenTtl().getSeconds());
     }
 
@@ -45,46 +45,49 @@ public class JwtTokenService {
                 .orElseThrow(() -> new InvalidRefreshTokenException("Refresh token недействителен или отозван"));
         refreshTokenStore.blacklist(refreshTokenId, jwtProperties.refreshTokenTtl());
         UserDetails user = toUserDetails(tokenRecord);
-        return issueTokenPair(user);
+        return issueTokenPair(user, tokenRecord.email());
     }
 
     public void revokeRefreshToken(String refreshTokenId) {
         refreshTokenStore.blacklist(refreshTokenId, jwtProperties.refreshTokenTtl());
     }
 
-    private String issueRefreshToken(UserDetails user) {
+    private String issueRefreshToken(UserDetails user, String email) {
         String tokenId = UUID.randomUUID().toString();
         List<String> roles = extractRoleNames(user);
-        RefreshTokenRecord tokenRecord = new RefreshTokenRecord(user.getUsername(), roles);
+        RefreshTokenRecord tokenRecord = new RefreshTokenRecord(user.getUsername(), roles, email);
         refreshTokenStore.store(tokenId, tokenRecord, jwtProperties.refreshTokenTtl());
         return tokenId;
     }
 
-    private String encodeAccessToken(UserDetails user) {
+    private String encodeAccessToken(UserDetails user, String email) {
         Instant now = Instant.now();
         List<String> roles = extractRoleNames(user);
 
-        JwtClaimsSet claims = JwtClaimsSet.builder()
+        JwtClaimsSet.Builder claimsBuilder = JwtClaimsSet.builder()
                 .issuer(jwtProperties.issuer())
                 .subject(user.getUsername())
                 .issuedAt(now)
                 .expiresAt(now.plus(jwtProperties.accessTokenTtl()))
                 .claim("roles", roles)
-                .claim("typ", "access")
-                .build();
+                .claim("typ", "access");
+        if (email != null && !email.isBlank()) {
+            claimsBuilder.claim("email", email);
+        }
+        JwtClaimsSet claims = claimsBuilder.build();
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
         return jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
     }
 
-    private static List<String> extractRoleNames(UserDetails user) {
+    private List<String> extractRoleNames(UserDetails user) {
         return user.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
-                .map(JwtTokenService::stripRolePrefix)
+                .map(this::stripRolePrefix)
                 .filter(Objects::nonNull)
                 .toList();
     }
 
-    private static UserDetails toUserDetails(RefreshTokenRecord tokenRecord) {
+    private UserDetails toUserDetails(RefreshTokenRecord tokenRecord) {
         var authorities = tokenRecord.roles().stream()
                 .filter(Objects::nonNull)
                 .map(role -> (GrantedAuthority) () -> toRoleAuthority(role))
@@ -96,18 +99,18 @@ public class JwtTokenService {
                 .build();
     }
 
-    private static boolean hasRolePrefix(String value) {
+    private boolean hasRolePrefix(String value) {
         return value != null && value.startsWith(ROLE_PREFIX);
     }
 
-    private static String stripRolePrefix(String authority) {
+    private String stripRolePrefix(String authority) {
         if (authority == null) {
             return null;
         }
         return hasRolePrefix(authority) ? authority.substring(ROLE_PREFIX.length()) : authority;
     }
 
-    private static String toRoleAuthority(String role) {
+    private String toRoleAuthority(String role) {
         return hasRolePrefix(role) ? role : ROLE_PREFIX + role;
     }
 

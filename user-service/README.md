@@ -126,7 +126,7 @@ mvn spring-boot:run
 docker compose down -v && docker compose up --build -d
 ```
 
-> Браузер покажет предупреждение о самоподписанном сертификате. Для API удобнее **curl** (`-k`) или **Postman** (см. раздел «Тестирование»).
+> Браузер покажет предупреждение о самоподписанном сертификате. Для API удобнее **curl** (`-k`).
 
 ### 4. Аутентификация
 
@@ -146,7 +146,7 @@ curl -k -X POST https://localhost:8443/api/auth/login \
 | `APP_JWT_ACCESS_TTL`  | `PT15M`         |
 | `APP_JWT_REFRESH_TTL` | `P7D`           |
 
-Для Postman с **HTTP Basic** добавьте профиль **`local`**:  
+Опционально профиль **`local`** — HTTP Basic поверх JWT (dev):  
 `SPRING_PROFILES_ACTIVE=kafka,redis,jwt,local`.
 
 Seed-учётки:
@@ -243,8 +243,6 @@ com.crud
 
 ## Тестирование
 
-Автоматические тесты дополняются **ручной проверкой в Postman** (каталог `postman/`).
-
 ### Запуск тестов
 
 Только unit:
@@ -273,14 +271,9 @@ mvn verify
 
 Тесты запускаются в GitHub Actions при push в `main` / `develop`.
 
-### Проверка API в Postman
+### Ручная проверка API (curl)
 
-**Коллекция** — [`postman/collections/user-service API-1`](postman/collections/user-service%20API-1): пользователи, заметки, профили, роли, аутентификация, Actuator.
-
-**Окружение** — [`postman/environments/user-service local-1.environment.yaml`](postman/environments/user-service%20local-1.environment.yaml): `baseUrl`, учётные данные по умолчанию как в `.env.example`.
-
-**TLS:** в *Settings → General* отключите **SSL certificate verification** для `localhost`.  
-Выберите окружение и отправляйте запросы; для CRUD используйте `accessToken` после **Login (JWT)**.
+Примеры — в разделе «Проверка» выше; для полного стека платформы: `./scripts/platform-smoke.sh` из корня `user-notification-platform`.
 
 ## CI
 
@@ -308,7 +301,7 @@ mvn verify
 - **CORS** — настраиваемые allowed origins
 - **Пагинация** — Spring Data Pageable (макс. 100)
 - **Kafka outbox** — at-least-once доставка событий; опционально SASL_SSL (`APP_KAFKA_SECURITY_ENABLED=true`)
-- **REST к notification-service** — service JWT, TLS truststore, Resilience4j Circuit Breaker
+- **REST к notification-service** — service JWT, TLS truststore, Spring Cloud Circuit Breaker (Resilience4j) + Bulkhead, `@LoadBalanced` RestClient → `https://notification-service`
 - **Liquibase** — `spring.jpa.hibernate.ddl-auto: validate`
 - **Healthcheck** в Docker через Actuator
 

@@ -60,7 +60,7 @@ class NotificationRestResilienceIntegrationTest {
     @BeforeEach
     void reset() {
         WIREMOCK.resetAll();
-        circuitBreakerRegistry.circuitBreaker(NotificationRestClient.CIRCUIT_BREAKER_NAME).reset();
+        circuitBreakerRegistry.circuitBreaker(NotificationRestClient.RESILIENCE_NAME).reset();
     }
 
     @Test
@@ -82,7 +82,7 @@ class NotificationRestResilienceIntegrationTest {
         WIREMOCK.stubFor(post(urlEqualTo("/api/notifications/email"))
                 .willReturn(aResponse().withStatus(401)));
 
-        CircuitBreaker breaker = circuitBreakerRegistry.circuitBreaker(NotificationRestClient.CIRCUIT_BREAKER_NAME);
+        CircuitBreaker breaker = circuitBreakerRegistry.circuitBreaker(NotificationRestClient.RESILIENCE_NAME);
         for (int i = 0; i < 8; i++) {
             port.publish(UserNotificationEvent.create(UserNotificationOperation.USER_CREATED, "auth-" + i + "@example.com"));
         }
@@ -94,7 +94,7 @@ class NotificationRestResilienceIntegrationTest {
         WIREMOCK.stubFor(post(urlEqualTo("/api/notifications/email"))
                 .willReturn(aResponse().withStatus(500)));
 
-        CircuitBreaker breaker = circuitBreakerRegistry.circuitBreaker(NotificationRestClient.CIRCUIT_BREAKER_NAME);
+        CircuitBreaker breaker = circuitBreakerRegistry.circuitBreaker(NotificationRestClient.RESILIENCE_NAME);
         assertThat(breaker.getState()).isEqualTo(CircuitBreaker.State.CLOSED);
 
         // sliding-window=10, minimum-number-of-calls=5, failure-rate-threshold=50%

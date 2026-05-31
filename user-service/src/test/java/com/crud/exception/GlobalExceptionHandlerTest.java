@@ -10,12 +10,17 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import com.crud.security.ApiOutputSanitizer;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 @Execution(ExecutionMode.CONCURRENT)
 class GlobalExceptionHandlerTest {
 
-    private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
+    private final GlobalExceptionHandler handler = new GlobalExceptionHandler(
+            mock(com.platform.commons.observability.ExceptionMetrics.class),
+            new ApiOutputSanitizer());
 
     @Test
     void handleUserNotFound_ShouldReturn404() {

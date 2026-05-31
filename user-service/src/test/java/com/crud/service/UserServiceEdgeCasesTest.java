@@ -1,5 +1,6 @@
 package com.crud.service;
 
+import com.crud.cache.UserCachePort;
 import com.crud.dto.UserRequest;
 import com.crud.dto.UserResponse;
 import com.crud.entity.User;
@@ -40,6 +41,9 @@ class UserServiceEdgeCasesTest {
     @Mock
     private UserNotificationPort notificationPort;
 
+    @Mock
+    private UserCachePort userCache;
+
     @InjectMocks
     private UserServiceImpl userService;
 
@@ -78,6 +82,7 @@ class UserServiceEdgeCasesTest {
 
     @Test
     void findUserById_WhenUserNotFound_ShouldThrowException() {
+        when(userCache.findResponseById(999L)).thenReturn(Optional.empty());
         when(userRepository.findById(999L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.findUserById(999L))

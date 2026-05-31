@@ -1,6 +1,7 @@
 package com.crud.controller;
 
 import com.crud.config.SecurityConfig;
+import com.crud.config.WebMvcTestSecuritySupport;
 import tools.jackson.databind.json.JsonMapper;
 import com.crud.dto.UserRequest;
 import com.crud.dto.UserResponse;
@@ -29,7 +30,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(UserController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, WebMvcTestSecuritySupport.class})
 @WithMockUser
 class UserControllerTest {
 

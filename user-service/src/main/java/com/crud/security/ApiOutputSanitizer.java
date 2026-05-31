@@ -1,15 +1,14 @@
 package com.crud.security;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
+import org.springframework.stereotype.Component;
 import org.springframework.web.util.HtmlUtils;
 
-public final class ApiOutputSanitizer {
-
-    private ApiOutputSanitizer() {
-    }
+@Component
+public class ApiOutputSanitizer {
 
     @Nullable
-    public static String sanitize(@Nullable String value) {
+    public String sanitize(@Nullable String value) {
         if (value == null) {
             return null;
         }

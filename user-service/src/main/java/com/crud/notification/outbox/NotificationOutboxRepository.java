@@ -12,6 +12,8 @@ import java.util.UUID;
 
 public interface NotificationOutboxRepository extends JpaRepository<NotificationOutbox, Long> {
 
+    long countByStatus(OutboxStatus status);
+
     List<NotificationOutbox> findByStatusOrderByCreatedAtAsc(OutboxStatus status, Pageable pageable);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
