@@ -1,5 +1,0 @@
-$kind: http-request
-name: Удалить роль (переменная customRoleId; не удаляйте id 1–2, если нужны seed-роли ADMIN/USER)
-url: "{{baseUrl}}/api/roles/{{customRoleId}}"
-method: DELETE
-order: 7000

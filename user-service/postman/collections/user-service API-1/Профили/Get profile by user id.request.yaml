@@ -1,5 +1,0 @@
-$kind: http-request
-name: Профиль пользователя по id
-url: "{{baseUrl}}/api/profiles/user/{{userId}}"
-method: GET
-order: 2000

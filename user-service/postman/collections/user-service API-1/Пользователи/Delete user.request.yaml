@@ -1,5 +1,0 @@
-$kind: http-request
-name: Удалить пользователя
-url: "{{baseUrl}}/api/users/{{userId}}"
-method: DELETE
-order: 7000

@@ -1,5 +1,0 @@
-$kind: http-request
-name: Удалить заметку
-url: "{{baseUrl}}/api/users/{{userId}}/notes/{{noteId}}"
-method: DELETE
-order: 5000

@@ -1,5 +1,0 @@
-$kind: http-request
-name: Получить пользователя по id
-url: "{{baseUrl}}/api/users/{{userId}}"
-method: GET
-order: 3000
