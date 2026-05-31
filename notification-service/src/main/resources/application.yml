@@ -1,6 +1,17 @@
 spring:
   application:
     name: notification-service
+
+  config:
+    import:
+      - optional:configserver:http://${CONFIG_SERVER_HOST:localhost}:${CONFIG_SERVER_PORT:8888}
+      - optional:classpath:platform/tracing-defaults.yml
+
+  cloud:
+    config:
+      fail-fast: ${CONFIG_FAIL_FAST:false}
+      label: ${CONFIG_LABEL:main}
+
   profiles:
     active: kafka
   mongodb:
@@ -53,6 +64,9 @@ app:
     security:
       enabled: ${APP_KAFKA_SECURITY_ENABLED:false}
   security:
+    jwt:
+      secret: ${APP_JWT_SECRET:dev-jwt-secret-change-in-production-min-32-chars}
+      issuer: ${APP_JWT_ISSUER:user-service}
     service-jwt:
       secret: ${APP_SERVICE_JWT_SECRET:dev-service-jwt-secret-change-in-production-min-32b}
       issuer: ${APP_SERVICE_JWT_ISSUER:user-notification-platform}
@@ -69,6 +83,8 @@ app:
       listener:
         concurrency: ${APP_NOTIFICATION_KAFKA_LISTENER_CONCURRENCY:3}
       dlt-suffix: ".DLT"
+      dlt-listener-group: notification-service-dlt
+      compensation-topic: notification-compensations
       retry:
         max-attempts: 3
         backoff-ms: 1000

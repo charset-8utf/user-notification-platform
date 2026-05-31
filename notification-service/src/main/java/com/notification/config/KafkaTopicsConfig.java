@@ -31,4 +31,13 @@ public class KafkaTopicsConfig {
     ) {
         return TopicBuilder.name(topic + dltSuffix).partitions(partitions).replicas(replicas).build();
     }
+
+    @Bean
+    public NewTopic notificationCompensationsTopic(
+            @Value("${app.notification.kafka.compensation-topic}") String topic,
+            @Value("${app.notification.kafka.partitions:1}") int partitions,
+            @Value("${app.notification.kafka.replicas:1}") short replicas
+    ) {
+        return TopicBuilder.name(topic).partitions(partitions).replicas(replicas).build();
+    }
 }

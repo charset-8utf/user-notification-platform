@@ -191,8 +191,6 @@ com.notification
 
 ## Тестирование
 
-Автоматические тесты дополняются **Postman** (каталог `postman/`).
-
 ### Запуск тестов
 
 ```bash
@@ -200,14 +198,21 @@ mvn test
 mvn verify
 ```
 
-### Проверка API в Postman
+### Ручная проверка API (curl)
 
-**Коллекция** — [`postman/collections/notification-service API-1`](postman/collections/notification-service%20API-1): мониторинг, email, валидация.
+```bash
+export APP_SERVICE_JWT_SECRET=dev-service-jwt-secret-change-in-production-min-32b
+mvn -q -DskipTests test-compile dependency:build-classpath -Dmdep.outputFile=cp.txt
+SVC_JWT=$(java -cp "target/test-classes:target/classes:$(cat cp.txt)" \
+  com.notification.support.ServiceJwtSmokeToken)
 
-**Окружение** — [`postman/environments/notification-service local-1.environment.yaml`](postman/environments/notification-service%20local-1.environment.yaml): `baseUrl`, `serviceAuthToken`, `mailpitUrl`.
+curl -k -X POST https://localhost:8444/api/notifications/email \
+  -H "Authorization: Bearer $SVC_JWT" \
+  -H 'Content-Type: application/json' \
+  -d '{"eventId":"990e8400-e29b-41d4-a716-446655440099","operation":"USER_CREATED","email":"user@example.com"}'
+```
 
-**TLS:** отключите **SSL certificate verification** для `localhost`.  
-В `serviceAuthToken` вставьте JWT из `ServiceJwtSmokeToken` (см. выше).
+Письмо проверьте в Mailpit: http://localhost:8025
 
 ## CI
 

@@ -1,9 +1,11 @@
 package com.notification.exception;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.platform.commons.observability.ExceptionMetrics;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -18,6 +20,12 @@ import java.util.Map;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+
+    private final ExceptionMetrics exceptionMetrics;
+
+    public GlobalExceptionHandler(ExceptionMetrics exceptionMetrics) {
+        this.exceptionMetrics = exceptionMetrics;
+    }
 
     @ExceptionHandler(EmailDeliveryException.class)
     public ResponseEntity<ErrorResponse> handleEmailDelivery(EmailDeliveryException ex) {
@@ -53,8 +61,14 @@ public class GlobalExceptionHandler {
                 "Метод '" + ex.getMethod() + "' не поддерживается для данного ресурса");
     }
 
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
+        return buildErrorResponse(HttpStatus.FORBIDDEN, ex.getMessage());
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex) {
+        exceptionMetrics.recordException(ex, "rest-controller");
         log.error("Необработанная ошибка: ", ex);
         return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Внутренняя ошибка сервера");
     }

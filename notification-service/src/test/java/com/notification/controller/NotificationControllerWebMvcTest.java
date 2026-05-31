@@ -4,8 +4,14 @@ import com.notification.config.SecurityConfig;
 import com.notification.entity.UserNotificationOperation;
 import com.notification.exception.GlobalExceptionHandler;
 import com.notification.security.ServiceJwtSecurityConfig;
+import com.notification.security.JwtRoleSupport;
+import com.notification.security.SecurityJsonErrorWriter;
+import com.notification.security.ServiceJwtAudienceValidator;
+import com.notification.security.ServiceJwtAuthorities;
+import com.notification.security.UserJwtSecurityConfig;
 import com.notification.service.NotificationService;
 import com.notification.support.ServiceJwtTestSupport;
+import com.platform.commons.observability.ExceptionMetrics;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -24,9 +30,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = NotificationController.class)
-@Import({GlobalExceptionHandler.class, SecurityConfig.class, ServiceJwtSecurityConfig.class})
+@Import({
+        GlobalExceptionHandler.class,
+        SecurityConfig.class,
+        ServiceJwtSecurityConfig.class,
+        UserJwtSecurityConfig.class,
+        JwtRoleSupport.class,
+        ServiceJwtAudienceValidator.class,
+        ServiceJwtAuthorities.class,
+        SecurityJsonErrorWriter.class
+})
 @ActiveProfiles("rest")
-@TestPropertySource(properties = "app.security.service-jwt.secret=test-service-jwt-secret-for-tests-min-32b")
+@TestPropertySource(properties = {
+        "app.security.service-jwt.secret=test-service-jwt-secret-for-tests-min-32b",
+        "app.security.jwt.secret=test-jwt-secret-for-notification-read-min-32b"
+})
 class NotificationControllerWebMvcTest {
 
     private static final String AUTH_HEADER = HttpHeaders.AUTHORIZATION;
@@ -37,6 +55,9 @@ class NotificationControllerWebMvcTest {
 
     @MockitoBean
     private NotificationService notificationService;
+
+    @MockitoBean
+    private ExceptionMetrics exceptionMetrics;
 
     @Test
     void postEmailReturns204() throws Exception {
