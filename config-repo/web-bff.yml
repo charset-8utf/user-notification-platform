@@ -1,0 +1,4 @@
+app:
+  bff:
+    user-service-base-url: https://user-service
+    insecure-ssl: true

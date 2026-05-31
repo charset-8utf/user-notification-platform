@@ -1,0 +1,14 @@
+# Root build context for user-service / notification-service Dockerfiles
+.git
+.github
+.idea
+**/.cursor
+**/.DS_Store
+**/target
+**/*.iml
+docs
+scripts
+agent-transcripts
+.env
+.env.*
+!.env.example
