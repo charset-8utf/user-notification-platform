@@ -1,7 +1,7 @@
 package com.crud.notification.outbox;
 
 import com.crud.notification.UserNotificationEvent;
-import com.crud.notification.UserNotificationPort;
+import com.crud.notification.support.AbstractUserNotificationPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
@@ -18,13 +18,13 @@ import java.time.LocalDateTime;
 @Profile("kafka")
 @Slf4j
 @RequiredArgsConstructor
-public class OutboxUserNotificationPublisher implements UserNotificationPort {
+public class OutboxUserNotificationPublisher extends AbstractUserNotificationPublisher {
 
     private final NotificationOutboxRepository outboxRepository;
 
     @Override
     @Transactional
-    public void publish(UserNotificationEvent event) {
+    protected void doPublish(UserNotificationEvent event) {
         NotificationOutbox row = NotificationOutbox.builder()
                 .eventId(event.eventId())
                 .operation(event.operation())

@@ -12,9 +12,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
-/**
- * Выдаёт и кэширует короткоживущий JWT для вызовов notification-service.
- */
 @Component
 @Profile("rest")
 public class ServiceJwtTokenProvider {
@@ -31,12 +28,12 @@ public class ServiceJwtTokenProvider {
     public String getToken() {
         Instant refreshAfter = Instant.now().plusSeconds(30);
         CachedToken current = cached.get();
-        if (isValid(current, refreshAfter)) {
+        if (tokenStillValid(current, refreshAfter)) {
             return current.value();
         }
         synchronized (this) {
             current = cached.get();
-            if (isValid(current, refreshAfter)) {
+            if (tokenStillValid(current, refreshAfter)) {
                 return current.value();
             }
             CachedToken issued = issueToken();
@@ -45,7 +42,7 @@ public class ServiceJwtTokenProvider {
         }
     }
 
-    private static boolean isValid(CachedToken token, Instant refreshAfter) {
+    private boolean tokenStillValid(CachedToken token, Instant refreshAfter) {
         return token != null && token.validUntil().isAfter(refreshAfter);
     }
 

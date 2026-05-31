@@ -9,9 +9,10 @@ import org.springframework.core.io.ResourceLoader;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class KafkaSecuritySupportTest {
+class KafkaSecurityPropertiesApplierTest {
 
     private static final ResourceLoader RESOURCE_LOADER = new DefaultResourceLoader();
+    private final KafkaSecurityPropertiesApplier applier = new KafkaSecurityPropertiesApplier();
 
     @Test
     void appliesSaslSslProperties() {
@@ -25,7 +26,7 @@ class KafkaSecuritySupportTest {
                 "PKCS12",
                 ""
         );
-        KafkaSecuritySupport.apply(kafkaProperties, security, RESOURCE_LOADER);
+        applier.apply(kafkaProperties, security, RESOURCE_LOADER);
 
         var props = kafkaProperties.getProperties();
         assertThat(props)
@@ -48,7 +49,7 @@ class KafkaSecuritySupportTest {
                 "PKCS12",
                 ""
         );
-        new KafkaSecurityConfiguration(kafkaProperties, security, RESOURCE_LOADER);
+        new KafkaSecurityConfiguration(kafkaProperties, security, RESOURCE_LOADER, applier);
         assertThat(kafkaProperties.getProperties()).containsEntry("security.protocol", "SASL_SSL");
     }
 
@@ -58,7 +59,7 @@ class KafkaSecuritySupportTest {
         KafkaSecurityProperties security = new KafkaSecurityProperties(
                 true, "user-service", "secret", "  ", "changeit", "PKCS12", "");
 
-        assertThatThrownBy(() -> apply(kafkaProperties, security))
+        assertThatThrownBy(() -> applier.apply(kafkaProperties, security, RESOURCE_LOADER))
                 .isInstanceOf(KafkaSecurityConfigurationException.class)
                 .hasMessageContaining("trust-store is required");
     }
@@ -76,12 +77,8 @@ class KafkaSecuritySupportTest {
                 ""
         );
 
-        assertThatThrownBy(() -> apply(kafkaProperties, security))
+        assertThatThrownBy(() -> applier.apply(kafkaProperties, security, RESOURCE_LOADER))
                 .isInstanceOf(KafkaSecurityConfigurationException.class)
                 .hasMessageContaining("Kafka trust store not found");
-    }
-
-    private static void apply(KafkaProperties kafkaProperties, KafkaSecurityProperties security) {
-        KafkaSecuritySupport.apply(kafkaProperties, security, RESOURCE_LOADER);
     }
 }

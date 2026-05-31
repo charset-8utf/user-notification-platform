@@ -1,5 +1,6 @@
 package com.crud.config;
 
+import com.crud.config.ratelimit.RateLimitKeyHandlerChain;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -17,6 +18,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class RateLimitKeyResolverTest {
 
+    private final RateLimitKeyResolver rateLimitKeyResolver =
+            new RateLimitKeyResolver(RateLimitKeyHandlerChain.forTests());
+
     @AfterEach
     void clearContext() {
         SecurityContextHolder.clearContext();
@@ -33,7 +37,7 @@ class RateLimitKeyResolverTest {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(jwt, null, List.of()));
 
-        String key = RateLimitKeyResolver.resolve(new MockHttpServletRequest());
+        String key = rateLimitKeyResolver.resolve(new MockHttpServletRequest());
 
         assertThat(key).isEqualTo("sub:alice");
     }
@@ -44,7 +48,7 @@ class RateLimitKeyResolverTest {
                 new UsernamePasswordAuthenticationToken(
                         "bob", null, List.of(new SimpleGrantedAuthority("ROLE_USER"))));
 
-        String key = RateLimitKeyResolver.resolve(new MockHttpServletRequest());
+        String key = rateLimitKeyResolver.resolve(new MockHttpServletRequest());
 
         assertThat(key).isEqualTo("user:bob");
     }
@@ -54,7 +58,7 @@ class RateLimitKeyResolverTest {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.addHeader("Authorization", "Bearer " + carolBearerToken());
 
-        assertThat(RateLimitKeyResolver.resolve(request)).isEqualTo("sub:carol");
+        assertThat(rateLimitKeyResolver.resolve(request)).isEqualTo("sub:carol");
     }
 
     @Test
@@ -62,7 +66,7 @@ class RateLimitKeyResolverTest {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRemoteAddr("203.0.113.10");
 
-        assertThat(RateLimitKeyResolver.resolve(request)).isEqualTo("ip:203.0.113.10");
+        assertThat(rateLimitKeyResolver.resolve(request)).isEqualTo("ip:203.0.113.10");
     }
 
     private static String carolBearerToken() {

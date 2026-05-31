@@ -1,6 +1,7 @@
 package com.crud.controller;
 
 import com.crud.config.SecurityConfig;
+import com.crud.config.WebMvcTestSecuritySupport;
 import com.crud.dto.UserRequest;
 import com.crud.dto.UserResponse;
 import com.crud.service.UserService;
@@ -26,7 +27,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(UserController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, WebMvcTestSecuritySupport.class})
 @WithMockUser
 class UserValidationEdgeCasesTest {
 

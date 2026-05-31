@@ -25,6 +25,7 @@ public class KafkaOutboxRelay {
 
     private final NotificationOutboxRepository outboxRepository;
     private final UserNotificationKafkaProducer kafkaProducer;
+    private final OutboxMetrics outboxMetrics;
 
     @Value("${app.notification.kafka.outbox.batch-size:50}")
     private int batchSize;
@@ -50,12 +51,16 @@ public class KafkaOutboxRelay {
                     row.getEventId(), OutboxStatus.PENDING, OutboxStatus.PUBLISHED, LocalDateTime.now());
             if (updated == 0) {
                 log.debug("Outbox eventId={} уже обработан другим relay", row.getEventId());
+            } else {
+                outboxMetrics.recordPublished();
             }
         } catch (Exception ex) {
             log.error("Не удалось опубликовать outbox eventId={}: {}", row.getEventId(), ex.toString());
             int failed = outboxRepository.markFailed(row.getEventId(), OutboxStatus.PENDING, OutboxStatus.FAILED);
             if (failed == 0) {
                 log.debug("Outbox eventId={} не помечен FAILED (уже обработан другим relay)", row.getEventId());
+            } else {
+                outboxMetrics.recordFailed();
             }
         }
     }

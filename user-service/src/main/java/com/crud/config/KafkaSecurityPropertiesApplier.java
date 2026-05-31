@@ -8,6 +8,7 @@ import org.apache.kafka.common.config.SslConfigs;
 import org.springframework.boot.kafka.autoconfigure.KafkaProperties;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
+import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
@@ -19,12 +20,10 @@ import java.nio.file.StandardCopyOption;
 /**
  * SASL_SSL + SCRAM-SHA-512 для Kafka-клиентов.
  */
-public final class KafkaSecuritySupport {
+@Component
+public class KafkaSecurityPropertiesApplier {
 
-    private KafkaSecuritySupport() {
-    }
-
-    public static void apply(
+    public void apply(
             KafkaProperties kafkaProperties,
             KafkaSecurityProperties security,
             ResourceLoader resourceLoader
@@ -41,12 +40,12 @@ public final class KafkaSecuritySupport {
                 security.endpointIdentificationAlgorithm());
     }
 
-    private static String jaasConfig(String username, String password) {
+    private String jaasConfig(String username, String password) {
         return "org.apache.kafka.common.security.scram.ScramLoginModule required "
                 + "username=\"" + username + "\" password=\"" + password + "\";";
     }
 
-    private static String resolveTrustStorePath(ResourceLoader resourceLoader, String location) {
+    private String resolveTrustStorePath(ResourceLoader resourceLoader, String location) {
         if (!StringUtils.hasText(location)) {
             throw new KafkaSecurityConfigurationException("app.kafka.security.trust-store is required");
         }

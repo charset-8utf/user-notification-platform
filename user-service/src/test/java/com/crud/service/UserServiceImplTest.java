@@ -69,6 +69,7 @@ class UserServiceImplTest {
         verify(userMapper).toEntity(request);
         verify(userMapper).toResponse(savedUser);
         verify(userCache).put(UserCacheView.active(1L, "john@example.com"));
+        verify(userCache).putResponse(expectedResponse);
         verify(notificationPort).publish(argThat(event ->
                 event.operation() == UserNotificationOperation.USER_CREATED
                         && "john@example.com".equals(event.email())
@@ -83,6 +84,7 @@ class UserServiceImplTest {
         user.setCreatedAt(LocalDateTime.now());
         UserResponse expected = new UserResponse(userId, "Jane", "jane@example.com", 25, user.getCreatedAt());
 
+        when(userCache.findResponseById(userId)).thenReturn(Optional.empty());
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(userMapper.toResponse(user)).thenReturn(expected);
 
@@ -90,6 +92,19 @@ class UserServiceImplTest {
 
         assertThat(actual).isEqualTo(expected);
         verify(userRepository).findById(userId);
+        verify(userCache).putResponse(expected);
+    }
+
+    @Test
+    void findUserById_WhenCached_ShouldNotHitDatabase() {
+        Long userId = 1L;
+        UserResponse cached = new UserResponse(userId, "Jane", "jane@example.com", 25, LocalDateTime.now());
+        when(userCache.findResponseById(userId)).thenReturn(Optional.of(cached));
+
+        UserResponse actual = userService.findUserById(userId);
+
+        assertThat(actual).isEqualTo(cached);
+        verify(userRepository, never()).findById(any());
     }
 
     @Test

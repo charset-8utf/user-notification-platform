@@ -2,6 +2,7 @@ package com.crud.security;
 
 import com.crud.dto.auth.LoginRequest;
 import com.crud.dto.auth.RefreshRequest;
+import com.crud.repository.CredentialRepository;
 import com.crud.security.jwt.InvalidRefreshTokenException;
 import com.crud.security.jwt.JwtTokenService;
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -33,6 +35,8 @@ class AuthServiceTest {
     private PasswordEncoder passwordEncoder;
     @Mock
     private JwtTokenService jwtTokenService;
+    @Mock
+    private CredentialRepository credentialRepository;
 
     @InjectMocks
     private AuthService authService;
@@ -46,8 +50,9 @@ class AuthServiceTest {
     @Test
     void login_validCredentials_returnsTokens() {
         when(userDetailsService.loadUserByUsername("admin")).thenReturn(user);
+        when(credentialRepository.findByUsername("admin")).thenReturn(Optional.empty());
         when(passwordEncoder.matches("secret", "hash")).thenReturn(true);
-        when(jwtTokenService.issueTokenPair(user))
+        when(jwtTokenService.issueTokenPair(user, null))
                 .thenReturn(new JwtTokenService.TokenPair("access", "refresh", 900));
 
         var response = authService.login(new LoginRequest("admin", "secret"));

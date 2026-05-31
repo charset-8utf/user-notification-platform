@@ -3,10 +3,13 @@ package com.crud.controller;
 import com.crud.config.JwtConfig;
 import com.crud.config.JwtSecurityConfig;
 import com.crud.config.SecurityBeansConfig;
+import com.crud.config.WebMvcJwtTestSupport;
+import com.crud.config.WebMvcTestSecuritySupport;
 import com.crud.dto.auth.LoginRequest;
 import com.crud.dto.auth.TokenResponse;
 import com.crud.exception.GlobalExceptionHandler;
 import com.crud.security.AuthService;
+import com.platform.commons.observability.ExceptionMetrics;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -24,7 +27,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = AuthController.class)
-@Import({GlobalExceptionHandler.class, SecurityBeansConfig.class, JwtConfig.class, JwtSecurityConfig.class})
+@Import({GlobalExceptionHandler.class, SecurityBeansConfig.class, JwtConfig.class, JwtSecurityConfig.class,
+        WebMvcTestSecuritySupport.class, WebMvcJwtTestSupport.class})
 @ActiveProfiles({"test", "jwt"})
 class AuthControllerTest {
 
@@ -36,6 +40,9 @@ class AuthControllerTest {
 
     @MockitoBean
     private AuthService authService;
+
+    @MockitoBean
+    private ExceptionMetrics exceptionMetrics;
 
     @MockitoBean
     private com.crud.security.jwt.RefreshTokenStore refreshTokenStore;

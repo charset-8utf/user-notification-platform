@@ -9,13 +9,15 @@ import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class JsonResponsesTest {
+class SanitizedJsonResponsesTest {
+
+    private final SanitizedJsonResponses responses = new SanitizedJsonResponses(new ApiOutputSanitizer());
 
     @Test
     void ok_escapesStringFieldsInBody() {
         UserResponse raw = new UserResponse(1L, "<b>x</b>", "a@b.com", 20, LocalDateTime.now());
 
-        ResponseEntity<UserResponse> response = JsonResponses.ok(raw);
+        ResponseEntity<UserResponse> response = responses.ok(raw);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         UserResponse body = response.getBody();
@@ -28,7 +30,7 @@ class JsonResponsesTest {
     void created_escapesStringFieldsInBody() {
         UserResponse raw = new UserResponse(1L, "<script>", "u@test.com", 30, LocalDateTime.now());
 
-        ResponseEntity<UserResponse> response = JsonResponses.created(raw);
+        ResponseEntity<UserResponse> response = responses.created(raw);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         UserResponse body = response.getBody();

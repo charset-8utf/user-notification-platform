@@ -2,6 +2,16 @@ spring:
   application:
     name: user-service
 
+  config:
+    import:
+      - optional:configserver:http://${CONFIG_SERVER_HOST:localhost}:${CONFIG_SERVER_PORT:8888}
+      - optional:classpath:platform/tracing-defaults.yml
+
+  cloud:
+    config:
+      fail-fast: ${CONFIG_FAIL_FAST:false}
+      label: ${CONFIG_LABEL:main}
+
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:kafka,redis}
 
@@ -107,6 +117,8 @@ app:
       outbox:
         relay-interval-ms: ${APP_NOTIFICATION_OUTBOX_RELAY_MS:1000}
         batch-size: ${APP_NOTIFICATION_OUTBOX_BATCH_SIZE:50}
+      compensation-topic: ${APP_NOTIFICATION_COMPENSATION_TOPIC:notification-compensations}
+      compensation-consumer-group: user-service-compensation
   cache:
     redis:
       ttl: ${APP_CACHE_REDIS_TTL:PT1H}

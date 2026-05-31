@@ -1,5 +1,6 @@
 package com.crud.notification;
 
+import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -13,7 +14,7 @@ import org.springframework.web.client.RestClient;
 @Slf4j
 public class NotificationRestClient implements UserNotificationPort {
 
-    public static final String CIRCUIT_BREAKER_NAME = "notification-service";
+    public static final String RESILIENCE_NAME = "notification-service";
 
     private final RestClient restClient;
 
@@ -22,7 +23,8 @@ public class NotificationRestClient implements UserNotificationPort {
     }
 
     @Override
-    @CircuitBreaker(name = CIRCUIT_BREAKER_NAME, fallbackMethod = "publishFallback")
+    @Bulkhead(name = RESILIENCE_NAME, type = Bulkhead.Type.SEMAPHORE)
+    @CircuitBreaker(name = RESILIENCE_NAME, fallbackMethod = "publishFallback")
     public void publish(UserNotificationEvent event) {
         log.debug("Отправляем уведомление в notification-service: {}", event);
         restClient.post()

@@ -1,5 +1,6 @@
 package com.crud.config;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,7 +14,6 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfigurationSource;
-import tools.jackson.databind.json.JsonMapper;
 
 import java.util.Arrays;
 
@@ -21,13 +21,16 @@ import java.util.Arrays;
 @EnableWebSecurity
 @Profile("jwt")
 @Slf4j
+@RequiredArgsConstructor
 public class JwtSecurityConfig {
+
+    private final ApiAuthorizationRules apiAuthorizationRules;
+    private final ApiHttpSecurityCustomizer apiHttpSecurityCustomizer;
 
     @Bean
     public SecurityFilterChain jwtSecurityFilterChain(
             HttpSecurity http,
             CorsConfigurationSource corsConfigurationSource,
-            JsonMapper jsonMapper,
             JwtAuthenticationConverter jwtAuthenticationConverter,
             Environment environment
     ) {
@@ -35,7 +38,7 @@ public class JwtSecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(SecuritySupport::configureAuthorization)
+                .authorizeHttpRequests(apiAuthorizationRules::configure)
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)));
 
@@ -45,8 +48,8 @@ public class JwtSecurityConfig {
             http.httpBasic(AbstractHttpConfigurer::disable);
         }
 
-        SecuritySupport.configureApiSecurityHeaders(http);
-        SecuritySupport.configureJsonUnauthorized(http, jsonMapper);
+        apiHttpSecurityCustomizer.configureSecurityHeaders(http);
+        apiHttpSecurityCustomizer.configureJsonUnauthorized(http);
         return http.build();
     }
 }

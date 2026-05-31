@@ -12,7 +12,9 @@ import java.security.KeyStore;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class NotificationRestSslSupportTest {
+class NotificationRestSslContextFactoryTest {
+
+    private final NotificationRestSslContextFactory factory = new NotificationRestSslContextFactory();
 
     @Test
     void loadsClasspathTrustStore() throws Exception {
@@ -21,7 +23,7 @@ class NotificationRestSslSupportTest {
                 "changeit",
                 "PKCS12"
         );
-        SSLContext context = NotificationRestSslSupport.sslContextFromTrustStore(
+        SSLContext context = factory.sslContextFromTrustStore(
                 new DefaultResourceLoader(), tls);
         assertThat(context).isNotNull();
         assertThat(context.getProtocol()).isEqualTo("TLS");
@@ -35,7 +37,7 @@ class NotificationRestSslSupportTest {
 
     @Test
     void insecureSslContextForDevOnly() {
-        assertThat(NotificationRestSslSupport.insecureSslContext()).isNotNull();
+        assertThat(factory.insecureSslContext()).isNotNull();
     }
 
     @Test
@@ -46,7 +48,7 @@ class NotificationRestSslSupportTest {
                 "PKCS12"
         );
         DefaultResourceLoader resourceLoader = new DefaultResourceLoader();
-        assertThatThrownBy(() -> NotificationRestSslSupport.sslContextFromTrustStore(resourceLoader, tls))
+        assertThatThrownBy(() -> factory.sslContextFromTrustStore(resourceLoader, tls))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Trust store not found");
     }

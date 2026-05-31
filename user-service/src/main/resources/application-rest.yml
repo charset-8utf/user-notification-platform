@@ -9,7 +9,8 @@ app:
       token-ttl: ${APP_SERVICE_JWT_TTL:PT5M}
   notification:
     rest:
-      base-url: ${APP_NOTIFICATION_REST_BASE_URL:https://notification-service:8443}
+      # Имя сервиса в Eureka; порт берётся из secure-port (LoadBalancer)
+      base-url: ${APP_NOTIFICATION_REST_BASE_URL:https://notification-service}
       insecure-ssl: ${APP_NOTIFICATION_REST_INSECURE_SSL:false}
       tls:
         trust-store: ${APP_NOTIFICATION_REST_TRUST_STORE:classpath:notification-truststore.p12}
@@ -32,3 +33,8 @@ resilience4j:
         register-health-indicator: true
         ignore-exceptions:
           - org.springframework.web.client.HttpClientErrorException
+  bulkhead:
+    instances:
+      notification-service:
+        max-concurrent-calls: 8
+        max-wait-duration: 1s

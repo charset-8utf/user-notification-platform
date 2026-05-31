@@ -1,5 +1,6 @@
 package com.crud.cache;
 
+import com.crud.dto.UserResponse;
 import lombok.extern.slf4j.Slf4j;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
@@ -22,6 +23,7 @@ public class RedisUserCachePort implements UserCachePort {
 
     private static final String KEY_PREFIX_ID = "user:";
     private static final String KEY_PREFIX_EMAIL = "user:email:";
+    private static final String KEY_PREFIX_QUERY = "user:query:";
 
     private final StringRedisTemplate redis;
     private final ObjectMapper objectMapper;
@@ -53,11 +55,41 @@ public class RedisUserCachePort implements UserCachePort {
     }
 
     @Override
+    public void putResponse(UserResponse response) {
+        if (response.id() == null) {
+            return;
+        }
+        String key = KEY_PREFIX_QUERY + response.id();
+        try {
+            redis.opsForValue().set(key, objectMapper.writeValueAsString(response), ttl);
+            log.debug("Redis query cache put: {}", key);
+        } catch (JacksonException | DataAccessException e) {
+            log.warn("Не удалось записать read-model в Redis (id={}): {}", response.id(), e.getMessage());
+        }
+    }
+
+    @Override
+    public java.util.Optional<UserResponse> findResponseById(Long id) {
+        String key = KEY_PREFIX_QUERY + id;
+        try {
+            String json = redis.opsForValue().get(key);
+            if (json == null) {
+                return java.util.Optional.empty();
+            }
+            return java.util.Optional.of(objectMapper.readValue(json, UserResponse.class));
+        } catch (JacksonException | DataAccessException e) {
+            log.warn("Не удалось прочитать read-model из Redis (id={}): {}", id, e.getMessage());
+            return java.util.Optional.empty();
+        }
+    }
+
+    @Override
     public void evict(Long id) {
         String byId = KEY_PREFIX_ID + id;
         try {
             String existing = redis.opsForValue().get(byId);
             redis.delete(byId);
+            redis.delete(KEY_PREFIX_QUERY + id);
             if (existing != null) {
                 UserCacheView view = objectMapper.readValue(existing, UserCacheView.class);
                 redis.delete(KEY_PREFIX_EMAIL + view.email());

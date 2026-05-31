@@ -7,10 +7,10 @@ import org.springframework.stereotype.Component;
 @Component
 @Profile("!kafka & !rest")
 @Slf4j
-public class NoOpUserNotificationPublisher implements UserNotificationPort {
+public class NoOpUserNotificationPublisher extends com.crud.notification.support.AbstractUserNotificationPublisher {
 
     @Override
-    public void publish(UserNotificationEvent event) {
+    protected void doPublish(UserNotificationEvent event) {
         log.debug("Нотификация подавлена (no-op publisher): {}", event);
     }
 }
