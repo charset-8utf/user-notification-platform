@@ -2,6 +2,10 @@
 # E2E compensation: create user → DLT event → compensation topic → user FAILED
 set -euo pipefail
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=e2e-lib.sh
+source "${ROOT}/scripts/e2e-lib.sh"
+
 GATEWAY="${GATEWAY_HTTP:-http://localhost}"
 ADMIN_USER="${ADMIN_USER:-admin}"
 ADMIN_PASS="${ADMIN_PASS:-admin123}"
@@ -37,14 +41,17 @@ echo "${EVENT_ID}:${DLT_PAYLOAD}" | docker exec -i "${KAFKA_CONTAINER}" \
   >/dev/null
 pass "DLT event published"
 
-echo "Waiting for compensation → user notificationDeliveryStatus=FAILED..."
-for _ in $(seq 1 30); do
+POLL_MAX="$(e2e_poll_max)"
+POLL_SLEEP="$(e2e_poll_sleep)"
+echo "Waiting for compensation → user notificationDeliveryStatus=FAILED, max ${POLL_MAX} attempts..."
+for i in $(seq 1 "${POLL_MAX}"); do
   USER=$(curl -fsS "${GATEWAY}/api/users/${USER_ID}" -H "Authorization: Bearer ${TOKEN}")
   if echo "${USER}" | grep -q '"notificationDeliveryStatus":"FAILED"'; then
     pass "user ${USER_ID} marked FAILED"
     echo "=== Compensation E2E passed ==="
     exit 0
   fi
-  sleep 2
+  [ $((i % 10)) -eq 0 ] && echo "  ... still waiting (${i}/${POLL_MAX}), last: ${USER}"
+  sleep "${POLL_SLEEP}"
 done
 fail "notificationDeliveryStatus not FAILED for user ${USER_ID}"
