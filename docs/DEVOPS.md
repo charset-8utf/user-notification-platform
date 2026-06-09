@@ -8,9 +8,10 @@ commit → CI (gradlew check) → E2E smoke → security → publish (GitLab Reg
 
 | Стадия | Инструмент | Что проверяется |
 |--------|------------|-----------------|
-| CI | GitLab `verify` | `./gradlew check` |
+| CI | GitHub `ci.yml` / GitLab `verify` | `./gradlew check` |
 | CT legacy | GitLab `e2e-legacy` | compose + JWT + Kafka → Mailpit |
-| CT cloud | GitLab `e2e-cloud` | Gateway + BFF |
+| CT cloud | GitLab `e2e-cloud` | nginx → gateway/BFF + cross-service + compensation |
+| CT OIDC | GitLab `e2e-oidc` | Keycloak token → gateway JWKS (optional) |
 | Security | GitLab `gitleaks`, `trivy-images` | Секреты + CVE (fail on HIGH/CRITICAL) |
 | CD | GitLab `publish` + `deploy:*` | Registry → Helm |
 | Nightly | GitLab `nightly:observability` | observability profile |
@@ -24,6 +25,7 @@ cp .env.example .env
 make ci-fast
 make ci-e2e
 make ci-e2e-cloud
+./scripts/ci.sh e2e-cloud-suite
 make up-full
 ./scripts/ci.sh fast
 ```
@@ -33,7 +35,8 @@ make up-full
 | Профиль | Сервисов | Команда |
 |---------|----------|---------|
 | (default) | 9 | `docker compose up -d` |
-| `cloud` | +2 (gateway, bff) | `--profile cloud` |
+| `cloud` | +nginx, gateway, bff | `--profile cloud` |
+| `auth` | +Keycloak | `--profile auth` |
 | `observability` | +5 | `--profile observability` |
 | полный стек | 16 | `make up-full` |
 
