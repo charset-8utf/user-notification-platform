@@ -22,7 +22,8 @@
 CI/CD выполняется в GitLab (монорепозиторий `user-notification-platform`).  
 Приложение и зависимости (MongoDB, Mailpit, Kafka) запускаются через `docker compose`.
 
-В платформе [`user-notification-platform`](../README.md) сервис регистрируется в Eureka; REST доступен через Gateway (`/api/notifications/logs/**`) и напрямую по **HTTPS** `:8444`.
+В платформе [`user-notification-platform`](../README.md) REST доступен через Gateway (`/api/notifications/logs/**`) и напрямую по **HTTPS** `:8444`.  
+Write API: **service JWT** или **API Key** (`X-API-Key`). Kafka: **transactional inbox** (`notification_inbox`).
 
 ## Входящие события
 
@@ -41,9 +42,9 @@ CI/CD выполняется в GitLab (монорепозиторий `user-not
 | `USER_CREATED` | «Аккаунт создан» |
 | `USER_DELETED` | «Аккаунт удалён» |
 
-**Kafka:** `UserNotificationKafkaConsumer` — manual ack, идемпотентность по `eventId`, retry и DLT (`user-notifications.DLT`).
+**Kafka:** consumer → **inbox** (PENDING) → `KafkaInboxRelay` → email → PROCESSED; DLT (`user-notifications.DLT`).
 
-**REST:** `POST /api/notifications/email` → **204**. Требуется **service JWT** в `Authorization: Bearer <token>`.
+**REST:** `POST /api/notifications/email` → **204**. Auth: **service JWT** (`Bearer`) **или** **API Key** (`X-API-Key`).
 
 ## API-эндпоинты
 
