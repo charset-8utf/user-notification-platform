@@ -59,5 +59,5 @@ Gateway маршрутизирует через `lb://user-service` / `lb://noti
 ## Сборка и CI
 
 - **Gradle** multi-module monorepo.
-- **CI/CD/CT:** GitLab (`.gitlab-ci.yml`).
-- **CD:** GitLab Container Registry → Helm на Kubernetes.
+- **CI/CD:** GitHub Actions (`.github/workflows/`).
+- **CD:** Helm на Kubernetes (локально или GHCR-образы).

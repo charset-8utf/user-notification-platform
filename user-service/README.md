@@ -24,7 +24,7 @@ REST-сервис для управления пользователями с п
 
 Схема БД управляется миграциями **Liquibase**: точка входа — `src/main/resources/db/changelog/db.changelog-master.yaml`, изменения — SQL-файлы в `src/main/resources/db/changelog/changes/` (*Liquibase formatted sql*).  
 Покрыт юнит-тестами (JUnit, Mockito) и интеграционными тестами (Testcontainers, H2).  
-CI/CD выполняется в GitLab (монорепозиторий `user-notification-platform`).
+CI/CD выполняется в GitHub Actions (монорепозиторий `user-notification-platform`).
 
 При локальном запуске через `docker compose` поднимаются **PostgreSQL**, **Redis**, **Kafka** и **Zookeeper**; приложение доступно по **HTTPS** на порту **8443**.
 
@@ -289,7 +289,7 @@ com.crud
 
 Порог **80% инструкций** для пакетов, кроме `com.crud` и `com.crud.entity`.
 
-Тесты запускаются в GitLab CI при push и merge request.
+Тесты запускаются в GitHub Actions при push и pull request.
 
 ### Ручная проверка API (curl)
 

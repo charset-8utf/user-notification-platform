@@ -9,7 +9,7 @@ export APP_SEED_ADMIN_PASSWORD="${APP_SEED_ADMIN_PASSWORD:-admin123}"
 export APP_SEED_USER_PASSWORD="${APP_SEED_USER_PASSWORD:-user123}"
 
 ci_health_wait_max() {
-  if [ -n "${GITHUB_ACTIONS:-}${CI:-}${GITLAB_CI:-}" ]; then
+  if [ -n "${GITHUB_ACTIONS:-}${CI:-}" ]; then
     echo 120
   else
     echo 60

@@ -1,4 +1,4 @@
-# Linux CI (GitHub Actions / GitLab): OIDC issuer с хоста (localhost), JWKS — из Docker-сети
+# Linux CI (GitHub Actions): OIDC issuer с хоста (localhost), JWKS — из Docker-сети
 services:
   api-gateway:
     extra_hosts:

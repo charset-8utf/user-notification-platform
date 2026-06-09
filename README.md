@@ -14,7 +14,6 @@
 ![Gradle](https://img.shields.io/badge/Gradle-8.14+-blue?logo=gradle)
 ![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)
 ![GitHub Actions](https://github.com/charset-8utf/user-notification-platform/actions/workflows/ci.yml/badge.svg?branch=main)
-![GitLab CI](https://img.shields.io/badge/GitLab%20CI/CD-Mirror-orange?logo=gitlab)
 ![OpenAPI](https://img.shields.io/badge/OpenAPI-3-green?logo=swagger)
 
 Микросервисная платформа для **управления пользователями** и **асинхронной доставки email-уведомлений**.  
@@ -153,13 +152,11 @@ make k8s-smoke
 | Платформа | Конфиг | Документация |
 |-----------|--------|--------------|
 | **GitHub Actions** | [`.github/workflows/`](.github/workflows/) | [docs/GITHUB.md](docs/GITHUB.md) |
-| **GitLab CI** | [`.gitlab-ci.yml`](.gitlab-ci.yml) | [docs/GITLAB.md](docs/GITLAB.md) |
 
 ```bash
 make ci-fast
 make ci-e2e-cloud-suite
 make ci-full
-./scripts/push-gitlab-mirror.sh main   # GitLab pipeline
 ```
 
 ---

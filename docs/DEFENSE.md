@@ -2,7 +2,7 @@
 
 ## 1. CI (1 мин)
 
-Показать зелёный pipeline **verify** в GitLab: `./gradlew check`.
+Показать зелёный workflow **CI** в GitHub Actions: `./gradlew check`.
 
 ## 2. E2E в Docker (2 мин)
 
@@ -22,9 +22,9 @@ Login через nginx `http://localhost`, `GET /bff/me`.
 
 ## 4. DevOps (1 мин)
 
-- GitLab `gitleaks`, `trivy-images`
-- GitLab `publish` → Container Registry
-- GitLab `deploy:staging` → Helm
+- GitHub `security.yml`: Gitleaks, Trivy
+- Docker-образы: `./scripts/ci.sh build-docker-images`
+- Helm: `make k8s-install` (локальный K8s)
 
 ## 5. Kubernetes (2 мин)
 
@@ -38,4 +38,4 @@ make k8s-smoke
 
 - Database per service, outbox, saga signaling, Strangler (direct + cloud).
 - Service discovery через K8s DNS (без Eureka).
-- Gradle + GitLab CI/CD/CT.
+- Gradle + GitHub Actions CI/CD.

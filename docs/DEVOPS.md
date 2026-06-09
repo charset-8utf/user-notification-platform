@@ -3,20 +3,19 @@
 ## Жизненный цикл
 
 ```text
-commit → CI (gradlew check) → E2E smoke → security → publish (GitLab Registry) → CD (Helm) → CT (post-deploy smoke)
+commit → CI (gradlew check) → E2E smoke → security → CD (Helm, manual) → post-deploy smoke
 ```
 
 | Стадия | Инструмент | Что проверяется |
 |--------|------------|-----------------|
-| CI | GitHub `ci.yml` / GitLab `verify` | `./gradlew check` |
-| CT legacy | GitLab `e2e-legacy` | compose + JWT + Kafka → Mailpit |
-| CT cloud | GitLab `e2e-cloud` | nginx → gateway/BFF + cross-service + compensation |
-| CT OIDC | GitLab `e2e-oidc` | Keycloak token → gateway JWKS |
-| Security | GitLab `gitleaks`, `trivy-images` | Секреты + CVE (fail on HIGH/CRITICAL) |
-| CD | GitLab `publish` + `deploy:*` | Registry → Helm |
-| Nightly | GitLab `nightly:observability` | observability profile |
+| CI | GitHub `ci.yml` | `./gradlew check`, Helm lint |
+| CT legacy | GitHub `e2e.yml` → `e2e-legacy` | compose + JWT + Kafka → Mailpit |
+| CT cloud | GitHub `e2e.yml` → `e2e-cloud` | nginx → gateway/BFF + cross-service + compensation |
+| CT OIDC | GitHub `e2e.yml` → `e2e-oidc` | Keycloak token → gateway JWKS |
+| Security | GitHub `security.yml` | Gitleaks, Trivy (HIGH/CRITICAL fail) |
+| Nightly | GitHub `nightly.yml` | observability profile |
 
-Подробнее: [GITLAB.md](GITLAB.md)
+Подробнее: [GITHUB.md](GITHUB.md)
 
 ## Локальные команды
 

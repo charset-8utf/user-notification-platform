@@ -19,7 +19,7 @@
 
 Стек: **Java 21**, **Spring Boot 4**, **Spring Kafka 4** (Jackson 3 / `JsonMapper`), **Spring Data MongoDB**, **Spring Data Redis**.  
 Покрыт модульными и интеграционными тестами (Testcontainers).  
-CI/CD выполняется в GitLab (монорепозиторий `user-notification-platform`).  
+CI/CD выполняется в GitHub Actions (монорепозиторий `user-notification-platform`).  
 Приложение и зависимости (MongoDB, Mailpit, Kafka) запускаются через `docker compose`.
 
 В платформе [`user-notification-platform`](../README.md) REST доступен через Gateway (`/api/notifications/logs/**`) и напрямую по **HTTPS** `:8444`.  

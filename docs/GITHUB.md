@@ -9,22 +9,20 @@
 | **security.yml** | push / PR / weekly | Gitleaks, Trivy |
 | **nightly.yml** | cron 02:00 UTC / manual | observability profile |
 
-## Parity с GitLab
+## Jobs
 
-| GitLab job | GitHub workflow |
-|------------|-----------------|
-| `verify` | `ci.yml` → verify |
-| `helm-lint` | `ci.yml` → helm-lint |
-| `e2e-legacy` | `e2e.yml` → e2e-legacy |
-| `e2e-cloud` | `e2e.yml` → e2e-cloud (suite) |
-| `e2e-oidc` | `e2e.yml` → e2e-oidc |
-| `gitleaks` | `security.yml` |
-| `trivy-images` | `security.yml` |
-| `nightly:observability` | `nightly.yml` |
+| Job | Workflow | Локальный аналог |
+|-----|----------|------------------|
+| Gradle check | `ci.yml` | `make ci-fast` |
+| Helm lint | `ci.yml` | `helm lint deploy/helm/platform` |
+| E2E legacy | `e2e.yml` | `make ci-e2e` |
+| E2E cloud suite | `e2e.yml` | `make ci-e2e-cloud-suite` |
+| E2E OIDC | `e2e.yml` | `./scripts/ci.sh e2e-oidc` |
+| Gitleaks | `security.yml` | `gitleaks detect` |
+| Trivy images | `security.yml` | `./scripts/ci.sh security` |
+| Observability | `nightly.yml` | `./scripts/ci.sh observability-up` |
 
-Локально полный parity: `make ci-full` (= `./scripts/ci.sh full`).
-
-Отдельные шаги: `./scripts/ci.sh fast`, `e2e`, `e2e-cloud-suite`, `e2e-oidc`.
+Локально полный прогон: `make ci-full` (= `./scripts/ci.sh full`).
 
 ## OIDC в Linux CI
 
