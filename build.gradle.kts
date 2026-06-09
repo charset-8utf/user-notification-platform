@@ -36,6 +36,7 @@ subprojects {
         }
         dependencies {
             dependency("org.bouncycastle:bcprov-jdk18on:1.84")
+            dependency("org.springframework.cloud:spring-cloud-config-server:5.0.3")
             dependency("io.github.resilience4j:resilience4j-spring-boot4:2.4.0")
             dependency("org.wiremock:wiremock-standalone:3.10.0")
             dependency("org.testcontainers:testcontainers-postgresql:2.0.5")
