@@ -1,0 +1,16 @@
+global:
+  imagePullPolicy: Never
+
+infra:
+  enabled: true
+
+platform:
+  enabled: true
+
+edge:
+  enabled: true
+  ingress:
+    enabled: false
+
+observability:
+  enabled: false

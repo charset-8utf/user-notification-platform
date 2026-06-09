@@ -98,6 +98,8 @@ services:
     image: confluentinc/cp-kafka:7.4.0
     container_name: unp-kafka
     restart: unless-stopped
+    mem_limit: 1g
+    cpus: 2.0
     depends_on:
       - zookeeper
     ports:
@@ -119,30 +121,10 @@ services:
     networks:
       - unp-network
 
-  eureka-server:
-    build:
-      context: ./eureka-server
-      dockerfile: Dockerfile
-    image: eureka-server:latest
-    container_name: unp-eureka-server
-    restart: unless-stopped
-    environment:
-      EUREKA_SELF_PRESERVATION: "false"
-      EUREKA_SERVER_PORT: "8761"
-    ports:
-      - "${EUREKA_SERVER_PORT:-8761}:8761"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:8761/actuator/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-    networks:
-      - unp-network
-
   config-server:
     build:
-      context: ./config-server
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: config-server/Dockerfile
     image: config-server:latest
     container_name: unp-config-server
     restart: unless-stopped
@@ -172,8 +154,6 @@ services:
     depends_on:
       config-server:
         condition: service_healthy
-      eureka-server:
-        condition: service_healthy
       postgres:
         condition: service_healthy
       redis:
@@ -181,7 +161,6 @@ services:
       kafka:
         condition: service_healthy
     environment:
-      EUREKA_HOST: eureka-server
       SPRING_DOCKER_COMPOSE_ENABLED: "false"
       DB_URL: jdbc:postgresql://postgres:5432/userdb
       DB_USER: ${DB_USER:-postgres}
@@ -207,11 +186,17 @@ services:
       APP_RATE_LIMIT_MAX_REQUESTS: ${APP_RATE_LIMIT_MAX_REQUESTS:-200}
       APP_NOTIFICATION_REST_BASE_URL: https://notification-service
       APP_NOTIFICATION_REST_INSECURE_SSL: "false"
-      GRPC_SERVER_PORT: ${USER_SERVICE_GRPC_PORT:-9090}
     ports:
       - "${USER_SERVICE_HTTPS_PORT:-8443}:8443"
       - "${USER_SERVICE_MANAGEMENT_PORT:-8081}:8081"
-      - "${USER_SERVICE_GRPC_PORT:-9090}:9090"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8081/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 90s
+    mem_limit: 768m
+    cpus: 1.5
     networks:
       - unp-network
 
@@ -225,8 +210,6 @@ services:
     depends_on:
       config-server:
         condition: service_healthy
-      eureka-server:
-        condition: service_healthy
       mongo:
         condition: service_healthy
       mailpit:
@@ -236,7 +219,6 @@ services:
       redis:
         condition: service_healthy
     environment:
-      EUREKA_HOST: eureka-server
       CONFIG_SERVER_HOST: config-server
       CONFIG_SERVER_PORT: "8888"
       CONFIG_FAIL_FAST: ${CONFIG_FAIL_FAST:-false}
@@ -262,30 +244,35 @@ services:
     ports:
       - "${NOTIFICATION_SERVICE_HTTPS_PORT:-8444}:8443"
       - "${NOTIFICATION_SERVICE_MANAGEMENT_PORT:-8082}:8081"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8081/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 90s
+    mem_limit: 768m
+    cpus: 1.5
     networks:
       - unp-network
 
   api-gateway:
     profiles: ["cloud"]
     build:
-      context: ./api-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: api-gateway/Dockerfile
     image: api-gateway:latest
     container_name: unp-api-gateway
     restart: unless-stopped
     depends_on:
       config-server:
         condition: service_healthy
-      eureka-server:
-        condition: service_healthy
       redis:
         condition: service_healthy
       user-service:
-        condition: service_started
+        condition: service_healthy
       notification-service:
-        condition: service_started
+        condition: service_healthy
     environment:
-      EUREKA_HOST: eureka-server
       CONFIG_SERVER_HOST: config-server
       CONFIG_SERVER_PORT: "8888"
       SPRING_PROFILES_ACTIVE: cloud,docker
@@ -305,20 +292,19 @@ services:
   web-bff:
     profiles: ["cloud"]
     build:
-      context: ./web-bff
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: web-bff/Dockerfile
     image: web-bff:latest
     container_name: unp-web-bff
     restart: unless-stopped
     depends_on:
       config-server:
         condition: service_healthy
-      eureka-server:
-        condition: service_healthy
       user-service:
+        condition: service_healthy
+      api-gateway:
         condition: service_started
     environment:
-      EUREKA_HOST: eureka-server
       CONFIG_SERVER_HOST: config-server
       CONFIG_SERVER_PORT: "8888"
       SPRING_PROFILES_ACTIVE: cloud,docker
@@ -344,12 +330,28 @@ services:
     networks:
       - unp-network
 
+  alertmanager:
+    profiles: ["observability"]
+    image: prom/alertmanager:v0.28.0
+    container_name: unp-alertmanager
+    restart: unless-stopped
+    volumes:
+      - ./infra/observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+    ports:
+      - "${ALERTMANAGER_PORT:-9093}:9093"
+    networks:
+      - unp-network
+
   prometheus:
     profiles: ["observability"]
     image: prom/prometheus:v3.0.1
     container_name: unp-prometheus
     restart: unless-stopped
     depends_on:
+      alertmanager:
+        condition: service_started
       user-service:
         condition: service_started
       notification-service:

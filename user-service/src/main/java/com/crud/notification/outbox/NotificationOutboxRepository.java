@@ -40,4 +40,16 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
             @Param("pending") OutboxStatus pending,
             @Param("failed") OutboxStatus failed
     );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE NotificationOutbox o
+            SET o.status = :pending
+            WHERE o.eventId = :eventId AND o.status = :failed
+            """)
+    int requeueFailed(
+            @Param("eventId") UUID eventId,
+            @Param("failed") OutboxStatus failed,
+            @Param("pending") OutboxStatus pending
+    );
 }

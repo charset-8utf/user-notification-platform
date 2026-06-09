@@ -1,9 +1,3 @@
-eureka:
-  client:
-    enabled: false
-    register-with-eureka: false
-    fetch-registry: false
-
 spring:
   cloud:
     discovery:
@@ -15,7 +9,6 @@ spring:
 
 app:
   bff:
-    # BFF → API Gateway (паттерн лекции: единая точка входа)
     user-service-base-url: http://api-gateway:8080
     notification-service-base-url: http://api-gateway:8080
     insecure-ssl: false

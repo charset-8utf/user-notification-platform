@@ -18,7 +18,7 @@ import static org.mockito.Mockito.verify;
 class NotificationCompensationConsumerTest {
 
     @Mock
-    private NotificationCompensationMetrics metrics;
+    private NotificationCompensationHandler compensationHandler;
 
     @InjectMocks
     private NotificationCompensationConsumer consumer;
@@ -30,7 +30,7 @@ class NotificationCompensationConsumerTest {
 
         consumer.onCompensation(consumerRecord);
 
-        verify(metrics, never()).compensationReceived(org.mockito.ArgumentMatchers.any());
+        verify(compensationHandler, never()).handle(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -46,6 +46,6 @@ class NotificationCompensationConsumerTest {
 
         consumer.onCompensation(consumerRecord);
 
-        verify(metrics).compensationReceived(UserNotificationOperation.USER_CREATED);
+        verify(compensationHandler).handle(event);
     }
 }

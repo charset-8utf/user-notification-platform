@@ -17,9 +17,13 @@ public class NotificationRestClient implements UserNotificationPort {
     public static final String RESILIENCE_NAME = "notification-service";
 
     private final RestClient restClient;
+    private final NotificationDeliveryFailureRecorder failureRecorder;
 
-    public NotificationRestClient(@Qualifier("notificationServiceRestClient") RestClient restClient) {
+    public NotificationRestClient(
+            @Qualifier("notificationServiceRestClient") RestClient restClient,
+            NotificationDeliveryFailureRecorder failureRecorder) {
         this.restClient = restClient;
+        this.failureRecorder = failureRecorder;
     }
 
     @Override
@@ -37,6 +41,6 @@ public class NotificationRestClient implements UserNotificationPort {
 
     @SuppressWarnings("unused")
     void publishFallback(UserNotificationEvent event, Throwable ex) {
-        log.warn("Fallback: notification-service недоступен (event={}, cause={})", event, ex.toString());
+        failureRecorder.record(event, ex);
     }
 }

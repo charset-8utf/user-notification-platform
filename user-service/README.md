@@ -7,7 +7,7 @@
 ![Hibernate](https://img.shields.io/badge/Hibernate-7.3.2.Final-purple?logo=hibernate)
 ![Kafka](https://img.shields.io/badge/Apache%20Kafka-7.4-black?logo=apachekafka)
 ![Redis](https://img.shields.io/badge/Redis-7-red?logo=redis)
-![Maven](https://img.shields.io/badge/Maven-3.9.14-blue?logo=apachemaven)
+![Gradle](https://img.shields.io/badge/Gradle-8.14+-blue?logo=gradle)
 ![Liquibase](https://img.shields.io/badge/Liquibase-4.x-red?logo=liquibase)
 ![Caffeine](https://img.shields.io/badge/Caffeine-Cache-brightgreen)
 ![JUnit](https://img.shields.io/badge/JUnit%20Jupiter-6.0.3-green)
@@ -24,9 +24,11 @@ REST-сервис для управления пользователями с п
 
 Схема БД управляется миграциями **Liquibase**: точка входа — `src/main/resources/db/changelog/db.changelog-master.yaml`, изменения — SQL-файлы в `src/main/resources/db/changelog/changes/` (*Liquibase formatted sql*).  
 Покрыт юнит-тестами (JUnit, Mockito) и интеграционными тестами (Testcontainers, H2).  
-Настроен CI (GitHub Actions) с авто-тестами и сборкой Docker-образа.
+CI/CD выполняется в GitLab (монорепозиторий `user-notification-platform`).
 
 При локальном запуске через `docker compose` поднимаются **PostgreSQL**, **Redis**, **Kafka** и **Zookeeper**; приложение доступно по **HTTPS** на порту **8443**.
+
+В составе платформы [`user-notification-platform`](../README.md) тот же сервис также доступен через **API Gateway** (`http://localhost:8080`) в профиле `cloud` — см. [platform README](../README.md).
 
 При создании и удалении пользователя сервис может отправлять события во внешний **notification-service** (профили `kafka` или `rest`, см. ниже).
 
@@ -66,7 +68,7 @@ REST-сервис для управления пользователями с п
 
 - **Docker Desktop** (для PostgreSQL, Redis, Kafka и интеграционных тестов)
 - **Java 21**
-- **Maven 3.9+** (или встроенный Maven в IDEA)
+- **Gradle 8.14+** (в monorepo платформы — `./gradlew` из корня `user-notification-platform`)
 
 ## Быстрый старт через Docker
 
@@ -113,11 +115,16 @@ docker compose up --build -d
 
 Приложение: **https://localhost:8443** (если не меняли `APP_HTTPS_PORT`).
 
-**Режим разработки** (инфраструктура в Docker, приложение через Maven):
+**Режим разработки** (инфраструктура в Docker, приложение локально):
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
-mvn spring-boot:run
+```
+
+Запуск приложения — из **корня** `user-notification-platform`:
+
+```bash
+./gradlew :user-service:bootRun
 ```
 
 Полностью новая БД (сброс тома Postgres и миграций Liquibase):
@@ -180,6 +187,18 @@ docker compose down
 docker compose down -v
 ```
 
+## Безопасность
+
+| Механизм | Описание |
+|----------|----------|
+| **HTTPS** | TLS 1.2/1.3 на порту **8443** (`keystore.p12`); management — **8081** |
+| **User JWT** | Профиль `jwt`: login/refresh/logout, HS256, rate limit на `/api/auth/*` |
+| **Service JWT** | Профиль `rest`: исходящие вызовы `notification-service` (`notifications:write`) |
+| **Kafka** | По умолчанию PLAINTEXT в dev; **SASL_SSL** — `APP_KAFKA_SECURITY_ENABLED=true` |
+| **Cloud / Gateway** | Клиент ходит на HTTP Gateway; до user-service — HTTPS с dev trust (`insecure-ssl`) |
+
+Порт **9090** в compose зарезервирован под будущий **gRPC** — в текущей версии не используется.
+
 ## Исходящие уведомления (опционально)
 
 Формат события:
@@ -210,8 +229,9 @@ docker run --name user-postgres \
   -e POSTGRES_PASSWORD=postgres \
   -p 5432:5432 -d postgres:17-alpine
 
-mvn clean package -DskipTests
-java -jar target/user-service-1.0.0.jar
+# из корня user-notification-platform
+./gradlew :user-service:bootJar
+java -jar user-service/build/libs/user-service-1.0.0.jar
 ```
 
 Или:
@@ -219,7 +239,7 @@ java -jar target/user-service-1.0.0.jar
 ```bash
 APP_SEED_ADMIN_PASSWORD=admin123 APP_SEED_USER_PASSWORD=user123 \
   SPRING_PROFILES_ACTIVE=kafka,redis,jwt \
-  mvn spring-boot:run
+  ./gradlew :user-service:bootRun
 ```
 
 ## Архитектура проекта
@@ -245,16 +265,16 @@ com.crud
 
 ### Запуск тестов
 
-Только unit:
+Только unit + integration (из корня платформы):
 
 ```bash
-mvn test
+./gradlew :user-service:check
 ```
 
-Unit + интеграционные + E2E:
+Из каталога `user-service` (если открыт как модуль):
 
 ```bash
-mvn verify
+./gradlew check
 ```
 
 Интеграционные тесты используют **H2** и/или **Testcontainers** (нужен Docker).
@@ -269,21 +289,29 @@ mvn verify
 
 Порог **80% инструкций** для пакетов, кроме `com.crud` и `com.crud.entity`.
 
-Тесты запускаются в GitHub Actions при push в `main` / `develop`.
+Тесты запускаются в GitLab CI при push и merge request.
 
 ### Ручная проверка API (curl)
 
 Примеры — в разделе «Проверка» выше; для полного стека платформы: `./scripts/platform-smoke.sh` из корня `user-notification-platform`.
 
+### Service JWT для smoke / ручных вызовов notification REST
+
+```bash
+# из корня user-notification-platform
+./gradlew :user-service:serviceJwtSmokeToken -q
+```
+
 ## CI
 
-Файл `.github/workflows/UserServiceCI.yml`:
+В monorepo платформы: `./gradlew check` (workflow `ci.yml`).
 
-- JDK 21, кеш Maven
-- `mvn clean verify`
+Отдельный репозиторий — `.github/workflows/UserServiceCI.yml`:
+
+- JDK 21, Gradle
+- `./gradlew check`
 - Сборка Docker-образа (Buildx)
 - Smoke-тест в docker compose
-- Артефакты отчётов тестов
 
 ## Логирование
 

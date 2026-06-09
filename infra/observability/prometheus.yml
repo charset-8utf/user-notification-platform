@@ -5,6 +5,11 @@ global:
     cluster: user-notification-platform
     environment: local
 
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
 rule_files:
   - /etc/prometheus/alerts.yml
 
@@ -40,13 +45,6 @@ scrape_configs:
       - targets: ['web-bff:8090']
         labels:
           service: web-bff
-
-  - job_name: 'eureka-server'
-    metrics_path: /actuator/prometheus
-    static_configs:
-      - targets: ['eureka-server:8761']
-        labels:
-          service: eureka-server
 
   - job_name: 'config-server'
     metrics_path: /actuator/prometheus

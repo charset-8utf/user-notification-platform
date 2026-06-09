@@ -1,13 +1,16 @@
-# Docker Compose network hostnames
+# Docker Compose: static service registry (replaces Eureka).
 platform:
   environment: docker
 
-# Eureka server не регистрируется в реестре; LoadBalancer должен знать его URI напрямую.
 spring:
   cloud:
     discovery:
       client:
         simple:
           instances:
-            eureka-server:
-              - uri: http://${EUREKA_HOST:eureka-server}:${EUREKA_SERVER_PORT:8761}
+            user-service:
+              - uri: https://user-service:8443
+            notification-service:
+              - uri: https://notification-service:8443
+            api-gateway:
+              - uri: http://api-gateway:8080
