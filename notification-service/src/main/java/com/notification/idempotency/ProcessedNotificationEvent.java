@@ -10,7 +10,12 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/** Уже обработанные {@code eventId} (идемпотентный consumer, at-least-once). */
+/**
+ * Legacy-запись обработанных {@code eventId}.
+ *
+ * @deprecated заменён на {@link com.notification.inbox.NotificationInbox} (transactional inbox).
+ */
+@Deprecated
 @Document("processed_notification_events")
 @Getter
 @NoArgsConstructor
