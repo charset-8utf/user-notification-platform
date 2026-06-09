@@ -1,0 +1,39 @@
+{
+  "title": "Platform Outbox / Inbox",
+  "uid": "platform-outbox-inbox",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Outbox pending (user-service)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [{ "expr": "app_outbox_pending", "legendFormat": "pending" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Inbox pending (notification-service)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [{ "expr": "app_inbox_pending", "legendFormat": "pending" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Outbox relay",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        { "expr": "rate(app_outbox_relay_published_total[5m])", "legendFormat": "published/s" },
+        { "expr": "rate(app_outbox_relay_failed_total[5m])", "legendFormat": "failed/s" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Inbox relay",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        { "expr": "rate(app_inbox_relay_processed_total[5m])", "legendFormat": "processed/s" },
+        { "expr": "rate(app_inbox_relay_failed_total[5m])", "legendFormat": "failed/s" }
+      ]
+    }
+  ]
+}

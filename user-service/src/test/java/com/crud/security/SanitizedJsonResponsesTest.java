@@ -1,5 +1,7 @@
 package com.crud.security;
 
+import com.crud.entity.NotificationDeliveryStatus;
+
 import com.crud.dto.UserResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -15,7 +17,7 @@ class SanitizedJsonResponsesTest {
 
     @Test
     void ok_escapesStringFieldsInBody() {
-        UserResponse raw = new UserResponse(1L, "<b>x</b>", "a@b.com", 20, LocalDateTime.now());
+        UserResponse raw = new UserResponse(1L, "<b>x</b>", "a@b.com", 20, NotificationDeliveryStatus.PENDING, LocalDateTime.now());
 
         ResponseEntity<UserResponse> response = responses.ok(raw);
 
@@ -28,7 +30,7 @@ class SanitizedJsonResponsesTest {
 
     @Test
     void created_escapesStringFieldsInBody() {
-        UserResponse raw = new UserResponse(1L, "<script>", "u@test.com", 30, LocalDateTime.now());
+        UserResponse raw = new UserResponse(1L, "<script>", "u@test.com", 30, NotificationDeliveryStatus.PENDING, LocalDateTime.now());
 
         ResponseEntity<UserResponse> response = responses.created(raw);
 

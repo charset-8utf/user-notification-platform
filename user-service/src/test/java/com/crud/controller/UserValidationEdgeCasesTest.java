@@ -1,5 +1,7 @@
 package com.crud.controller;
 
+import com.crud.entity.NotificationDeliveryStatus;
+
 import com.crud.config.SecurityConfig;
 import com.crud.config.WebMvcTestSecuritySupport;
 import com.crud.dto.UserRequest;
@@ -44,7 +46,7 @@ class UserValidationEdgeCasesTest {
         when(userService.createUser(any(UserRequest.class)))
                 .thenAnswer(invocation -> {
                     UserRequest req = invocation.getArgument(0);
-                    return new UserResponse(1L, req.name(), req.email(), req.age(), LocalDateTime.now());
+                    return new UserResponse(1L, req.name(), req.email(), req.age(), NotificationDeliveryStatus.PENDING, LocalDateTime.now());
                 });
     }
 

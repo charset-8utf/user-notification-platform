@@ -13,6 +13,7 @@ jspecify = "1.0.0"
 h2 = "2.4.240"
 greenmail = "2.1.0"
 jacoco = "0.8.14"
+springdoc = "2.8.6"
 
 [libraries]
 wiremock = { module = "org.wiremock:wiremock-standalone", version.ref = "wiremock" }
@@ -25,6 +26,8 @@ h2 = { module = "com.h2database:h2", version.ref = "h2" }
 greenmail = { module = "com.icegreen:greenmail", version.ref = "greenmail" }
 resilience4j-spring-boot4 = { module = "io.github.resilience4j:resilience4j-spring-boot4", version.ref = "resilience4j" }
 platform-commons = { module = "com.platform:platform-commons", version = "1.0.0-SNAPSHOT" }
+springdoc-webmvc = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
+springdoc-webflux = { module = "org.springdoc:springdoc-openapi-starter-webflux-ui", version.ref = "springdoc" }
 
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }

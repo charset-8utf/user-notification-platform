@@ -1,5 +1,7 @@
 package com.crud.service;
 
+import com.crud.entity.NotificationDeliveryStatus;
+
 import com.crud.cache.UserCachePort;
 import com.crud.cache.UserCacheView;
 import com.crud.dto.UserRequest;
@@ -56,7 +58,7 @@ class UserServiceImplTest {
         User savedUser = User.builder().name("John").email("john@example.com").age(30).build();
         savedUser.setId(1L);
         savedUser.setCreatedAt(LocalDateTime.now());
-        UserResponse expectedResponse = new UserResponse(1L, "John", "john@example.com", 30, savedUser.getCreatedAt());
+        UserResponse expectedResponse = new UserResponse(1L, "John", "john@example.com", 30, NotificationDeliveryStatus.PENDING, savedUser.getCreatedAt());
 
         when(userMapper.toEntity(request)).thenReturn(user);
         when(userRepository.save(user)).thenReturn(savedUser);
@@ -82,7 +84,7 @@ class UserServiceImplTest {
         User user = User.builder().name("Jane").email("jane@example.com").age(25).build();
         user.setId(userId);
         user.setCreatedAt(LocalDateTime.now());
-        UserResponse expected = new UserResponse(userId, "Jane", "jane@example.com", 25, user.getCreatedAt());
+        UserResponse expected = new UserResponse(userId, "Jane", "jane@example.com", 25, NotificationDeliveryStatus.PENDING, user.getCreatedAt());
 
         when(userCache.findResponseById(userId)).thenReturn(Optional.empty());
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
@@ -98,7 +100,7 @@ class UserServiceImplTest {
     @Test
     void findUserById_WhenCached_ShouldNotHitDatabase() {
         Long userId = 1L;
-        UserResponse cached = new UserResponse(userId, "Jane", "jane@example.com", 25, LocalDateTime.now());
+        UserResponse cached = new UserResponse(userId, "Jane", "jane@example.com", 25, NotificationDeliveryStatus.PENDING, LocalDateTime.now());
         when(userCache.findResponseById(userId)).thenReturn(Optional.of(cached));
 
         UserResponse actual = userService.findUserById(userId);
@@ -123,7 +125,7 @@ class UserServiceImplTest {
         User user = User.builder().name("John").email("john@example.com").age(30).build();
         user.setId(1L);
         user.setCreatedAt(LocalDateTime.now());
-        UserResponse response = new UserResponse(1L, "John", "john@example.com", 30, user.getCreatedAt());
+        UserResponse response = new UserResponse(1L, "John", "john@example.com", 30, NotificationDeliveryStatus.PENDING, user.getCreatedAt());
         Page<User> userPage = new PageImpl<>(List.of(user));
         PageRequest pageRequest = PageRequest.of(0, 10);
 
@@ -175,7 +177,7 @@ class UserServiceImplTest {
         User user = User.builder().name("John").email(email).age(30).build();
         user.setId(1L);
         user.setCreatedAt(LocalDateTime.now());
-        UserResponse expected = new UserResponse(1L, "John", email, 30, user.getCreatedAt());
+        UserResponse expected = new UserResponse(1L, "John", email, 30, NotificationDeliveryStatus.PENDING, user.getCreatedAt());
 
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
         when(userMapper.toResponse(user)).thenReturn(expected);

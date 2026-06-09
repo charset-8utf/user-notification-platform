@@ -1,5 +1,7 @@
 package com.crud.util;
 
+import com.crud.entity.NotificationDeliveryStatus;
+
 import com.crud.dto.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
@@ -14,7 +16,7 @@ class CustomAssertTest {
 
     @Test
     void userResponseAssert_ShouldWork() {
-        UserResponse user = new UserResponse(1L, "John Doe", "john@test.com", 30, LocalDateTime.now());
+        UserResponse user = new UserResponse(1L, "John Doe", "john@test.com", 30, NotificationDeliveryStatus.PENDING, LocalDateTime.now());
 
         assertThatUser(user)
                 .hasId(1L)
@@ -25,8 +27,8 @@ class CustomAssertTest {
 
     @Test
     void userResponseAssert_Match_ShouldWork() {
-        UserResponse expected = new UserResponse(1L, "John", "john@test.com", 30, LocalDateTime.now());
-        UserResponse actual = new UserResponse(1L, "John", "john@test.com", 30, LocalDateTime.now());
+        UserResponse expected = new UserResponse(1L, "John", "john@test.com", 30, NotificationDeliveryStatus.PENDING, LocalDateTime.now());
+        UserResponse actual = new UserResponse(1L, "John", "john@test.com", 30, NotificationDeliveryStatus.PENDING, LocalDateTime.now());
 
         assertThatUser(actual).matches(expected);
     }

@@ -6,8 +6,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT}"
 
-GATEWAY="${GATEWAY_HTTP:-http://localhost:8080}"
-BFF="${BFF_HTTP:-http://localhost:8090}"
+GATEWAY="${GATEWAY_HTTP:-http://localhost}"
+BFF="${BFF_HTTP:-http://localhost}"
 ADMIN_USER="${ADMIN_USER:-admin}"
 ADMIN_PASS="${ADMIN_PASS:-admin123}"
 

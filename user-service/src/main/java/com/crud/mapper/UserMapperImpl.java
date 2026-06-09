@@ -35,6 +35,7 @@ public class UserMapperImpl implements UserMapper {
                 user.getName(),
                 user.getEmail(),
                 user.getAge(),
+                user.getNotificationDeliveryStatus(),
                 user.getCreatedAt()
         );
     }
