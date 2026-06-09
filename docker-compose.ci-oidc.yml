@@ -1,5 +1,13 @@
-# Linux CI (GitHub Actions / GitLab): host.docker.internal для JWKS из api-gateway
+# Linux CI (GitHub Actions / GitLab): OIDC issuer с хоста (localhost), JWKS — из Docker-сети
 services:
   api-gateway:
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    environment:
+      APP_JWT_ISSUER_URI: http://localhost:8180/realms/platform
+      APP_JWT_JWK_SET_URI: http://host.docker.internal:8180/realms/platform/protocol/openid-connect/certs
+
+  user-service:
+    environment:
+      APP_JWT_ISSUER_URI: http://localhost:8180/realms/platform
+      APP_JWT_JWK_SET_URI: http://keycloak:8180/realms/platform/protocol/openid-connect/certs

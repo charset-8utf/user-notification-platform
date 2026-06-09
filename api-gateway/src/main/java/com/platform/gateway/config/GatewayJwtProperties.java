@@ -6,7 +6,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record GatewayJwtProperties(
         String secret,
         String issuer,
-        String issuerUri
+        String issuerUri,
+        String jwkSetUri
 ) {
     public boolean oidcEnabled() {
         return issuerUri != null && !issuerUri.isBlank();
