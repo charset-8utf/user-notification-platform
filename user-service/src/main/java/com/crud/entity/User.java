@@ -1,6 +1,8 @@
 package com.crud.entity;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
@@ -47,6 +49,7 @@ public class User extends BaseEntity {
     @Version
     private Long version;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "notification_delivery_status", nullable = false, length = 32)
     @Builder.Default
     private NotificationDeliveryStatus notificationDeliveryStatus = NotificationDeliveryStatus.PENDING;
