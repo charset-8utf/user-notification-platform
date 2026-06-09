@@ -9,6 +9,14 @@ spring:
       password: ${SPRING_DATA_REDIS_PASSWORD:}
 
   cloud:
+    discovery:
+      client:
+        simple:
+          instances:
+            user-service:
+              - uri: https://${USER_SERVICE_HOST:user-service}:8443
+            notification-service:
+              - uri: https://${NOTIFICATION_SERVICE_HOST:notification-service}:8443
     gateway:
       server:
         webflux:

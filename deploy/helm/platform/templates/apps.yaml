@@ -73,6 +73,8 @@ spec:
         app: user-service
     spec:
       enableServiceLinks: false
+      initContainers:
+        {{- include "platform.waitDepsInit" (dict "configPort" .Values.platform.configServer.port) | nindent 8 }}
       containers:
         - name: user-service
           image: {{ include "platform.image" (dict "root" . "image" .Values.platform.userService.image "tag" .Values.platform.userService.tag) }}
@@ -144,6 +146,8 @@ spec:
         app: notification-service
     spec:
       enableServiceLinks: false
+      initContainers:
+        {{- include "platform.waitDepsInit" (dict "configPort" .Values.platform.configServer.port) | nindent 8 }}
       containers:
         - name: notification-service
           image: {{ include "platform.image" (dict "root" . "image" .Values.platform.notificationService.image "tag" .Values.platform.notificationService.tag) }}
@@ -214,6 +218,8 @@ spec:
         app: api-gateway
     spec:
       enableServiceLinks: false
+      initContainers:
+        {{- include "platform.waitDepsInit" (dict "configPort" .Values.platform.configServer.port) | nindent 8 }}
       containers:
         - name: api-gateway
           image: {{ include "platform.image" (dict "root" . "image" .Values.edge.apiGateway.image "tag" .Values.edge.apiGateway.tag) }}
@@ -236,6 +242,12 @@ spec:
               value: "true"
             - name: API_GATEWAY_PORT
               value: {{ .Values.edge.apiGateway.port | quote }}
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: {{ .Values.edge.apiGateway.port }}
+            failureThreshold: 30
+            periodSeconds: 5
           readinessProbe:
             httpGet:
               path: /actuator/health
@@ -270,6 +282,8 @@ spec:
         app: web-bff
     spec:
       enableServiceLinks: false
+      initContainers:
+        {{- include "platform.waitDepsInit" (dict "configPort" .Values.platform.configServer.port) | nindent 8 }}
       containers:
         - name: web-bff
           image: {{ include "platform.image" (dict "root" . "image" .Values.edge.webBff.image "tag" .Values.edge.webBff.tag) }}

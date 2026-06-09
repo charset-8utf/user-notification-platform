@@ -1,5 +1,26 @@
 # Kubernetes (kind + Helm)
 
+## Docker Desktop и kind
+
+Платформа использует **kind**-кластер `unp` (контейнер `unp-control-plane` в Docker Desktop).  
+Это **отдельно** от встроенного Kubernetes в Docker Desktop.
+
+| Что видите | Что это значит |
+|------------|----------------|
+| Красный «Kubernetes» в Docker Desktop | Встроенный K8s Docker Desktop выключен или сломан — **не влияет** на kind |
+| Контейнер `unp-control-plane` Running | Ваш рабочий кластер kind |
+| `kubectl config current-context` → `kind-unp` | Всё настроено правильно |
+
+Проверка:
+
+```bash
+kind get clusters          # unp
+kubectl cluster-info       # https://127.0.0.1:...
+kubectl get nodes          # unp-control-plane Ready
+```
+
+Включать Kubernetes в Docker Desktop **не обязательно**, если используете kind.
+
 ## Требования
 
 - Docker
