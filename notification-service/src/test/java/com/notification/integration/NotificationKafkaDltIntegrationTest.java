@@ -56,8 +56,7 @@ class NotificationKafkaDltIntegrationTest {
         registry.add("spring.mail.properties.mail.smtp.auth", () -> "false");
         registry.add("app.notification.site-name", () -> "интеграционный сайт");
         registry.add("app.notification.mail-from", () -> "это-не-email");
-        registry.add("app.notification.kafka.retry.max-attempts", () -> "2");
-        registry.add("app.notification.kafka.retry.backoff-ms", () -> "200");
+        registry.add("app.notification.kafka.inbox.relay-interval-ms", () -> "500");
     }
 
     @Autowired
@@ -69,8 +68,8 @@ class NotificationKafkaDltIntegrationTest {
     @Value("${app.notification.kafka.topic}")
     private String topic;
 
-    @Value("${app.notification.kafka.dlt-suffix}")
-    private String dltSuffix;
+    @Value("${app.notification.kafka.compensation-topic}")
+    private String compensationTopic;
 
     @BeforeEach
     void clean() {
@@ -78,34 +77,32 @@ class NotificationKafkaDltIntegrationTest {
     }
 
     @Test
-    void unprocessableMessageGoesToDltAfterMaxAttempts() {
+    void failedInboxDeliveryPublishesCompensationEvent() {
         NotificationEmailRequest event = NotificationEmailRequest.of(
                 UserNotificationOperation.USER_CREATED, "victim@example.com");
         kafkaTemplate.send(topic, event.email(), event);
 
         Map<String, Object> consumerProps = Map.of(
                 ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers(),
-                ConsumerConfig.GROUP_ID_CONFIG, "dlt-asserter-" + UUID.randomUUID(),
+                ConsumerConfig.GROUP_ID_CONFIG, "comp-asserter-" + UUID.randomUUID(),
                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
-                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
-                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class
+                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName(),
+                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName()
         );
 
-        try (KafkaConsumer<String, byte[]> consumer = new KafkaConsumer<>(consumerProps)) {
-            consumer.subscribe(List.of(topic + dltSuffix));
-
-            await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
-                ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofMillis(500));
+        try (KafkaConsumer<String, byte[]> compensationConsumer = new KafkaConsumer<>(consumerProps)) {
+            compensationConsumer.subscribe(List.of(compensationTopic));
+            await().atMost(Duration.ofSeconds(45)).untilAsserted(() -> {
+                ConsumerRecords<String, byte[]> records = compensationConsumer.poll(Duration.ofMillis(500));
                 assertThat(records.count()).isPositive();
                 ConsumerRecord<String, byte[]> first = records.iterator().next();
-                assertThat(first.topic()).isEqualTo(topic + dltSuffix);
                 assertThat(new String(first.value())).contains("victim@example.com");
             });
         }
 
-        await().atMost(Duration.ofSeconds(5)).untilAsserted(() ->
+        await().atMost(Duration.ofSeconds(10)).untilAsserted(() ->
                 assertThat(notificationLogRepository.findAll())
-                        .hasSize(2)
+                        .isNotEmpty()
                         .allMatch(log -> log.getStatus() == NotificationDeliveryStatus.FAILED));
     }
 }

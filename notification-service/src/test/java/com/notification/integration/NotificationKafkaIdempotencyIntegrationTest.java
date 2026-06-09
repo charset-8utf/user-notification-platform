@@ -2,7 +2,8 @@ package com.notification.integration;
 
 import com.notification.dto.NotificationEmailRequest;
 import com.notification.entity.UserNotificationOperation;
-import com.notification.idempotency.ProcessedNotificationEventRepository;
+import com.notification.inbox.InboxStatus;
+import com.notification.inbox.NotificationInboxRepository;
 import com.notification.repository.NotificationLogRepository;
 import com.icegreen.greenmail.util.GreenMail;
 import com.icegreen.greenmail.util.ServerSetup;
@@ -64,6 +65,7 @@ class NotificationKafkaIdempotencyIntegrationTest {
         registry.add("spring.mail.properties.mail.smtp.auth", () -> "false");
         registry.add("app.notification.site-name", () -> "интеграционный сайт");
         registry.add("app.notification.mail-from", () -> "noreply@test.local");
+        registry.add("app.notification.kafka.inbox.relay-interval-ms", () -> "200");
     }
 
     @Autowired
@@ -73,7 +75,7 @@ class NotificationKafkaIdempotencyIntegrationTest {
     private NotificationLogRepository notificationLogRepository;
 
     @Autowired
-    private ProcessedNotificationEventRepository processedEventRepository;
+    private NotificationInboxRepository inboxRepository;
 
     @Value("${app.notification.kafka.topic}")
     private String topic;
@@ -81,7 +83,7 @@ class NotificationKafkaIdempotencyIntegrationTest {
     @BeforeEach
     void clean() {
         notificationLogRepository.deleteAll();
-        processedEventRepository.deleteAll();
+        inboxRepository.deleteAll();
         if (greenMail != null) {
             greenMail.reset();
         }
@@ -109,7 +111,8 @@ class NotificationKafkaIdempotencyIntegrationTest {
         await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
             assertThat(notificationLogRepository.findAll()).hasSize(1);
             assertThat(greenMail.getReceivedMessages()).hasSize(1);
-            assertThat(processedEventRepository.findAll()).hasSize(1);
+            assertThat(inboxRepository.findAll()).hasSize(1);
+            assertThat(inboxRepository.findAll().getFirst().getStatus()).isEqualTo(InboxStatus.PROCESSED);
         });
     }
 }
