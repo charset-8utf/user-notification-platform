@@ -11,11 +11,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 class NotificationCompensationEventJsonTest {
 
     @Test
-    void deserializesConsoleProducerCompensationPayload() throws Exception {
+    void deserializesConsoleProducerCompensationPayload() {
         JsonMapper jsonMapper = JsonMapper.builder().build();
-        String json = """
-                {"originalEventId":"550e8400-e29b-41d4-a716-446655440000","originalOperation":"USER_CREATED","email":"comp@example.com","errorMessage":"e2e compensation","failedAt":"2026-06-09T19:15:20Z"}
-                """;
+        String json = "{\"originalEventId\":\"550e8400-e29b-41d4-a716-446655440000\","
+                + "\"originalOperation\":\"USER_CREATED\",\"email\":\"comp@example.com\","
+                + "\"errorMessage\":\"e2e compensation\",\"failedAt\":\"2026-06-09T19:15:20Z\"}";
 
         NotificationCompensationEvent event = jsonMapper.readValue(json, NotificationCompensationEvent.class);
 
