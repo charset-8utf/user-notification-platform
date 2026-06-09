@@ -105,9 +105,9 @@ cmd_e2e_compensation() {
 }
 
 cmd_e2e_oidc_up() {
+  export COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml:docker-compose.ci-oidc.yml}"
   export USER_SERVICE_PROFILES="${USER_SERVICE_PROFILES:-kafka,redis,jwt,management,docker,cloud}"
   export NOTIFICATION_SERVICE_PROFILES="${NOTIFICATION_SERVICE_PROFILES:-rest,kafka,redis,management,docker,cloud}"
-  export APP_JWT_ISSUER_URI="${APP_JWT_ISSUER_URI:-http://host.docker.internal:8180/realms/platform}"
   cmd_build_e2e
   docker compose --profile cloud --profile auth up -d --build
   wait_container_healthy unp-user-service 60

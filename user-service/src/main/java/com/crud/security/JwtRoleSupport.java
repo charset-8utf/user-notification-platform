@@ -9,6 +9,8 @@ import org.springframework.stereotype.Component;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 @Component
 public class JwtRoleSupport {
@@ -33,11 +35,21 @@ public class JwtRoleSupport {
         if (roles instanceof Collection<?> collection) {
             return collection.stream().map(Object::toString).toList();
         }
+        Map<String, Object> realmAccess = jwt.getClaim("realm_access");
+        if (realmAccess != null) {
+            Object realmRoles = realmAccess.get("roles");
+            if (realmRoles instanceof Collection<?> collection) {
+                return collection.stream().map(Object::toString).toList();
+            }
+        }
         return Collections.emptyList();
     }
 
     private GrantedAuthority toRoleAuthority(String role) {
-        return new SimpleGrantedAuthority(role.startsWith(ROLE_PREFIX) ? role : ROLE_PREFIX + role);
+        if (role.startsWith(ROLE_PREFIX)) {
+            return new SimpleGrantedAuthority(role);
+        }
+        return new SimpleGrantedAuthority(ROLE_PREFIX + role.toUpperCase(Locale.ROOT));
     }
 
     private JwtGrantedAuthoritiesConverter newDefaultConverter() {
