@@ -177,6 +177,7 @@ cmd_full() {
   cmd_fast
   cmd_e2e
   cmd_e2e_cloud_suite
+  cmd_e2e_oidc
   cmd_e2e_down
   cmd_security
 }
@@ -201,7 +202,7 @@ Commands:
   observability-up  compose cloud + observability, wait prometheus
   e2e-down          Stop compose and remove volumes
   security          Trivy (fail on HIGH/CRITICAL) + gitleaks
-  full              fast + e2e + cloud suite + e2e-down + security
+  full              fast + e2e + cloud suite + oidc + e2e-down + security
 EOF
 }
 

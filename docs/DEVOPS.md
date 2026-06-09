@@ -11,7 +11,7 @@ commit → CI (gradlew check) → E2E smoke → security → publish (GitLab Reg
 | CI | GitHub `ci.yml` / GitLab `verify` | `./gradlew check` |
 | CT legacy | GitLab `e2e-legacy` | compose + JWT + Kafka → Mailpit |
 | CT cloud | GitLab `e2e-cloud` | nginx → gateway/BFF + cross-service + compensation |
-| CT OIDC | GitLab `e2e-oidc` | Keycloak token → gateway JWKS (optional) |
+| CT OIDC | GitLab `e2e-oidc` | Keycloak token → gateway JWKS |
 | Security | GitLab `gitleaks`, `trivy-images` | Секреты + CVE (fail on HIGH/CRITICAL) |
 | CD | GitLab `publish` + `deploy:*` | Registry → Helm |
 | Nightly | GitLab `nightly:observability` | observability profile |
@@ -24,8 +24,9 @@ commit → CI (gradlew check) → E2E smoke → security → publish (GitLab Reg
 cp .env.example .env
 make ci-fast
 make ci-e2e
-make ci-e2e-cloud
-./scripts/ci.sh e2e-cloud-suite
+make ci-e2e-cloud-suite
+./scripts/ci.sh e2e-oidc
+make ci-full
 make up-full
 ./scripts/ci.sh fast
 ```

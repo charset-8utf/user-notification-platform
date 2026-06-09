@@ -64,7 +64,14 @@ kubectl -n platform get pods
 1. устанавливает **ingress-nginx** (`ingress-nginx` namespace);
 2. разворачивает платформу с Ingress (`api-gateway` → `/`, `web-bff` → `/bff`).
 
-Для CI/kind: `values.yaml` (NodePort 30080/30090) + `scripts/k8s/kind-config.yaml` → хост `:18080`/`:18090`.
+### Альтернатива: kind + NodePort
+
+Для CI без ingress-nginx или отдельного kind-кластера:
+
+- `values.yaml` (NodePort 30080/30090) + `scripts/k8s/kind-config.yaml`
+- Smoke: `GATEWAY_HTTP=http://localhost:18080 BFF_HTTP=http://localhost:18090 ./scripts/k8s-smoke.sh`
+
+Основной локальный путь — Docker Desktop + `values-dev.yaml` + ingress на `:80` (см. выше).
 
 ## Профили Helm
 

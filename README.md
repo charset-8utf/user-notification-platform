@@ -13,7 +13,7 @@
 ![Helm](https://img.shields.io/badge/Helm-3-0F1689?logo=helm)
 ![Gradle](https://img.shields.io/badge/Gradle-8.14+-blue?logo=gradle)
 ![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)
-![GitHub Actions](https://github.com/charset-8utf/user-notification-platform/actions/workflows/ci.yml/badge.svg?branch=microservice-feature)
+![GitHub Actions](https://github.com/charset-8utf/user-notification-platform/actions/workflows/ci.yml/badge.svg?branch=main)
 ![GitLab CI](https://img.shields.io/badge/GitLab%20CI/CD-Mirror-orange?logo=gitlab)
 ![OpenAPI](https://img.shields.io/badge/OpenAPI-3-green?logo=swagger)
 
@@ -159,7 +159,7 @@ make k8s-smoke
 make ci-fast
 make ci-e2e-cloud-suite
 make ci-full
-./scripts/push-gitlab-mirror.sh microservice-feature   # GitLab pipeline
+./scripts/push-gitlab-mirror.sh main   # GitLab pipeline
 ```
 
 ---

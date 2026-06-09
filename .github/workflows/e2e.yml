@@ -2,9 +2,9 @@ name: E2E
 
 on:
   push:
-    branches: [main, microservice-feature]
+    branches: [main, develop]
   pull_request:
-    branches: [main, microservice-feature]
+    branches: [main, develop]
   workflow_dispatch:
 
 env:

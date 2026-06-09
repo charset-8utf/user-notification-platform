@@ -4,9 +4,9 @@
 
 | Workflow | Триггер | Jobs |
 |----------|---------|------|
-| **ci.yml** | push / PR (`main`, `develop`, `microservice-feature`) | `gradlew check`, Helm lint |
-| **e2e.yml** | push / PR / manual | legacy smoke → cloud suite → OIDC (optional) |
-| **security.yml** | push / PR / weekly | Gitleaks, Trivy (образы на `main`) |
+| **ci.yml** | push / PR (`main`, `develop`) | `gradlew check`, Helm lint |
+| **e2e.yml** | push / PR / manual (`main`, `develop`) | legacy smoke → cloud suite → OIDC |
+| **security.yml** | push / PR / weekly | Gitleaks, Trivy |
 | **nightly.yml** | cron 02:00 UTC / manual | observability profile |
 
 ## Parity с GitLab
@@ -17,12 +17,14 @@
 | `helm-lint` | `ci.yml` → helm-lint |
 | `e2e-legacy` | `e2e.yml` → e2e-legacy |
 | `e2e-cloud` | `e2e.yml` → e2e-cloud (suite) |
-| `e2e-oidc` | `e2e.yml` → e2e-oidc (`continue-on-error`) |
+| `e2e-oidc` | `e2e.yml` → e2e-oidc |
 | `gitleaks` | `security.yml` |
-| `trivy-images` | `security.yml` (не на PR) |
+| `trivy-images` | `security.yml` |
 | `nightly:observability` | `nightly.yml` |
 
-Локально те же сценарии: `./scripts/ci.sh fast`, `e2e`, `e2e-cloud-suite`, `full`.
+Локально полный parity: `make ci-full` (= `./scripts/ci.sh full`).
+
+Отдельные шаги: `./scripts/ci.sh fast`, `e2e`, `e2e-cloud-suite`, `e2e-oidc`.
 
 ## OIDC в Linux CI
 
@@ -30,4 +32,4 @@
 
 ## Статус
 
-После push откройте **Actions** в репозитории GitHub или badge в README.
+После push откройте **Actions** в репозитории GitHub или badge в README (`branch=main`).

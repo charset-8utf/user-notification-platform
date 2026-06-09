@@ -8,17 +8,17 @@
 
 1. Создайте пустой проект на GitLab: `charset-8utf/user-notification-platform`
 2. Добавьте SSH deploy key / свой ключ в GitLab
-3. Push ветки:
+3. Push ветки `main`:
 
 ```bash
 chmod +x scripts/push-gitlab-mirror.sh
-./scripts/push-gitlab-mirror.sh microservice-feature
-# или: GITLAB_URL=git@gitlab.com:<group>/<project>.git ./scripts/push-gitlab-mirror.sh
+./scripts/push-gitlab-mirror.sh main
+# или: GITLAB_URL=git@gitlab.com:<group>/<project>.git ./scripts/push-gitlab-mirror.sh main
 ```
 
 4. В GitLab: **Settings → Repository → Mirroring repositories** (опционально pull-зеркало с GitHub)
 
-После push pipeline стартует автоматически по `.gitlab-ci.yml`.
+После push pipeline стартует автоматически по `.gitlab-ci.yml` (jobs на `$CI_DEFAULT_BRANCH`, обычно `main`).
 
 Параллельно на GitHub работают [GitHub Actions](GITHUB.md).
 
@@ -40,11 +40,12 @@ chmod +x scripts/push-gitlab-mirror.sh
 
 1. `platform-smoke-cloud.sh` — health, login, users, BFF
 2. `platform-e2e-cross-service.sh` — user → Kafka → notification
-3. `platform-e2e-compensation.sh` — DLT → compensation → `notificationDeliveryStatus=FAILED`
+3. `platform-e2e-compensation.sh` — compensation → `notificationDeliveryStatus=FAILED`
 
 ### OIDC (`e2e-oidc`)
 
-Профили `cloud` + `auth` (Keycloak), gateway с `APP_JWT_ISSUER_URI`. Job с `allow_failure: true` на `main`.
+Профили `cloud` + `auth` (Keycloak), overlay `docker-compose.ci-oidc.yml`, gateway с `APP_JWT_ISSUER_URI`.
+Job обязателен на `main` (parity с GitHub `e2e.yml`).
 
 ## Переменные CI/CD (GitLab → Settings → CI/CD → Variables)
 
@@ -62,24 +63,27 @@ Registry использует встроенный `${CI_REGISTRY_IMAGE}` — о
 ```bash
 make ci-fast              # = verify
 make ci-e2e               # = e2e-legacy
-make ci-e2e-cloud         # smoke-cloud
+make ci-e2e-cloud         # smoke-cloud only
 ./scripts/ci.sh e2e-cloud-suite   # smoke + cross + compensation
 ./scripts/ci.sh e2e-oidc          # Keycloak OIDC (cloud + auth)
-make ci-full              # fast + legacy e2e + cloud suite + security
+make ci-full              # fast + legacy + cloud suite + OIDC + security
 ```
 
 ## Deploy в Kubernetes
+
+**Рекомендуемый локальный путь:** Docker Desktop Kubernetes, контекст `user-service-platform`, ingress-nginx → `http://localhost/`.
 
 1. Настройте GitLab Kubernetes Agent или загрузите `KUBECONFIG`.
 2. Запустите pipeline на `main` → manual job `deploy:staging`.
 3. После deploy — `ct:smoke-k8s` (`GATEWAY_HTTP=http://localhost` через ingress-nginx).
 
 ```bash
-# Локально (Docker Desktop Kubernetes):
 make k8s-up
 make k8s-build
 make k8s-install
 make k8s-smoke
 ```
 
-Для **kind** с NodePort задайте в CI: `GATEWAY_HTTP=http://localhost:18080`, `BFF_HTTP=http://localhost:18090` (см. `scripts/k8s/kind-config.yaml`).
+Подробнее: [KUBERNETES.md](KUBERNETES.md).
+
+**Альтернатива (kind + NodePort):** для CI без ingress задайте `GATEWAY_HTTP=http://localhost:18080`, `BFF_HTTP=http://localhost:18090` (см. `scripts/k8s/kind-config.yaml`, базовый `values.yaml`).

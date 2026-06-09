@@ -15,7 +15,7 @@ help:
 	@echo "  ci-e2e       build, compose up, legacy smoke"
 	@echo "  ci-e2e-cloud compose cloud profile + gateway smoke"
 	@echo "  ci-e2e-cloud-suite  smoke + cross-service + compensation"
-	@echo "  ci-full      fast + legacy e2e + cloud suite + security"
+	@echo "  ci-full      fast + legacy e2e + cloud suite + OIDC + security"
 	@echo "  ci-down      stop all compose profiles"
 	@echo "  k8s-up       ensure Docker Desktop Kubernetes is running"
 	@echo "  k8s-build    docker compose build + import images into K8s node"
