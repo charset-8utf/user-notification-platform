@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Dev PKI для east-west TLS (фаза 3): CA, серверные cert с SAN для compose, truststore для user-service RestClient.
+# Dev PKI для east-west TLS: CA, серверные cert с SAN для compose, truststore для user-service RestClient.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"

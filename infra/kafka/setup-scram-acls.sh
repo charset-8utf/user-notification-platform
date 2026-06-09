@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Топики + ACL после старта брокера (фаза 4). SCRAM users — в kafka_server_jaas.conf.
+# Топики + ACL после старта брокера. SCRAM users — в kafka_server_jaas.conf.
 set -euo pipefail
 
 BOOTSTRAP="${KAFKA_BOOTSTRAP_SERVERS:-kafka:29093}"
