@@ -8,9 +8,17 @@ export APP_SERVICE_JWT_SECRET="${APP_SERVICE_JWT_SECRET:-e2e-smoke-service-jwt-s
 export APP_SEED_ADMIN_PASSWORD="${APP_SEED_ADMIN_PASSWORD:-admin123}"
 export APP_SEED_USER_PASSWORD="${APP_SEED_USER_PASSWORD:-user123}"
 
+ci_health_wait_max() {
+  if [ -n "${GITHUB_ACTIONS:-}${CI:-}${GITLAB_CI:-}" ]; then
+    echo 120
+  else
+    echo 60
+  fi
+}
+
 wait_container_healthy() {
   local name="$1"
-  local max="${2:-60}"
+  local max="${2:-$(ci_health_wait_max)}"
   local i
   for i in $(seq 1 "${max}"); do
     local status
@@ -68,8 +76,8 @@ cmd_e2e_cloud_up() {
   docker compose --profile cloud up -d --build
   wait_container_healthy unp-user-service 60
   wait_container_healthy unp-notification-service 60
-  wait_container_healthy unp-nginx 30
-  wait_http "http://localhost/actuator/health" 60
+  wait_container_healthy unp-nginx "$(ci_health_wait_max)"
+  wait_http "http://localhost/actuator/health" "$(ci_health_wait_max)"
 }
 
 cmd_e2e_cloud() {

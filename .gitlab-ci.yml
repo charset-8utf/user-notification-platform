@@ -103,7 +103,7 @@ gitleaks:
     name: ghcr.io/gitleaks/gitleaks:latest
     entrypoint: [""]
   script:
-    - gitleaks detect --source . --verbose
+    - gitleaks detect --source . --verbose --config .gitleaks.toml
   allow_failure: false
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"

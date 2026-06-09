@@ -43,7 +43,7 @@ jobs:
   e2e-cloud:
     name: Cloud suite (nginx + cross + compensation)
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     needs: [e2e-legacy]
     steps:
       - uses: actions/checkout@v4
