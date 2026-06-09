@@ -19,7 +19,11 @@
     {
       "username": "admin",
       "enabled": true,
+      "email": "admin@localhost",
       "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "User",
+      "requiredActions": [],
       "credentials": [
         {
           "type": "password",

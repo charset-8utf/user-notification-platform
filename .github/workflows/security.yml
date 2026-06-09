@@ -28,7 +28,6 @@ jobs:
   trivy-images:
     name: Trivy images
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
