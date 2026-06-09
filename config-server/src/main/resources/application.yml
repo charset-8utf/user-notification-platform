@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: config-server
+  config:
+    import: optional:classpath:platform/tracing-defaults.yml
+  profiles:
+    active: ${CONFIG_SERVER_PROFILE:native}
+
+server:
+  port: ${CONFIG_SERVER_PORT:8888}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,env,prometheus
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: native
+  cloud:
+    config:
+      server:
+        native:
+          search-locations: ${CONFIG_REPO_PATH:file:../config-repo}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: git
+  cloud:
+    config:
+      server:
+        git:
+          uri: ${CONFIG_GIT_URI:file:///${user.dir}/../config-repo/.git}
+          default-label: main
+          clone-on-start: true
+          search-paths: .

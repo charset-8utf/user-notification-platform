@@ -1,0 +1,323 @@
+{{- if .Values.platform.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: config-server
+spec:
+  ports:
+    - port: {{ .Values.platform.configServer.port }}
+  selector:
+    app: config-server
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: config-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: config-server
+  template:
+    metadata:
+      labels:
+        app: config-server
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: config-server
+          image: {{ include "platform.image" (dict "root" . "image" .Values.platform.configServer.image "tag" .Values.platform.configServer.tag) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.platform.configServer.port }}
+          env:
+            - name: CONFIG_SERVER_PROFILE
+              value: native
+            - name: CONFIG_REPO_PATH
+              value: file:/config-repo
+            - name: CONFIG_SERVER_PORT
+              value: {{ .Values.platform.configServer.port | quote }}
+          volumeMounts:
+            - name: config-repo
+              mountPath: /config-repo
+      volumes:
+        - name: config-repo
+          configMap:
+            name: {{ include "platform.fullname" . }}-config-repo
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+spec:
+  ports:
+    - name: https
+      port: {{ .Values.platform.userService.httpsPort }}
+    - name: management
+      port: {{ .Values.platform.userService.managementPort }}
+  selector:
+    app: user-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      enableServiceLinks: false
+      initContainers:
+        {{- include "platform.waitDepsInit" (dict "configPort" .Values.platform.configServer.port) | nindent 8 }}
+      containers:
+        - name: user-service
+          image: {{ include "platform.image" (dict "root" . "image" .Values.platform.userService.image "tag" .Values.platform.userService.tag) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.platform.userService.httpsPort }}
+            - containerPort: {{ .Values.platform.userService.managementPort }}
+          envFrom:
+            - secretRef:
+                name: {{ include "platform.fullname" . }}-secrets
+          env:
+            - name: CONFIG_SERVER_HOST
+              value: config-server
+            - name: CONFIG_SERVER_PORT
+              value: {{ .Values.platform.configServer.port | quote }}
+            - name: DB_URL
+              value: jdbc:postgresql://postgres:5432/{{ .Values.infra.postgres.database }}
+            - name: DB_USER
+              value: {{ .Values.infra.postgres.user | quote }}
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: kafka:29092
+            - name: SPRING_DATA_REDIS_HOST
+              value: redis
+            - name: SPRING_PROFILES_ACTIVE
+              value: kafka,redis,jwt,management,docker,cloud,kubernetes
+            - name: MANAGEMENT_SERVER_PORT
+              value: {{ .Values.platform.userService.managementPort | quote }}
+            - name: APP_KAFKA_SECURITY_ENABLED
+              value: "false"
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: {{ .Values.platform.userService.managementPort }}
+            failureThreshold: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: {{ .Values.platform.userService.managementPort }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 6
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+spec:
+  ports:
+    - name: https
+      port: {{ .Values.platform.notificationService.httpsPort }}
+    - name: management
+      port: {{ .Values.platform.notificationService.managementPort }}
+  selector:
+    app: notification-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+    spec:
+      enableServiceLinks: false
+      initContainers:
+        {{- include "platform.waitDepsInit" (dict "configPort" .Values.platform.configServer.port) | nindent 8 }}
+      containers:
+        - name: notification-service
+          image: {{ include "platform.image" (dict "root" . "image" .Values.platform.notificationService.image "tag" .Values.platform.notificationService.tag) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.platform.notificationService.httpsPort }}
+            - containerPort: {{ .Values.platform.notificationService.managementPort }}
+          envFrom:
+            - secretRef:
+                name: {{ include "platform.fullname" . }}-secrets
+          env:
+            - name: CONFIG_SERVER_HOST
+              value: config-server
+            - name: SPRING_MONGODB_URI
+              value: mongodb://mongo:27017/{{ .Values.infra.mongo.database }}
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: kafka:29092
+            - name: SPRING_MAIL_HOST
+              value: mailpit
+            - name: SPRING_MAIL_PORT
+              value: "1025"
+            - name: SPRING_DATA_REDIS_HOST
+              value: redis
+            - name: SPRING_PROFILES_ACTIVE
+              value: rest,kafka,redis,management,docker,cloud,kubernetes
+            - name: MANAGEMENT_SERVER_PORT
+              value: {{ .Values.platform.notificationService.managementPort | quote }}
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: {{ .Values.platform.notificationService.managementPort }}
+            failureThreshold: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: {{ .Values.platform.notificationService.managementPort }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 6
+{{- end }}
+{{- if .Values.edge.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+spec:
+  type: {{ .Values.edge.serviceType }}
+  ports:
+    - port: {{ .Values.edge.apiGateway.port }}
+      {{- if eq .Values.edge.serviceType "NodePort" }}
+      nodePort: {{ .Values.edge.apiGateway.nodePort }}
+      {{- end }}
+  selector:
+    app: api-gateway
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      enableServiceLinks: false
+      initContainers:
+        {{- include "platform.waitDepsInit" (dict "configPort" .Values.platform.configServer.port) | nindent 8 }}
+      containers:
+        - name: api-gateway
+          image: {{ include "platform.image" (dict "root" . "image" .Values.edge.apiGateway.image "tag" .Values.edge.apiGateway.tag) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.edge.apiGateway.port }}
+          envFrom:
+            - secretRef:
+                name: {{ include "platform.fullname" . }}-secrets
+          env:
+            - name: CONFIG_SERVER_HOST
+              value: config-server
+            - name: CONFIG_SERVER_PORT
+              value: {{ .Values.platform.configServer.port | quote }}
+            - name: SPRING_DATA_REDIS_HOST
+              value: redis
+            - name: SPRING_PROFILES_ACTIVE
+              value: cloud,docker,kubernetes
+            - name: APP_GATEWAY_INSECURE_SSL
+              value: {{ .Values.edge.insecureSsl | default false | quote }}
+            {{- if .Values.auth.oidc.enabled }}
+            - name: APP_JWT_ISSUER_URI
+              value: {{ .Values.auth.oidc.issuerUri | quote }}
+            {{- end }}
+            - name: API_GATEWAY_PORT
+              value: {{ .Values.edge.apiGateway.port | quote }}
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: {{ .Values.edge.apiGateway.port }}
+            failureThreshold: 30
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: {{ .Values.edge.apiGateway.port }}
+            initialDelaySeconds: 45
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-bff
+spec:
+  type: {{ .Values.edge.serviceType }}
+  ports:
+    - port: {{ .Values.edge.webBff.port }}
+      {{- if eq .Values.edge.serviceType "NodePort" }}
+      nodePort: {{ .Values.edge.webBff.nodePort }}
+      {{- end }}
+  selector:
+    app: web-bff
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-bff
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web-bff
+  template:
+    metadata:
+      labels:
+        app: web-bff
+    spec:
+      enableServiceLinks: false
+      initContainers:
+        {{- include "platform.waitDepsInit" (dict "configPort" .Values.platform.configServer.port) | nindent 8 }}
+      containers:
+        - name: web-bff
+          image: {{ include "platform.image" (dict "root" . "image" .Values.edge.webBff.image "tag" .Values.edge.webBff.tag) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.edge.webBff.port }}
+          envFrom:
+            - secretRef:
+                name: {{ include "platform.fullname" . }}-secrets
+          env:
+            - name: CONFIG_SERVER_HOST
+              value: config-server
+            - name: CONFIG_SERVER_PORT
+              value: {{ .Values.platform.configServer.port | quote }}
+            - name: SPRING_PROFILES_ACTIVE
+              value: cloud,docker,kubernetes
+            - name: APP_BFF_USER_SERVICE_BASE_URL
+              value: http://api-gateway:{{ .Values.edge.apiGateway.port }}
+            - name: APP_BFF_NOTIFICATION_SERVICE_BASE_URL
+              value: http://api-gateway:{{ .Values.edge.apiGateway.port }}
+            - name: WEB_BFF_PORT
+              value: {{ .Values.edge.webBff.port | quote }}
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: {{ .Values.edge.webBff.port }}
+            initialDelaySeconds: 45
+            periodSeconds: 10
+{{- end }}

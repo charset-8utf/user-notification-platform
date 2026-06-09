@@ -1,0 +1,25 @@
+spring:
+  cloud:
+    discovery:
+      enabled: false
+    loadbalancer:
+      enabled: false
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: user-service-test
+              uri: ${test.downstream.user-service-uri}
+              predicates:
+                - Path=/api/users/**
+              filters:
+                - TokenRelay=
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+app:
+  security:
+    jwt:
+      secret: test-jwt-secret-for-gateway-tests-min-32b

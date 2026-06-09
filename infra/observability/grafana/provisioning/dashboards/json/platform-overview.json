@@ -97,6 +97,39 @@
           "legendFormat": "p95"
         }
       ]
+    },
+    {
+      "id": 9,
+      "title": "Circuit breaker OPEN",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
+      "targets": [
+        {
+          "expr": "sum(resilience4j_circuitbreaker_state{state=\"open\"}) by (name)",
+          "legendFormat": "{{name}}"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Application errors (app.errors.total)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
+      "targets": [
+        {
+          "expr": "sum(rate(app_errors_total[5m])) by (application, source)",
+          "legendFormat": "{{application}} {{source}}"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Distributed tracing (Zipkin)",
+      "type": "text",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 36 },
+      "options": {
+        "content": "Откройте [Zipkin UI](http://localhost:9411) для просмотра trace (W3C traceparent). Запуск: `docker compose --profile observability up -d`"
+      }
     }
   ]
 }

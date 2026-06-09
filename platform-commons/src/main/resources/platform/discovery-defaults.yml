@@ -1,0 +1,8 @@
+# Service discovery: Simple Discovery Client (Docker Compose / Kubernetes DNS).
+# K8s resolves service names natively; compose uses the same logical names on unp-network.
+spring:
+  cloud:
+    loadbalancer:
+      cache:
+        enabled: true
+        ttl: 5s

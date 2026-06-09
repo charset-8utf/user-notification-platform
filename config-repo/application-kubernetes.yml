@@ -1,0 +1,16 @@
+# Kubernetes: static service registry backed by cluster DNS (no Eureka).
+platform:
+  environment: kubernetes
+
+spring:
+  cloud:
+    discovery:
+      client:
+        simple:
+          instances:
+            user-service:
+              - uri: https://user-service:8443
+            notification-service:
+              - uri: https://notification-service:8443
+            api-gateway:
+              - uri: http://api-gateway:8080

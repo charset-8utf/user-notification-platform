@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# TLS для Kafka broker (SASL_SSL) и kafka-truststore.p12 для Spring-клиентов (фаза 4).
+# TLS для Kafka broker (SASL_SSL) и kafka-truststore.p12 для Spring-клиентов.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"

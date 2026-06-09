@@ -1,0 +1,22 @@
+global:
+  imagePullPolicy: Never
+
+infra:
+  enabled: true
+
+platform:
+  enabled: true
+
+edge:
+  enabled: true
+  insecureSsl: true
+  serviceType: ClusterIP
+  ingress:
+    enabled: true
+    className: nginx
+    host: localhost
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+
+observability:
+  enabled: false

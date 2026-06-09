@@ -1,0 +1,14 @@
+{
+  "properties": [
+    {
+      "name": "spring.config.activate.on-property",
+      "type": "java.lang.String",
+      "description": "Условие активации документа YAML (property=value). Используется во втором документе application-kafka.yml для SASL_SSL при app.kafka.security.enabled=true."
+    },
+    {
+      "name": "spring.config.activate.on-profile",
+      "type": "java.lang.String",
+      "description": "Профиль, при котором активируется документ конфигурации (spring.config.activate.on-profile)."
+    }
+  ]
+}
