@@ -1,0 +1,12 @@
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+### Cursor ###
+.cursor
+*.iml
+*.ipr
+*.iws
+.idea/
+.vscode/
+.DS_Store
+.env
