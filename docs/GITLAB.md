@@ -2,6 +2,26 @@
 
 Пайплайн описан в [`.gitlab-ci.yml`](../.gitlab-ci.yml).
 
+Репозиторий на GitHub: для GitLab CI настройте **зеркало** (push) или импорт из GitHub.
+
+## Зеркало GitHub → GitLab
+
+1. Создайте пустой проект на GitLab: `charset-8utf/user-notification-platform`
+2. Добавьте SSH deploy key / свой ключ в GitLab
+3. Push ветки:
+
+```bash
+chmod +x scripts/push-gitlab-mirror.sh
+./scripts/push-gitlab-mirror.sh microservice-feature
+# или: GITLAB_URL=git@gitlab.com:<group>/<project>.git ./scripts/push-gitlab-mirror.sh
+```
+
+4. В GitLab: **Settings → Repository → Mirroring repositories** (опционально pull-зеркало с GitHub)
+
+После push pipeline стартует автоматически по `.gitlab-ci.yml`.
+
+Параллельно на GitHub работают [GitHub Actions](GITHUB.md).
+
 ## Стадии
 
 | Стадия | Job | Назначение |

@@ -8,7 +8,7 @@ commit → CI (gradlew check) → E2E smoke → security → publish (GitLab Reg
 
 | Стадия | Инструмент | Что проверяется |
 |--------|------------|-----------------|
-| CI | GitLab `verify` | `./gradlew check` |
+| CI | GitHub `ci.yml` / GitLab `verify` | `./gradlew check` |
 | CT legacy | GitLab `e2e-legacy` | compose + JWT + Kafka → Mailpit |
 | CT cloud | GitLab `e2e-cloud` | nginx → gateway/BFF + cross-service + compensation |
 | CT OIDC | GitLab `e2e-oidc` | Keycloak token → gateway JWKS (optional) |
