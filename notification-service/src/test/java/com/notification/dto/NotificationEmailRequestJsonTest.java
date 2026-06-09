@@ -11,11 +11,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 class NotificationEmailRequestJsonTest {
 
     @Test
-    void deserializesConsoleProducerDltPayload() throws Exception {
+    void deserializesConsoleProducerDltPayload() {
         JsonMapper jsonMapper = JsonMapper.builder().build();
-        String json = """
-                {"eventId":"550e8400-e29b-41d4-a716-446655440000","operation":"USER_CREATED","email":"comp@example.com"}
-                """;
+        String json = "{\"eventId\":\"550e8400-e29b-41d4-a716-446655440000\","
+                + "\"operation\":\"USER_CREATED\",\"email\":\"comp@example.com\"}";
 
         NotificationEmailRequest request = jsonMapper.readValue(json, NotificationEmailRequest.class);
 
