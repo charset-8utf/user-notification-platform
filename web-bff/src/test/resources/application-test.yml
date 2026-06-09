@@ -1,0 +1,9 @@
+app:
+  security:
+    jwt:
+      secret: test-jwt-secret-for-bff-webmvc-tests-min-32b
+
+spring:
+  cloud:
+    config:
+      enabled: false

@@ -1,0 +1,36 @@
+{{- if and .Values.edge.enabled .Values.edge.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "platform.fullname" . }}-ingress
+  annotations:
+    {{- range $key, $value := .Values.edge.ingress.annotations }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+spec:
+  {{- if .Values.edge.ingress.className }}
+  ingressClassName: {{ .Values.edge.ingress.className }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.edge.ingress.host | quote }}
+      http:
+        paths:
+          - path: /bff
+            pathType: Prefix
+            backend:
+              service:
+                name: web-bff
+                port:
+                  number: {{ .Values.edge.webBff.port }}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api-gateway
+                port:
+                  number: {{ .Values.edge.apiGateway.port }}
+  {{- if .Values.edge.ingress.tls }}
+  tls:
+    {{- toYaml .Values.edge.ingress.tls | nindent 4 }}
+  {{- end }}
+{{- end }}

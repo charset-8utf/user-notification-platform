@@ -1,0 +1,29 @@
+spring:
+  datasource:
+    url: jdbc:tc:postgresql:17:///userdb?TC_DAEMON=true
+    username: postgres
+    password: postgres
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+    hikari:
+      register-mbeans: false
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+  docker:
+    compose:
+      enabled: false
+  cache:
+    type: none
+  ssl:
+    enabled: false
+
+app:
+  security:
+    jwt:
+      secret: test-jwt-secret-for-integration-tests-min-32b
+  seed:
+    admin-password: admin123
+    user-password: user123

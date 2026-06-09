@@ -1,0 +1,15 @@
+management:
+  tracing:
+    enabled: ${TRACING_ENABLED:false}
+    sampling:
+      probability: ${TRACING_SAMPLE_PROBABILITY:1.0}
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
+
+spring:
+  kafka:
+    listener:
+      observation-enabled: ${TRACING_ENABLED:false}
+    template:
+      observation-enabled: ${TRACING_ENABLED:false}

@@ -1,0 +1,6 @@
+app:
+  gateway:
+    insecure-ssl: true
+  security:
+    jwt:
+      secret: ${APP_JWT_SECRET:dev-jwt-secret-change-in-production-min-32-chars}

@@ -49,12 +49,7 @@ for i in $(seq 1 30); do
 done
 
 echo "[5] Service JWT → notification REST"
-(
-  cd user-service
-  mvn -q -DskipTests test-compile dependency:build-classpath -Dmdep.outputFile=cp.txt
-)
-CP="user-service/target/test-classes:user-service/target/classes:$(cat user-service/cp.txt)"
-SVC_JWT=$(java -cp "${CP}" com.crud.support.ServiceJwtSmokeToken)
+SVC_JWT=$(./gradlew -q :user-service:serviceJwtSmokeToken)
 HTTP=$(curl -fkS -o /dev/null -w "%{http_code}" -X POST "${NOTIF_HTTPS}/api/notifications/email" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${SVC_JWT}" \
@@ -64,9 +59,9 @@ HTTP=$(curl -fkS -o /dev/null -w "%{http_code}" -X POST "${NOTIF_HTTPS}/api/noti
 echo "[6] Prometheus metrics"
 USER_PROM=$(curl -fsS "${USER_MGMT}/actuator/prometheus")
 NOTIF_PROM=$(curl -fsS "${NOTIF_MGMT}/actuator/prometheus")
-echo "${USER_PROM}" | grep -q 'http_server_requests_seconds' && pass "user http metrics" || fail "user http metrics"
-echo "${USER_PROM}" | grep -q 'app_outbox_pending' && pass "user outbox gauge" || fail "user outbox gauge"
-echo "${NOTIF_PROM}" | grep -q 'http_server_requests_seconds' && pass "notification http metrics" || fail "notification http metrics"
-echo "${NOTIF_PROM}" | grep -q 'app_notification_email_sent' && pass "notification email metrics" || fail "notification email metrics"
+[[ "${USER_PROM}" == *http_server_requests_seconds* ]] && pass "user http metrics" || fail "user http metrics"
+[[ "${USER_PROM}" == *app_outbox_pending* ]] && pass "user outbox gauge" || fail "user outbox gauge"
+[[ "${NOTIF_PROM}" == *http_server_requests_seconds* ]] && pass "notification http metrics" || fail "notification http metrics"
+[[ "${NOTIF_PROM}" == *app_notification_email_sent* ]] && pass "notification email metrics" || fail "notification email metrics"
 
 echo "=== All smoke checks passed ==="

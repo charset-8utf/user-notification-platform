@@ -1,12 +1,26 @@
-# Сервисы — отдельные git-репозитории
-user-service/
-notification-service/
+# Maven (legacy)
+target/
 
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
 .idea/
 .env
 .DS_Store
 
-# Секреты и сгенерированные сертификаты
+# Service build artifacts
+user-service/cp.txt
+user-service/target/
+user-service/build/
+user-service/.idea/
+notification-service/target/
+notification-service/build/
+notification-service/.idea/
+
+# Secrets and generated certs
 infra/kafka/secrets/*
 !infra/kafka/secrets/.gitignore
 infra/tls/.work/

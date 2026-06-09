@@ -1,0 +1,109 @@
+global:
+  registry: ""
+  imageOwner: ""
+  imageTag: latest
+  imagePullPolicy: Never
+
+infra:
+  enabled: true
+  postgres:
+    user: postgres
+    password: postgres
+    database: userdb
+    storage: 1Gi
+  mongo:
+    database: notification
+  redis:
+    password: ""
+
+platform:
+  enabled: true
+  configServer:
+    image: config-server
+    tag: latest
+    port: 8888
+  userService:
+    image: user-service
+    tag: latest
+    httpsPort: 8443
+    managementPort: 8081
+  notificationService:
+    image: notification-service
+    tag: latest
+    httpsPort: 8443
+    managementPort: 8081
+
+edge:
+  enabled: true
+  serviceType: NodePort
+  apiGateway:
+    image: api-gateway
+    tag: latest
+    port: 8080
+    nodePort: 30080
+  webBff:
+    image: web-bff
+    tag: latest
+    port: 8090
+    nodePort: 30090
+  ingress:
+    enabled: false
+    className: ""
+    host: localhost
+    gatewayPort: 8080
+    annotations: {}
+    tls: []
+
+observability:
+  enabled: false
+
+secrets:
+  appJwtSecret: dev-jwt-secret-change-in-production-min-32-chars
+  appServiceJwtSecret: dev-service-jwt-secret-change-in-production-min-32b
+  seedAdminPassword: admin123
+  seedUserPassword: user123
+
+externalSecrets:
+  enabled: false
+  refreshInterval: 1h
+  secretStoreKind: ClusterSecretStore
+  secretStoreName: vault-backend
+  remoteKey: platform/dev
+
+externalDatabase:
+  postgres:
+    host: ""
+    port: 5432
+    user: postgres
+    password: ""
+    database: userdb
+  mongo:
+    uri: ""
+
+autoscaling:
+  api-gateway:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCpuUtilization: 75
+  user-service:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 4
+    targetCpuUtilization: 75
+  notification-service:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 4
+    targetCpuUtilization: 75
+
+certManager:
+  createClusterIssuer: false
+  clusterIssuerName: letsencrypt-staging
+  acmeServer: https://acme-staging-v02.api.letsencrypt.org/directory
+  acmeEmail: dev@example.com
+
+auth:
+  oidc:
+    enabled: false
+    issuerUri: ""

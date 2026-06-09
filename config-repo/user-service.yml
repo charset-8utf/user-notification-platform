@@ -1,0 +1,19 @@
+# Externalized defaults for user-service (secrets stay in env)
+spring:
+  jpa:
+    open-in-view: false
+
+app:
+  rate-limit:
+    max-requests: 20
+    window-seconds: 60
+  notification:
+    kafka:
+      topic: user-notifications
+      partitions: 3
+      replicas: 1
+      outbox:
+        relay-interval-ms: 1000
+        batch-size: 50
+      compensation-topic: notification-compensations
+      compensation-consumer-group: user-service-compensation

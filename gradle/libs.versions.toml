@@ -1,0 +1,35 @@
+[versions]
+spring-boot = "4.0.6"
+spring-cloud = "2025.1.1"
+spring-dependency-management = "1.1.7"
+java = "21"
+resilience4j = "2.4.0"
+wiremock = "3.10.0"
+postgresql = "42.7.11"
+hibernate-jcache = "7.3.2.Final"
+spring-retry = "2.0.11"
+owasp-encoder = "1.3.1"
+jspecify = "1.0.0"
+h2 = "2.4.240"
+greenmail = "2.1.0"
+jacoco = "0.8.14"
+springdoc = "2.8.6"
+
+[libraries]
+wiremock = { module = "org.wiremock:wiremock-standalone", version.ref = "wiremock" }
+postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
+hibernate-jcache = { module = "org.hibernate.orm:hibernate-jcache", version.ref = "hibernate-jcache" }
+spring-retry = { module = "org.springframework.retry:spring-retry", version.ref = "spring-retry" }
+owasp-encoder = { module = "org.owasp.encoder:encoder", version.ref = "owasp-encoder" }
+jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
+h2 = { module = "com.h2database:h2", version.ref = "h2" }
+greenmail = { module = "com.icegreen:greenmail", version.ref = "greenmail" }
+resilience4j-spring-boot4 = { module = "io.github.resilience4j:resilience4j-spring-boot4", version.ref = "resilience4j" }
+platform-commons = { module = "com.platform:platform-commons", version = "1.0.0-SNAPSHOT" }
+springdoc-webmvc = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
+springdoc-webflux = { module = "org.springdoc:springdoc-openapi-starter-webflux-ui", version.ref = "springdoc" }
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
+jacoco = { id = "jacoco" }

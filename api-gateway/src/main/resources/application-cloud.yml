@@ -1,0 +1,80 @@
+spring:
+  config:
+    import: optional:classpath:platform/discovery-defaults.yml
+
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
+
+  cloud:
+    discovery:
+      client:
+        simple:
+          instances:
+            user-service:
+              - uri: https://${USER_SERVICE_HOST:user-service}:8443
+            notification-service:
+              - uri: https://${NOTIFICATION_SERVICE_HOST:notification-service}:8443
+    gateway:
+      server:
+        webflux:
+          httpclient:
+            ssl:
+              use-insecure-trust-manager: ${APP_GATEWAY_INSECURE_SSL:true}
+          routes:
+            # Публичная аутентификация — rate limit по IP
+            - id: user-service-auth
+              uri: lb://user-service
+              predicates:
+                - Path=/api/auth/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: ${APP_GATEWAY_AUTH_REPLENISH_RATE:30}
+                    redis-rate-limiter.burstCapacity: ${APP_GATEWAY_AUTH_BURST_CAPACITY:60}
+                    key-resolver: "#{@ipKeyResolver}"
+            # Защищённый user API — JWT на edge + TokenRelay + rate limit по sub
+            - id: user-service-api
+              uri: lb://user-service
+              predicates:
+                - Path=/api/users/**,/api/roles/**,/api/profiles/**
+              filters:
+                - TokenRelay=
+                - name: CircuitBreaker
+                  args:
+                    name: userServiceCb
+                    fallbackUri: forward:/fallback/user
+                - name: Retry
+                  args:
+                    retries: 3
+                    methods: GET
+                    statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: ${APP_GATEWAY_USER_REPLENISH_RATE:50}
+                    redis-rate-limiter.burstCapacity: ${APP_GATEWAY_USER_BURST_CAPACITY:100}
+                    key-resolver: "#{@jwtSubKeyResolver}"
+            - id: notification-service-logs
+              uri: lb://notification-service
+              predicates:
+                - Path=/api/notifications/logs/**
+              filters:
+                - TokenRelay=
+                - name: CircuitBreaker
+                  args:
+                    name: notificationServiceCb
+                    fallbackUri: forward:/fallback/notification
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: ${APP_GATEWAY_NOTIFICATION_REPLENISH_RATE:30}
+                    redis-rate-limiter.burstCapacity: ${APP_GATEWAY_NOTIFICATION_BURST_CAPACITY:60}
+                    key-resolver: "#{@jwtSubKeyResolver}"
+
+app:
+  security:
+    jwt:
+      secret: ${APP_JWT_SECRET:dev-jwt-secret-change-in-production-min-32-chars}
+      issuer: ${APP_JWT_ISSUER:user-service}
+      issuer-uri: ${APP_JWT_ISSUER_URI:}

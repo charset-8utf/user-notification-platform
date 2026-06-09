@@ -1,0 +1,334 @@
+# CI / CD / CT pipeline for user-notification-platform (GitLab)
+#
+# Stages:
+#   verify   — unit + integration tests (Gradle check)
+#   build    — Docker images
+#   security — Trivy + Gitleaks
+#   test     — E2E smoke (Compose)
+#   publish  — push images to GitLab Container Registry
+#   deploy   — Helm upgrade to Kubernetes
+#   ct       — post-deploy smoke (Continuous Testing)
+
+default:
+  image: eclipse-temurin:21-jdk
+  tags:
+    - docker
+
+variables:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+  GRADLE_USER_HOME: "${CI_PROJECT_DIR}/.gradle"
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_DRIVER: overlay2
+  # Registry: GitLab built-in
+  REGISTRY: "${CI_REGISTRY_IMAGE}"
+  IMAGE_TAG: "${CI_COMMIT_SHORT_SHA}"
+  HELM_RELEASE: platform
+  HELM_NAMESPACE: platform
+  # Smoke: nginx ingress (Docker Desktop / ingress-nginx) — override for kind NodePort if needed
+  GATEWAY_HTTP: "http://localhost"
+  BFF_HTTP: "http://localhost"
+
+stages:
+  - verify
+  - build
+  - security
+  - test
+  - publish
+  - deploy
+  - ct
+
+.gradle-cache: &gradle-cache
+  cache:
+    key: "${CI_COMMIT_REF_SLUG}-gradle"
+    paths:
+      - .gradle/wrapper
+      - .gradle/caches
+
+# ── CI: verify ────────────────────────────────────────────────────────────────
+
+verify:
+  stage: verify
+  <<: *gradle-cache
+  script:
+    - chmod +x gradlew
+    - ./gradlew check --no-daemon
+  artifacts:
+    when: always
+    expire_in: 7 days
+    reports:
+      junit:
+        - "**/build/test-results/test/TEST-*.xml"
+        - "**/build/test-results/integrationTest/TEST-*.xml"
+    paths:
+      - "**/build/reports/tests/"
+      - "**/build/reports/jacoco/"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "microservice-feature"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_TAG
+
+# ── CI: build images ─────────────────────────────────────────────────────────
+
+.docker-job: &docker-job
+  image: docker:27-cli
+  services:
+    - docker:27-dind
+  before_script:
+    - docker info
+
+build-images:
+  stage: build
+  <<: *docker-job
+  needs: ["verify"]
+  script:
+    - chmod +x gradlew scripts/ci.sh
+    - ./scripts/ci.sh build-e2e
+    - |
+      for svc in user-service notification-service config-server api-gateway web-bff; do
+        docker tag "${svc}:latest" "${REGISTRY}/${svc}:${IMAGE_TAG}"
+        docker tag "${svc}:latest" "${REGISTRY}/${svc}:latest"
+      done
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+# ── CI: security ───────────────────────────────────────────────────────────────
+
+gitleaks:
+  stage: security
+  image:
+    name: ghcr.io/gitleaks/gitleaks:latest
+    entrypoint: [""]
+  script:
+    - gitleaks detect --source . --verbose --config .gitleaks.toml
+  allow_failure: false
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "microservice-feature"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_TAG
+
+trivy-images:
+  stage: security
+  <<: *docker-job
+  needs: ["build-images"]
+  script:
+    - apk add --no-cache curl
+    - |
+      curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+    - chmod +x gradlew scripts/ci.sh
+    - ./scripts/ci.sh build-e2e
+    - |
+      for img in user-service notification-service config-server api-gateway web-bff; do
+        echo "=== Trivy: ${img} ==="
+        trivy image --severity HIGH,CRITICAL --exit-code 1 "${img}:latest"
+      done
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+dependency-report:
+  stage: security
+  <<: *gradle-cache
+  script:
+    - chmod +x gradlew
+    - ./gradlew dependencies --configuration runtimeClasspath > dependencies-report.txt || true
+  artifacts:
+    paths:
+      - dependencies-report.txt
+    expire_in: 14 days
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# ── CT: E2E smoke (Compose) ───────────────────────────────────────────────────
+
+e2e-legacy:
+  stage: test
+  <<: *docker-job
+  needs: ["verify"]
+  variables:
+    APP_SERVICE_JWT_SECRET: e2e-smoke-service-jwt-secret-minimum-32b
+    APP_SEED_ADMIN_PASSWORD: admin123
+    APP_SEED_USER_PASSWORD: user123
+    NOTIFICATION_SERVICE_PROFILES: rest,kafka,redis,management,docker
+    USER_SERVICE_PROFILES: kafka,redis,jwt,management,docker
+  script:
+    - apk add --no-cache bash curl
+    - chmod +x gradlew scripts/ci.sh scripts/platform-smoke.sh
+    - ./scripts/ci.sh e2e
+  after_script:
+    - ./scripts/ci.sh e2e-down || true
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+e2e-cloud:
+  stage: test
+  <<: *docker-job
+  needs: ["verify"]
+  variables:
+    APP_SERVICE_JWT_SECRET: e2e-smoke-service-jwt-secret-minimum-32b
+    APP_SEED_ADMIN_PASSWORD: admin123
+    APP_SEED_USER_PASSWORD: user123
+  script:
+    - apk add --no-cache bash curl
+    - chmod +x gradlew scripts/ci.sh scripts/platform-smoke-cloud.sh \
+      scripts/platform-e2e-cross-service.sh scripts/platform-e2e-compensation.sh
+    - ./scripts/ci.sh e2e-cloud-suite
+  after_script:
+    - ./scripts/ci.sh e2e-down || true
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+e2e-oidc:
+  stage: test
+  <<: *docker-job
+  needs: ["verify"]
+  variables:
+    APP_SERVICE_JWT_SECRET: e2e-smoke-service-jwt-secret-minimum-32b
+    APP_SEED_ADMIN_PASSWORD: admin123
+    APP_SEED_USER_PASSWORD: user123
+    APP_JWT_ISSUER_URI: http://host.docker.internal:8180/realms/platform
+  script:
+    - apk add --no-cache bash curl
+    - chmod +x gradlew scripts/ci.sh scripts/platform-smoke-oidc.sh
+    - ./scripts/ci.sh e2e-oidc
+  after_script:
+    - ./scripts/ci.sh e2e-down || true
+  allow_failure: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+helm-lint:
+  stage: test
+  image: alpine/helm:3.16
+  script:
+    - helm lint deploy/helm/platform
+    - helm template platform deploy/helm/platform --namespace platform > /dev/null
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "microservice-feature"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_TAG
+
+# ── CD: publish to GitLab Container Registry ──────────────────────────────────
+
+publish:
+  stage: publish
+  <<: *docker-job
+  needs: ["build-images", "trivy-images"]
+  before_script:
+    - docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" "${CI_REGISTRY}"
+  script:
+    - |
+      for svc in user-service notification-service config-server api-gateway web-bff; do
+        docker push "${REGISTRY}/${svc}:${IMAGE_TAG}"
+        docker push "${REGISTRY}/${svc}:latest"
+      done
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+# ── CD: deploy to Kubernetes ──────────────────────────────────────────────────
+
+.deploy-base:
+  stage: deploy
+  image: alpine/helm:3.16
+  before_script:
+    - apk add --no-cache bash curl kubectl
+    - chmod +x scripts/k8s/install.sh scripts/k8s-smoke.sh
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+    - if: $CI_COMMIT_TAG
+      when: manual
+
+deploy:staging:
+  extends: .deploy-base
+  environment:
+    name: staging
+    url: http://staging-gateway.example.com
+  needs: ["publish"]
+  script:
+    - |
+      helm upgrade --install "${HELM_RELEASE}" deploy/helm/platform \
+        --namespace "${HELM_NAMESPACE}" \
+        --create-namespace \
+        --set global.registry="${CI_REGISTRY}" \
+        --set global.imageOwner="${CI_PROJECT_PATH}" \
+        --set global.imagePullPolicy=Always \
+        --set global.imageTag="${IMAGE_TAG}" \
+        --wait --timeout 20m
+  # Requires KUBECONFIG or GitLab Kubernetes Agent — configure in CI/CD variables.
+
+deploy:production:
+  extends: .deploy-base
+  environment:
+    name: production
+    url: https://gateway.example.com
+  needs: ["publish"]
+  script:
+    - |
+      helm upgrade --install "${HELM_RELEASE}" deploy/helm/platform \
+        --namespace "${HELM_NAMESPACE}" \
+        --create-namespace \
+        --set global.registry="${CI_REGISTRY}" \
+        --set global.imageOwner="${CI_PROJECT_PATH}" \
+        --set global.imagePullPolicy=Always \
+        --set global.imageTag="${CI_COMMIT_TAG:-${IMAGE_TAG}}" \
+        --wait --timeout 20m
+
+# ── CT: post-deploy smoke ─────────────────────────────────────────────────────
+
+ct:smoke-k8s:
+  stage: ct
+  image: alpine:3.21
+  needs: ["deploy:staging"]
+  before_script:
+    - apk add --no-cache bash curl
+  script:
+    - chmod +x scripts/k8s-smoke.sh
+    - GATEWAY_HTTP="${GATEWAY_HTTP}" BFF_HTTP="${BFF_HTTP}" ./scripts/k8s-smoke.sh
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: on_success
+
+ct:smoke-compose:
+  stage: ct
+  <<: *docker-job
+  needs: ["e2e-cloud"]
+  variables:
+    APP_SERVICE_JWT_SECRET: e2e-smoke-service-jwt-secret-minimum-32b
+    APP_SEED_ADMIN_PASSWORD: admin123
+    APP_SEED_USER_PASSWORD: user123
+  script:
+    - apk add --no-cache bash curl
+    - chmod +x scripts/ci.sh scripts/platform-smoke-cloud.sh
+    - ./scripts/ci.sh e2e-cloud
+  after_script:
+    - ./scripts/ci.sh e2e-down || true
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: on_success
+
+# ── Nightly: observability + load (manual / schedule) ─────────────────────────
+
+nightly:observability:
+  stage: test
+  <<: *docker-job
+  script:
+    - apk add --no-cache bash curl
+    - chmod +x gradlew scripts/ci.sh
+    - ./scripts/ci.sh observability-up
+    - curl -fsS http://localhost:9091/-/ready
+    - curl -fsS http://localhost:3000/api/health
+  after_script:
+    - ./scripts/ci.sh e2e-down || true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"

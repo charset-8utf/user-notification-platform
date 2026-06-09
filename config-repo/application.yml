@@ -1,0 +1,17 @@
+# Shared defaults for all platform services
+platform:
+  environment: ${PLATFORM_ENVIRONMENT:docker}
+
+management:
+  endpoints:
+    web:
+      base-path: /actuator
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+logging:
+  level:
+    root: INFO
+    AUDIT: INFO
