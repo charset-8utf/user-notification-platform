@@ -1,5 +1,6 @@
 package com.crud.notification;
 
+import com.crud.cache.UserCachePort;
 import com.crud.entity.NotificationDeliveryStatus;
 import com.crud.entity.User;
 import com.crud.repository.UserRepository;
@@ -24,12 +25,16 @@ class NotificationDeliveryFailureRecorderTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private UserCachePort userCache;
+
     @InjectMocks
     private NotificationDeliveryFailureRecorder recorder;
 
     @Test
     void record_marksUserFailed() {
         User user = User.builder().name("U").email("u@example.com").age(20).build();
+        user.setId(2L);
         when(userRepository.findByEmail("u@example.com")).thenReturn(Optional.of(user));
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -40,6 +45,7 @@ class NotificationDeliveryFailureRecorderTest {
 
         assertThat(user.getNotificationDeliveryStatus()).isEqualTo(NotificationDeliveryStatus.FAILED);
         verify(userRepository).save(user);
+        verify(userCache).evict(2L);
     }
 
     @Test
