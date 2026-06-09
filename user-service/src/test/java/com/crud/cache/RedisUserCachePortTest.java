@@ -1,5 +1,7 @@
 package com.crud.cache;
 
+import com.crud.entity.NotificationDeliveryStatus;
+
 import com.crud.dto.UserResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -56,14 +58,14 @@ class RedisUserCachePortTest {
 
     @Test
     void putResponse_skipsNullId() {
-        cache.putResponse(new UserResponse(null, "n", "e@example.com", 20, LocalDateTime.now()));
+        cache.putResponse(new UserResponse(null, "n", "e@example.com", 20, NotificationDeliveryStatus.PENDING, LocalDateTime.now()));
 
         verify(valueOps, never()).set(any(), any(), any(Duration.class));
     }
 
     @Test
     void putResponse_writesQueryKey() throws Exception {
-        UserResponse response = new UserResponse(7L, "Ann", "ann@example.com", 30, LocalDateTime.now());
+        UserResponse response = new UserResponse(7L, "Ann", "ann@example.com", 30, NotificationDeliveryStatus.PENDING, LocalDateTime.now());
         String json = objectMapper.writeValueAsString(response);
 
         cache.putResponse(response);
@@ -73,7 +75,7 @@ class RedisUserCachePortTest {
 
     @Test
     void findResponseById_returnsCachedValue() throws Exception {
-        UserResponse response = new UserResponse(3L, "Bob", "bob@example.com", 40, LocalDateTime.of(2026, 5, 31, 12, 0));
+        UserResponse response = new UserResponse(3L, "Bob", "bob@example.com", 40, NotificationDeliveryStatus.PENDING, LocalDateTime.of(2026, 5, 31, 12, 0));
         when(valueOps.get("user:query:3")).thenReturn(objectMapper.writeValueAsString(response));
 
         Optional<UserResponse> found = cache.findResponseById(3L);
@@ -115,7 +117,7 @@ class RedisUserCachePortTest {
 
     @Test
     void putResponse_logsWarningOnRedisError() {
-        UserResponse response = new UserResponse(8L, "X", "x@example.com", 25, LocalDateTime.now());
+        UserResponse response = new UserResponse(8L, "X", "x@example.com", 25, NotificationDeliveryStatus.PENDING, LocalDateTime.now());
         doThrow(new DataAccessException("redis down") {}).when(valueOps).set(eq("user:query:8"), any(), any(Duration.class));
 
         cache.putResponse(response);
