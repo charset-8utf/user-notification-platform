@@ -1,0 +1,32 @@
+title = "user-notification-platform gitleaks config"
+
+[allowlist]
+description = "Dev/demo placeholders and test fixtures"
+paths = [
+  '''\.env\.example$''',
+  '''docker-compose\.yml$''',
+  '''docker-compose\..+\.yml$''',
+  '''\.gitlab-ci\.yml$''',
+  '''\.github/workflows/.+\.yml$''',
+  '''config-repo/.+\.yml$''',
+  '''deploy/helm/.+\.yaml$''',
+  '''docs/.+\.md$''',
+  '''README\.md$''',
+  '''scripts/.+\.sh$''',
+  '''infra/.+\.(sh|conf|json|yml)$''',
+  '''.+/application-test\.yml$''',
+  '''.+/application-it\.yml$''',
+  '''.+/contracts/.+\.groovy$''',
+  '''.+/ServiceJwtTestSupport\.java$''',
+  '''.+/JwtAuthTestSupport\.java$''',
+]
+
+regexes = [
+  '''dev-jwt-secret''',
+  '''dev-service-jwt-secret''',
+  '''e2e-smoke-service-jwt-secret''',
+  '''admin123''',
+  '''user123''',
+  '''changeit''',
+  '''postgres''',
+]
