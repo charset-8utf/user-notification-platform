@@ -40,7 +40,9 @@ jobs:
           chmod +x gradlew scripts/ci.sh
           ./scripts/ci.sh build-e2e
 
-      - uses: aquasecurity/setup-trivy@v0.2.1
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
 
       - name: Scan images
         run: |
