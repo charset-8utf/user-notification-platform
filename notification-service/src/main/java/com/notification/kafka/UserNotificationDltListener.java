@@ -26,7 +26,7 @@ public class UserNotificationDltListener {
     @KafkaListener(
             topics = "${app.notification.kafka.topic}${app.notification.kafka.dlt-suffix}",
             groupId = "${app.notification.kafka.dlt-listener-group:notification-service-dlt}",
-            containerFactory = "kafkaListenerContainerFactory"
+            containerFactory = "dltKafkaListenerContainerFactory"
     )
     public void onDeadLetter(ConsumerRecord<String, NotificationEmailRequest> consumerRecord) {
         NotificationEmailRequest event = consumerRecord.value();

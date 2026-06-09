@@ -19,14 +19,19 @@ echo "=== OIDC smoke (Keycloak → gateway) ==="
 
 curl -fsS "${KEYCLOAK}/realms/${REALM}" | grep -q '"realm"' && pass "keycloak realm" || fail "keycloak unreachable"
 
-TOKEN_RESPONSE=$(curl -fsS -X POST "${KEYCLOAK}/realms/${REALM}/protocol/openid-connect/token" \
+TOKEN_RESPONSE=$(curl -sS -X POST "${KEYCLOAK}/realms/${REALM}/protocol/openid-connect/token" \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=password" \
   -d "client_id=${CLIENT_ID}" \
   -d "username=${OIDC_USER}" \
-  -d "password=${OIDC_PASS}")
+  -d "password=${OIDC_PASS}") || fail "OIDC token request failed"
 ACCESS_TOKEN=$(echo "${TOKEN_RESPONSE}" | sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p')
-[ -n "${ACCESS_TOKEN}" ] && pass "OIDC token from Keycloak" || fail "OIDC token"
+if [ -n "${ACCESS_TOKEN}" ]; then
+  pass "OIDC token from Keycloak"
+else
+  echo "  token response: ${TOKEN_RESPONSE}"
+  fail "OIDC token"
+fi
 
 curl -fsS "${GATEWAY}/api/users?page=0&size=1" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" | head -c 120 >/dev/null \

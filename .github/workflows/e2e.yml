@@ -71,7 +71,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     needs: [e2e-cloud]
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -83,7 +82,6 @@ jobs:
 
       - name: E2E OIDC
         env:
-          APP_JWT_ISSUER_URI: http://host.docker.internal:8180/realms/platform
           COMPOSE_FILE: docker-compose.yml:docker-compose.ci-oidc.yml
         run: |
           chmod +x gradlew scripts/ci.sh scripts/platform-smoke-oidc.sh
@@ -91,4 +89,6 @@ jobs:
 
       - name: Tear down
         if: always()
+        env:
+          COMPOSE_FILE: docker-compose.yml:docker-compose.ci-oidc.yml
         run: ./scripts/ci.sh e2e-down || true

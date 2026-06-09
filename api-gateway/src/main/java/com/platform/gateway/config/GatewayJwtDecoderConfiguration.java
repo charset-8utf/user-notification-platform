@@ -27,9 +27,9 @@ public class GatewayJwtDecoderConfiguration {
     @Bean
     ReactiveJwtDecoder reactiveJwtDecoder(GatewayJwtProperties properties) {
         if (properties.oidcEnabled()) {
-            NimbusReactiveJwtDecoder decoder = NimbusReactiveJwtDecoder
-                    .withIssuerLocation(properties.issuerUri())
-                    .build();
+            NimbusReactiveJwtDecoder decoder = hasJwkSetUri(properties)
+                    ? NimbusReactiveJwtDecoder.withJwkSetUri(properties.jwkSetUri()).build()
+                    : NimbusReactiveJwtDecoder.withIssuerLocation(properties.issuerUri()).build();
             decoder.setJwtValidator(composeValidators(properties.issuerUri(), properties.issuer()));
             return decoder;
         }
@@ -48,15 +48,19 @@ public class GatewayJwtDecoderConfiguration {
         return decoder;
     }
 
+    private static boolean hasJwkSetUri(GatewayJwtProperties properties) {
+        return properties.jwkSetUri() != null && !properties.jwkSetUri().isBlank();
+    }
+
     private static OAuth2TokenValidator<Jwt> composeValidators(String issuerUri, String expectedIssuer) {
         List<OAuth2TokenValidator<Jwt>> validators = new ArrayList<>();
         if (issuerUri != null && !issuerUri.isBlank()) {
             validators.add(JwtValidators.createDefaultWithIssuer(issuerUri));
         } else {
             validators.add(JwtValidators.createDefault());
-        }
-        if (expectedIssuer != null && !expectedIssuer.isBlank()) {
-            validators.add(new JwtClaimValidator<>("iss", expectedIssuer::equals));
+            if (expectedIssuer != null && !expectedIssuer.isBlank()) {
+                validators.add(new JwtClaimValidator<>("iss", expectedIssuer::equals));
+            }
         }
         return new DelegatingOAuth2TokenValidator<>(validators);
     }
