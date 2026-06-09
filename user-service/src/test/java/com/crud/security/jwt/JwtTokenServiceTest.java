@@ -49,7 +49,8 @@ class JwtTokenServiceTest {
                 .build();
         JwtEncoder encoder = new NimbusJwtEncoder(new ImmutableJWKSet<>(new JWKSet(jwk)));
         JwtDecoder decoder = NimbusJwtDecoder.withSecretKey(new SecretKeySpec(secretBytes, "HmacSHA256")).build();
-        JwtProperties properties = new JwtProperties(SECRET, "user-service", Duration.ofMinutes(15), Duration.ofDays(1));
+        JwtProperties properties = new JwtProperties(
+                SECRET, "user-service", null, null, Duration.ofMinutes(15), Duration.ofDays(1));
         jwtTokenService = new JwtTokenService(encoder, properties, refreshTokenStore);
         assertThat(decoder).isNotNull();
     }
