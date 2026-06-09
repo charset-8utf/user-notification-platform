@@ -76,3 +76,5 @@ app:
   security:
     jwt:
       secret: ${APP_JWT_SECRET:dev-jwt-secret-change-in-production-min-32-chars}
+      issuer: ${APP_JWT_ISSUER:user-service}
+      issuer-uri: ${APP_JWT_ISSUER_URI:}
