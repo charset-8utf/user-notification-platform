@@ -2,21 +2,56 @@
 
 Пайплайн описан в [`.gitlab-ci.yml`](../.gitlab-ci.yml).
 
-Репозиторий на GitHub: для GitLab CI настройте **зеркало** (push) или импорт из GitHub.
+Репозиторий на GitHub: для GitLab CI настройте **push** в GitLab (импорт из GitHub даёт старый снимок — после изменений на GitHub нужен `git push`).
 
-## Зеркало GitHub → GitLab
+## Первый запуск (один раз)
 
-1. Создайте пустой проект на GitLab: `charset-8utf/user-notification-platform`
-2. Добавьте SSH deploy key / свой ключ в GitLab
-3. Push ветки `main`:
+### 1. SSH-ключ в GitLab
+
+На машине, с которой пушите (тот же ключ, что для GitHub, если удобно):
+
+```bash
+cat ~/.ssh/id_ed25519.pub
+ssh -T git@gitlab.com   # после добавления ключа: Welcome to GitLab, @username!
+```
+
+В GitLab: **Preferences → SSH Keys** (или **User Settings → SSH Keys**) → вставить публичный ключ → **Add key**.
+
+Для push в проект нужен ключ **пользователя** с правом **Maintainer/Developer**, не только Deploy Key (deploy key — read-only, если не включить write).
+
+### 2. Проект и default branch
+
+- Проект: `charset-8utf/user-notification-platform` (или свой namespace — тогда задайте `GITLAB_URL` при push)
+- **Settings → Repository → Default branch** → `main`
+
+### 3. Shared runners
+
+В `.gitlab-ci.yml` указано `tags: [docker]`. Нужны **shared runners** с Docker (GitLab.com SaaS обычно даёт их по умолчанию).
+
+**Settings → CI/CD → Runners** — убедитесь, что есть активный shared runner.
+
+### 4. Push `main` и pipeline
 
 ```bash
 chmod +x scripts/push-gitlab-mirror.sh
 ./scripts/push-gitlab-mirror.sh main
-# или: GITLAB_URL=git@gitlab.com:<group>/<project>.git ./scripts/push-gitlab-mirror.sh main
 ```
 
-4. В GitLab: **Settings → Repository → Mirroring repositories** (опционально pull-зеркало с GitHub)
+Проверка: **CI/CD → Pipelines** — ожидаемая цепочка на `main`:
+
+`verify` → `e2e-legacy` / `e2e-cloud` / `e2e-oidc` / `helm-lint` → `build-images` → `gitleaks` / `trivy-images` → `publish`
+
+`deploy:staging` и `deploy:production` — **manual** (нужен `KUBECONFIG` в CI/CD Variables).
+
+### 5. Другой URL проекта
+
+```bash
+GITLAB_URL=git@gitlab.com:<group>/<project>.git ./scripts/push-gitlab-mirror.sh main
+```
+
+## Зеркало GitHub → GitLab (опционально)
+
+**Settings → Repository → Mirroring repositories** — pull-зеркало с GitHub (автосинхронизация без локального push).
 
 После push pipeline стартует автоматически по `.gitlab-ci.yml` (jobs на `$CI_DEFAULT_BRANCH`, обычно `main`).
 

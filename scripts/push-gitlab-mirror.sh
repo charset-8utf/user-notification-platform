@@ -19,6 +19,15 @@ fi
 if [[ "${GITLAB_URL}" == git@gitlab.com:* ]]; then
   mkdir -p ~/.ssh
   ssh-keyscan -t ed25519,rsa gitlab.com >> ~/.ssh/known_hosts 2>/dev/null || true
+  if ! ssh -o BatchMode=yes -o ConnectTimeout=10 -T git@gitlab.com 2>&1 | grep -qi welcome; then
+    cat <<MSG
+ERROR: SSH to gitlab.com failed (Permission denied).
+Add your public key in GitLab: Preferences → SSH Keys
+  cat ~/.ssh/id_ed25519.pub
+Then retry: $0 ${BRANCH}
+MSG
+    exit 1
+  fi
 fi
 
 echo "Pushing ${BRANCH} to ${GITLAB_REMOTE}..."
