@@ -19,6 +19,10 @@ subprojects {
     apply(plugin = "java")
     apply(plugin = "io.spring.dependency-management")
 
+    // Trivy: CVE в transitive deps (netty, tomcat, bouncycastle)
+    extra["netty.version"] = "4.2.15.Final"
+    extra["tomcat.version"] = "11.0.22"
+
     java {
         toolchain {
             languageVersion.set(JavaLanguageVersion.of(21))
@@ -31,6 +35,7 @@ subprojects {
             mavenBom("org.springframework.cloud:spring-cloud-dependencies:2025.1.1")
         }
         dependencies {
+            dependency("org.bouncycastle:bcprov-jdk18on:1.84")
             dependency("io.github.resilience4j:resilience4j-spring-boot4:2.4.0")
             dependency("org.wiremock:wiremock-standalone:3.10.0")
             dependency("org.testcontainers:testcontainers-postgresql:2.0.5")
