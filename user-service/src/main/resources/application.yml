@@ -1,0 +1,136 @@
+spring:
+  application:
+    name: user-service
+
+  config:
+    import:
+      - optional:configserver:http://${CONFIG_SERVER_HOST:localhost}:${CONFIG_SERVER_PORT:8888}
+      - optional:classpath:platform/tracing-defaults.yml
+
+  cloud:
+    config:
+      fail-fast: ${CONFIG_FAIL_FAST:false}
+      label: ${CONFIG_LABEL:main}
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:kafka,redis}
+
+  docker:
+    compose:
+      enabled: false
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/userdb}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: HikariPool
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 30000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+      register-mbeans: true
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+        javax:
+          cache:
+            provider: com.github.benmanes.caffeine.jcache.spi.CaffeineCachingProvider
+            missing_cache_strategy: create
+
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+server:
+  port: 8443
+  ssl:
+    enabled: true
+    key-store: classpath:keystore.p12
+    key-store-password: ${KEYSTORE_PASSWORD:changeit}
+    key-store-type: PKCS12
+    key-alias: user-service
+    protocol: TLS
+    enabled-protocols: TLSv1.2,TLSv1.3
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  info:
+    env:
+      enabled: true
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState,ping
+        readiness:
+          include: readinessState,db
+  health:
+    db:
+      enabled: true
+    diskspace:
+      enabled: true
+
+app:
+  rate-limit:
+    max-requests: 20
+    window-seconds: 60
+  seed:
+    admin-password: ${APP_SEED_ADMIN_PASSWORD:}
+    user-password: ${APP_SEED_USER_PASSWORD:}
+  kafka:
+    security:
+      enabled: ${APP_KAFKA_SECURITY_ENABLED:false}
+  notification:
+    kafka:
+      topic: ${APP_NOTIFICATION_KAFKA_TOPIC:user-notifications}
+      partitions: ${APP_NOTIFICATION_KAFKA_PARTITIONS:3}
+      replicas: ${APP_NOTIFICATION_KAFKA_REPLICAS:1}
+      outbox:
+        relay-interval-ms: ${APP_NOTIFICATION_OUTBOX_RELAY_MS:1000}
+        batch-size: ${APP_NOTIFICATION_OUTBOX_BATCH_SIZE:50}
+      compensation-topic: ${APP_NOTIFICATION_COMPENSATION_TOPIC:notification-compensations}
+      compensation-consumer-group: user-service-compensation
+  cache:
+    redis:
+      ttl: ${APP_CACHE_REDIS_TTL:PT1H}
+
+logging:
+  level:
+    root: INFO
+    com.crud: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+info:
+  application:
+    name: ${spring.application.name}
+    description: REST user service (Spring Boot)
