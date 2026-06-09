@@ -1,5 +1,7 @@
 package com.crud.service;
 
+import com.crud.entity.NotificationDeliveryStatus;
+
 import com.crud.cache.UserCachePort;
 import com.crud.dto.UserRequest;
 import com.crud.dto.UserResponse;
@@ -102,7 +104,7 @@ class UserServiceEdgeCasesTest {
         user.setCreatedAt(LocalDateTime.now());
 
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
-        when(userMapper.toResponse(user)).thenReturn(new UserResponse(1L, "Test", email, 25, LocalDateTime.now()));
+        when(userMapper.toResponse(user)).thenReturn(new UserResponse(1L, "Test", email, 25, NotificationDeliveryStatus.PENDING, LocalDateTime.now()));
 
         UserResponse result = userService.findUserByEmail(email);
 
