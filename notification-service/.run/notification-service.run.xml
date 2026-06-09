@@ -1,0 +1,10 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="notification-service" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <module name="user-notification-platform.notification-service.main" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="com.notification.NotificationServiceApplication" />
+    <option name="VM_PARAMETERS" value="-Dfile.encoding=UTF-8" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
