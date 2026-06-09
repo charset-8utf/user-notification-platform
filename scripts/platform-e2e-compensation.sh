@@ -32,12 +32,11 @@ USER_ID=$(echo "${CREATE}" | sed -n 's/.*"id":\([0-9]*\).*/\1/p')
 [ -n "${USER_ID}" ] && pass "user created id=${USER_ID}" || fail "user created"
 
 DLT_PAYLOAD="{\"eventId\":\"${EVENT_ID}\",\"operation\":\"USER_CREATED\",\"email\":\"${UNIQUE_EMAIL}\"}"
-echo "${EVENT_ID}:${DLT_PAYLOAD}" | docker exec -i "${KAFKA_CONTAINER}" \
+printf '%s\n' "${DLT_PAYLOAD}" | docker exec -i "${KAFKA_CONTAINER}" \
   kafka-console-producer \
   --bootstrap-server kafka:29092 \
   --topic user-notifications.DLT \
-  --property "parse.key=true" \
-  --property "key.separator=:" \
+  --property "parse.key=false" \
   >/dev/null
 pass "DLT event published"
 
