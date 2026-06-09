@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-GATEWAY="${GATEWAY_HTTP:-http://localhost:18080}"
-BFF="${BFF_HTTP:-http://localhost:18090}"
+GATEWAY="${GATEWAY_HTTP:-http://localhost}"
+BFF="${BFF_HTTP:-http://localhost}"
 ADMIN_USER="${ADMIN_USER:-admin}"
 ADMIN_PASS="${ADMIN_PASS:-admin123}"
 
