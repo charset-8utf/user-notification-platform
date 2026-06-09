@@ -76,7 +76,7 @@ cmd_e2e_cloud_up() {
   docker compose --profile cloud up -d --build
   wait_container_healthy unp-user-service "$(ci_health_wait_max)"
   wait_container_healthy unp-notification-service "$(ci_health_wait_max)"
-  wait_container_healthy unp-nginx "$(ci_health_wait_max)"
+  wait_container_healthy unp-nginx 30
   wait_http "http://localhost/actuator/health" "$(ci_health_wait_max)"
 }
 
