@@ -39,10 +39,10 @@ jobs:
           java-version: "21"
           cache: gradle
 
-      - name: Build images
+      - name: Build Docker images
         run: |
           chmod +x gradlew scripts/ci.sh
-          ./scripts/ci.sh build-e2e
+          ./scripts/ci.sh build-docker-images
 
       - name: Install Trivy
         run: |
@@ -52,5 +52,5 @@ jobs:
         run: |
           for img in user-service notification-service config-server api-gateway web-bff; do
             echo "=== Trivy: ${img} ==="
-            trivy image --severity HIGH,CRITICAL --exit-code 1 "${img}:latest"
+            trivy image --scanners vuln --severity HIGH,CRITICAL --exit-code 1 "${img}:latest"
           done

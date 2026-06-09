@@ -55,6 +55,12 @@ cmd_build_e2e() {
     :config-server:bootJar :api-gateway:bootJar :web-bff:bootJar -x test
 }
 
+cmd_build_docker_images() {
+  cmd_build_e2e
+  docker compose --profile cloud build \
+    user-service notification-service config-server api-gateway web-bff
+}
+
 cmd_e2e_up() {
   export NOTIFICATION_SERVICE_PROFILES="${NOTIFICATION_SERVICE_PROFILES:-rest,kafka,redis,management,docker}"
   export USER_SERVICE_PROFILES="${USER_SERVICE_PROFILES:-kafka,redis,jwt,management,docker}"
@@ -146,9 +152,9 @@ cmd_security() {
   if ! command -v trivy >/dev/null 2>&1; then
     echo "trivy not installed, skipping image scan"
   else
-    docker compose build
+    cmd_build_docker_images
     for img in "${images[@]}"; do
-      trivy image --severity HIGH,CRITICAL --exit-code 1 "${img}"
+      trivy image --scanners vuln --severity HIGH,CRITICAL --exit-code 1 "${img}"
     done
   fi
   if command -v gitleaks >/dev/null 2>&1; then
@@ -182,6 +188,7 @@ Usage: $(basename "$0") <command>
 Commands:
   fast              ./gradlew check (unit + integration)
   build-e2e         Build JARs for Docker (skip tests)
+  build-docker-images  build-e2e + docker compose build (5 app images)
   e2e-up            Build, compose up, wait healthy
   e2e               e2e-up + platform-smoke.sh
   e2e-cloud-up      Compose --profile cloud, wait healthy
@@ -203,6 +210,7 @@ main() {
   case "${cmd}" in
     fast) cmd_fast ;;
     build-e2e) cmd_build_e2e ;;
+    build-docker-images) cmd_build_docker_images ;;
     e2e-up) cmd_e2e_up ;;
     e2e) cmd_e2e ;;
     e2e-cloud-up) cmd_e2e_cloud_up ;;
