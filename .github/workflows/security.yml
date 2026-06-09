@@ -1,0 +1,56 @@
+name: Security
+
+on:
+  push:
+    branches: [main, develop, microservice-feature]
+  pull_request:
+    branches: [main, develop, microservice-feature]
+  schedule:
+    - cron: "0 3 * * 1"
+
+jobs:
+  gitleaks:
+    name: Gitleaks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz \
+            | tar -xz -C /usr/local/bin gitleaks
+
+      - name: Run Gitleaks
+        run: gitleaks detect --source . --verbose --config .gitleaks.toml
+
+  trivy-images:
+    name: Trivy images
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Build images
+        run: |
+          chmod +x gradlew scripts/ci.sh
+          ./scripts/ci.sh build-e2e
+
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Scan images
+        run: |
+          for img in user-service notification-service config-server api-gateway web-bff; do
+            echo "=== Trivy: ${img} ==="
+            trivy image --severity HIGH,CRITICAL --exit-code 1 "${img}:latest"
+          done
