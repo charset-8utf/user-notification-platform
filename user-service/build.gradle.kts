@@ -34,6 +34,7 @@ dependencies {
     implementation("org.springframework.cloud:spring-cloud-starter-loadbalancer")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
+    implementation(libs.springdoc.webmvc)
     compileOnly("org.springframework.boot:spring-boot-configuration-processor")
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
     implementation(libs.jspecify)
@@ -67,6 +68,7 @@ tasks.jacocoTestReport {
 
 tasks.jacocoTestCoverageVerification {
     dependsOn(tasks.jacocoTestReport)
+    executionData.setFrom(fileTree(layout.buildDirectory.dir("jacoco")).include("*.exec"))
     violationRules {
         rule {
             element = "BUNDLE"
@@ -85,6 +87,16 @@ tasks.jacocoTestCoverageVerification {
             }
         }
     }
+}
+
+tasks.named<Test>("test") {
+    exclude("**/*IntegrationTest*")
+    exclude("**/*E2ETest*")
+    exclude("**/*ContractIntegrationTest*")
+}
+
+tasks.named<Test>("integrationTest") {
+    maxParallelForks = 1
 }
 
 tasks.check {

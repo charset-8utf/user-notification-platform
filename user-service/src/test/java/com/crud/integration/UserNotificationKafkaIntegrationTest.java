@@ -2,7 +2,11 @@ package com.crud.integration;
 
 import com.crud.dto.UserRequest;
 import com.crud.dto.UserResponse;
+import com.crud.entity.NotificationDeliveryStatus;
+import com.crud.entity.User;
 import com.crud.notification.UserNotificationOperation;
+import com.crud.notification.compensation.NotificationCompensationEvent;
+import com.crud.repository.UserRepository;
 import com.crud.support.JwtAuthTestSupport;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -13,6 +17,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpEntity;
@@ -32,6 +37,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -47,7 +53,7 @@ class UserNotificationKafkaIntegrationTest {
 
     @Container
     static final ConfluentKafkaContainer KAFKA =
-            new ConfluentKafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.1"));
+            new ConfluentKafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.5.0"));
 
     static final GenericContainer<?> REDIS = startRedisContainer();
 
@@ -73,6 +79,33 @@ class UserNotificationKafkaIntegrationTest {
 
     @Autowired
     ObjectMapper objectMapper;
+
+    @Autowired
+    KafkaTemplate<String, Object> kafkaTemplate;
+
+    @Autowired
+    UserRepository userRepository;
+
+    @Test
+    void compensationEventMarksUserAsFailed() {
+        String email = "comp-" + UUID.randomUUID() + "@example.com";
+        userRepository.save(User.builder().name("Comp User").email(email).age(30).build());
+
+        NotificationCompensationEvent event = new NotificationCompensationEvent(
+                UUID.randomUUID(),
+                UserNotificationOperation.USER_CREATED,
+                email,
+                "smtp timeout",
+                Instant.now());
+        kafkaTemplate.send("notification-compensations", event.email(), event);
+
+        await().atMost(Duration.ofSeconds(15)).untilAsserted(() ->
+                assertThat(userRepository.findByEmail(email))
+                        .isPresent()
+                        .get()
+                        .extracting(User::getNotificationDeliveryStatus)
+                        .isEqualTo(NotificationDeliveryStatus.FAILED));
+    }
 
     @Test
     void createUser_ShouldWriteRedisAndPublishUserCreated() {

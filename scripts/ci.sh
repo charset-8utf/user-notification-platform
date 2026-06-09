@@ -68,12 +68,46 @@ cmd_e2e_cloud_up() {
   docker compose --profile cloud up -d --build
   wait_container_healthy unp-user-service 60
   wait_container_healthy unp-notification-service 60
-  wait_http "http://localhost:8080/actuator/health" 60
+  wait_container_healthy unp-nginx 30
+  wait_http "http://localhost/actuator/health" 60
 }
 
 cmd_e2e_cloud() {
   cmd_e2e_cloud_up
-  ./scripts/platform-smoke-cloud.sh
+  GATEWAY_HTTP="${GATEWAY_HTTP:-http://localhost}" BFF_HTTP="${BFF_HTTP:-http://localhost}" \
+    ./scripts/platform-smoke-cloud.sh
+}
+
+cmd_e2e_cross() {
+  cmd_e2e_cloud_up
+  GATEWAY_HTTP="${GATEWAY_HTTP:-http://localhost}" \
+    ./scripts/platform-e2e-cross-service.sh
+}
+
+cmd_e2e_compensation() {
+  cmd_e2e_cloud_up
+  GATEWAY_HTTP="${GATEWAY_HTTP:-http://localhost}" \
+    ./scripts/platform-e2e-compensation.sh
+}
+
+cmd_e2e_oidc_up() {
+  export USER_SERVICE_PROFILES="${USER_SERVICE_PROFILES:-kafka,redis,jwt,management,docker,cloud}"
+  export NOTIFICATION_SERVICE_PROFILES="${NOTIFICATION_SERVICE_PROFILES:-rest,kafka,redis,management,docker,cloud}"
+  export APP_JWT_ISSUER_URI="${APP_JWT_ISSUER_URI:-http://host.docker.internal:8180/realms/platform}"
+  cmd_build_e2e
+  docker compose --profile cloud --profile auth up -d --build
+  wait_container_healthy unp-user-service 60
+  wait_container_healthy unp-notification-service 60
+  wait_container_healthy unp-nginx 30
+  wait_http "http://localhost:8180/realms/platform" 90
+  wait_http "http://localhost/actuator/health" 60
+}
+
+cmd_e2e_oidc() {
+  cmd_e2e_oidc_up
+  GATEWAY_HTTP="${GATEWAY_HTTP:-http://localhost}" \
+    KEYCLOAK_HTTP="${KEYCLOAK_HTTP:-http://localhost:8180}" \
+    ./scripts/platform-smoke-oidc.sh
 }
 
 cmd_observability_up() {
@@ -87,7 +121,8 @@ cmd_observability_up() {
 }
 
 cmd_e2e_down() {
-  docker compose --profile cloud --profile observability down -v --remove-orphans 2>/dev/null || \
+  docker compose --profile cloud --profile auth --profile observability down -v --remove-orphans 2>/dev/null || \
+    docker compose --profile cloud --profile observability down -v --remove-orphans 2>/dev/null || \
     docker compose --profile cloud down -v --remove-orphans 2>/dev/null || \
     docker compose down -v --remove-orphans
 }
@@ -115,9 +150,19 @@ cmd_security() {
   fi
 }
 
+cmd_e2e_cloud_suite() {
+  cmd_e2e_cloud_up
+  local gateway="${GATEWAY_HTTP:-http://localhost}"
+  local bff="${BFF_HTTP:-http://localhost}"
+  GATEWAY_HTTP="${gateway}" BFF_HTTP="${bff}" ./scripts/platform-smoke-cloud.sh
+  GATEWAY_HTTP="${gateway}" ./scripts/platform-e2e-cross-service.sh
+  GATEWAY_HTTP="${gateway}" ./scripts/platform-e2e-compensation.sh
+}
+
 cmd_full() {
   cmd_fast
   cmd_e2e
+  cmd_e2e_cloud_suite
   cmd_e2e_down
   cmd_security
 }
@@ -133,10 +178,15 @@ Commands:
   e2e               e2e-up + platform-smoke.sh
   e2e-cloud-up      Compose --profile cloud, wait healthy
   e2e-cloud         e2e-cloud-up + platform-smoke-cloud.sh
+  e2e-cross         cloud stack + cross-service E2E
+  e2e-compensation  cloud stack + compensation E2E
+  e2e-oidc-up       cloud + auth profile, wait Keycloak
+  e2e-oidc          e2e-oidc-up + platform-smoke-oidc.sh
+  e2e-cloud-suite   smoke-cloud + e2e-cross + e2e-compensation
   observability-up  compose cloud + observability, wait prometheus
   e2e-down          Stop compose and remove volumes
   security          Trivy (fail on HIGH/CRITICAL) + gitleaks
-  full              fast + e2e + e2e-down + security
+  full              fast + e2e + cloud suite + e2e-down + security
 EOF
 }
 
@@ -149,6 +199,11 @@ main() {
     e2e) cmd_e2e ;;
     e2e-cloud-up) cmd_e2e_cloud_up ;;
     e2e-cloud) cmd_e2e_cloud ;;
+    e2e-cross) cmd_e2e_cross ;;
+    e2e-compensation) cmd_e2e_compensation ;;
+    e2e-oidc-up) cmd_e2e_oidc_up ;;
+    e2e-oidc) cmd_e2e_oidc ;;
+    e2e-cloud-suite) cmd_e2e_cloud_suite ;;
     observability-up) cmd_observability_up ;;
     e2e-down) cmd_e2e_down ;;
     security) cmd_security ;;

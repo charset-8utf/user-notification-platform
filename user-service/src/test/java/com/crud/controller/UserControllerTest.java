@@ -1,5 +1,7 @@
 package com.crud.controller;
 
+import com.crud.entity.NotificationDeliveryStatus;
+
 import com.crud.config.SecurityConfig;
 import com.crud.config.WebMvcTestSecuritySupport;
 import tools.jackson.databind.json.JsonMapper;
@@ -45,7 +47,7 @@ class UserControllerTest {
     @Test
     void createUser_ShouldReturn201() throws Exception {
         UserRequest request = new UserRequest("John", "john@test.com", 30);
-        UserResponse response = new UserResponse(1L, "John", "john@test.com", 30, LocalDateTime.now());
+        UserResponse response = new UserResponse(1L, "John", "john@test.com", 30, NotificationDeliveryStatus.PENDING, LocalDateTime.now());
 
         when(userService.createUser(any(UserRequest.class))).thenReturn(response);
 
@@ -72,7 +74,7 @@ class UserControllerTest {
 
     @Test
     void findUserById_ShouldReturn200() throws Exception {
-        UserResponse response = new UserResponse(1L, "Jane", "jane@test.com", 25, LocalDateTime.now());
+        UserResponse response = new UserResponse(1L, "Jane", "jane@test.com", 25, NotificationDeliveryStatus.PENDING, LocalDateTime.now());
 
         when(userService.findUserById(1L)).thenReturn(response);
 
@@ -91,7 +93,7 @@ class UserControllerTest {
 
     @Test
     void findAllUsers_ShouldReturn200() throws Exception {
-        UserResponse response = new UserResponse(1L, "John", "john@test.com", 30, LocalDateTime.now());
+        UserResponse response = new UserResponse(1L, "John", "john@test.com", 30, NotificationDeliveryStatus.PENDING, LocalDateTime.now());
         when(userService.findAllUsers(any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(response)));
 
@@ -105,7 +107,7 @@ class UserControllerTest {
     @Test
     void updateUser_ShouldReturn200() throws Exception {
         UserRequest request = new UserRequest("Updated", "updated@test.com", 35);
-        UserResponse response = new UserResponse(1L, "Updated", "updated@test.com", 35, LocalDateTime.now());
+        UserResponse response = new UserResponse(1L, "Updated", "updated@test.com", 35, NotificationDeliveryStatus.PENDING, LocalDateTime.now());
 
         when(userService.updateUser(anyLong(), any(UserRequest.class))).thenReturn(response);
 
@@ -126,7 +128,7 @@ class UserControllerTest {
 
     @Test
     void findUserByEmail_ShouldReturn200() throws Exception {
-        UserResponse response = new UserResponse(1L, "John", "john@test.com", 30, LocalDateTime.now());
+        UserResponse response = new UserResponse(1L, "John", "john@test.com", 30, NotificationDeliveryStatus.PENDING, LocalDateTime.now());
 
         when(userService.findUserByEmail("john@test.com")).thenReturn(response);
 
@@ -138,7 +140,7 @@ class UserControllerTest {
 
     @Test
     void searchUsers_ShouldReturn200() throws Exception {
-        UserResponse response = new UserResponse(1L, "John", "john@gmail.com", 30, LocalDateTime.now());
+        UserResponse response = new UserResponse(1L, "John", "john@gmail.com", 30, NotificationDeliveryStatus.PENDING, LocalDateTime.now());
 
         when(userService.searchUsersByEmail(eq("gmail"), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(response)));

@@ -1,10 +1,13 @@
 package com.notification.config;
 
+import com.notification.security.ApiKeyAuthenticationFilter;
+import com.notification.security.ApiKeyProperties;
 import com.notification.security.SecurityJsonErrorWriter;
 import com.notification.security.ServiceJwtAuthorities;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -15,16 +18,19 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableWebSecurity
+@EnableConfigurationProperties(ApiKeyProperties.class)
 @RequiredArgsConstructor
 @Slf4j
 public class SecurityConfig {
 
     private final SecurityJsonErrorWriter securityJsonErrorWriter;
     private final ServiceJwtAuthorities serviceJwtAuthorities;
+    private final ApiKeyProperties apiKeyProperties;
 
     @Bean
     @Order(1)
@@ -67,7 +73,11 @@ public class SecurityConfig {
             JwtAuthenticationConverter serviceJwtAuthenticationConverter
     ) {
         http.securityMatcher(request -> !request.getRequestURI().startsWith("/api/notifications/logs"))
-                .csrf(AbstractHttpConfigurer::disable)
+                .csrf(AbstractHttpConfigurer::disable);
+        if (apiKeyProperties.enabled()) {
+            http.addFilterBefore(new ApiKeyAuthenticationFilter(apiKeyProperties), BearerTokenAuthenticationFilter.class);
+        }
+        http
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth

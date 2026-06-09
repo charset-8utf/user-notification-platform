@@ -25,9 +25,9 @@ variables:
   IMAGE_TAG: "${CI_COMMIT_SHORT_SHA}"
   HELM_RELEASE: platform
   HELM_NAMESPACE: platform
-  # Smoke defaults (K8s kind NodePort mapping)
-  GATEWAY_HTTP: "http://localhost:18080"
-  BFF_HTTP: "http://localhost:18090"
+  # Smoke: nginx ingress (Docker Desktop / ingress-nginx) — override for kind NodePort if needed
+  GATEWAY_HTTP: "http://localhost"
+  BFF_HTTP: "http://localhost"
 
 stages:
   - verify
@@ -176,10 +176,31 @@ e2e-cloud:
     APP_SEED_USER_PASSWORD: user123
   script:
     - apk add --no-cache bash curl
-    - chmod +x gradlew scripts/ci.sh scripts/platform-smoke-cloud.sh
-    - ./scripts/ci.sh e2e-cloud
+    - chmod +x gradlew scripts/ci.sh scripts/platform-smoke-cloud.sh \
+      scripts/platform-e2e-cross-service.sh scripts/platform-e2e-compensation.sh
+    - ./scripts/ci.sh e2e-cloud-suite
   after_script:
     - ./scripts/ci.sh e2e-down || true
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+e2e-oidc:
+  stage: test
+  <<: *docker-job
+  needs: ["verify"]
+  variables:
+    APP_SERVICE_JWT_SECRET: e2e-smoke-service-jwt-secret-minimum-32b
+    APP_SEED_ADMIN_PASSWORD: admin123
+    APP_SEED_USER_PASSWORD: user123
+    APP_JWT_ISSUER_URI: http://host.docker.internal:8180/realms/platform
+  script:
+    - apk add --no-cache bash curl
+    - chmod +x gradlew scripts/ci.sh scripts/platform-smoke-oidc.sh
+    - ./scripts/ci.sh e2e-oidc
+  after_script:
+    - ./scripts/ci.sh e2e-down || true
+  allow_failure: true
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
@@ -282,10 +303,16 @@ ct:smoke-compose:
   stage: ct
   <<: *docker-job
   needs: ["e2e-cloud"]
+  variables:
+    APP_SERVICE_JWT_SECRET: e2e-smoke-service-jwt-secret-minimum-32b
+    APP_SEED_ADMIN_PASSWORD: admin123
+    APP_SEED_USER_PASSWORD: user123
   script:
     - apk add --no-cache bash curl
-    - chmod +x scripts/platform-smoke-cloud.sh
-    - ./scripts/platform-smoke-cloud.sh
+    - chmod +x scripts/ci.sh scripts/platform-smoke-cloud.sh
+    - ./scripts/ci.sh e2e-cloud
+  after_script:
+    - ./scripts/ci.sh e2e-down || true
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: on_success

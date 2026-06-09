@@ -35,14 +35,17 @@ platform:
 
 edge:
   enabled: true
+  serviceType: NodePort
   apiGateway:
     image: api-gateway
     tag: latest
     port: 8080
+    nodePort: 30080
   webBff:
     image: web-bff
     tag: latest
     port: 8090
+    nodePort: 30090
   ingress:
     enabled: false
     className: ""
@@ -59,3 +62,48 @@ secrets:
   appServiceJwtSecret: dev-service-jwt-secret-change-in-production-min-32b
   seedAdminPassword: admin123
   seedUserPassword: user123
+
+externalSecrets:
+  enabled: false
+  refreshInterval: 1h
+  secretStoreKind: ClusterSecretStore
+  secretStoreName: vault-backend
+  remoteKey: platform/dev
+
+externalDatabase:
+  postgres:
+    host: ""
+    port: 5432
+    user: postgres
+    password: ""
+    database: userdb
+  mongo:
+    uri: ""
+
+autoscaling:
+  api-gateway:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCpuUtilization: 75
+  user-service:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 4
+    targetCpuUtilization: 75
+  notification-service:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 4
+    targetCpuUtilization: 75
+
+certManager:
+  createClusterIssuer: false
+  clusterIssuerName: letsencrypt-staging
+  acmeServer: https://acme-staging-v02.api.letsencrypt.org/directory
+  acmeEmail: dev@example.com
+
+auth:
+  oidc:
+    enabled: false
+    issuerUri: ""

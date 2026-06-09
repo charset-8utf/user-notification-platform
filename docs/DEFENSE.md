@@ -18,7 +18,7 @@ JWT login → create user → Mailpit → метрики Prometheus.
 make ci-e2e-cloud
 ```
 
-Login через `http://localhost:8080`, `GET /bff/me` на `:8090`.
+Login через nginx `http://localhost`, `GET /bff/me`.
 
 ## 4. DevOps (1 мин)
 
@@ -29,7 +29,7 @@ Login через `http://localhost:8080`, `GET /bff/me` на `:8090`.
 ## 5. Kubernetes (2 мин)
 
 ```bash
-make k8s-create
+make k8s-up
 make k8s-install
 make k8s-smoke
 ```

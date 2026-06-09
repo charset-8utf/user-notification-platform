@@ -64,6 +64,9 @@ app:
     security:
       enabled: ${APP_KAFKA_SECURITY_ENABLED:false}
   security:
+    api-key:
+      enabled: ${APP_API_KEY_ENABLED:false}
+      keys: ${APP_API_KEYS:}
     jwt:
       secret: ${APP_JWT_SECRET:dev-jwt-secret-change-in-production-min-32-chars}
       issuer: ${APP_JWT_ISSUER:user-service}
@@ -85,6 +88,10 @@ app:
       dlt-suffix: ".DLT"
       dlt-listener-group: notification-service-dlt
       compensation-topic: notification-compensations
+      inbox:
+        batch-size: ${APP_NOTIFICATION_KAFKA_INBOX_BATCH_SIZE:50}
+        relay-interval-ms: ${APP_NOTIFICATION_KAFKA_INBOX_RELAY_INTERVAL_MS:1000}
+        failed-replay-interval-ms: ${APP_NOTIFICATION_KAFKA_INBOX_FAILED_REPLAY_INTERVAL_MS:30000}
       retry:
         max-attempts: 3
         backoff-ms: 1000

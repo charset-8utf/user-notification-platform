@@ -2,6 +2,7 @@ package com.crud.mapper;
 
 import com.crud.dto.UserRequest;
 import com.crud.dto.UserResponse;
+import com.crud.entity.NotificationDeliveryStatus;
 import com.crud.entity.User;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
@@ -39,6 +40,7 @@ class UserMapperTest {
                 .build();
         entity.setId(1L);
         entity.setCreatedAt(createdAt);
+        entity.setNotificationDeliveryStatus(NotificationDeliveryStatus.FAILED);
 
         UserResponse response = userMapper.toResponse(entity);
 
@@ -47,6 +49,7 @@ class UserMapperTest {
         assertThat(response.name()).isEqualTo("Jane Doe");
         assertThat(response.email()).isEqualTo("jane@example.com");
         assertThat(response.age()).isEqualTo(25);
+        assertThat(response.notificationDeliveryStatus()).isEqualTo(NotificationDeliveryStatus.FAILED);
         assertThat(response.createdAt()).isEqualTo(createdAt);
     }
 

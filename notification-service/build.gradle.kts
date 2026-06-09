@@ -18,6 +18,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
+    implementation(libs.springdoc.webmvc)
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("io.micrometer:micrometer-registry-prometheus")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
@@ -45,6 +46,7 @@ tasks.jacocoTestReport {
 
 tasks.jacocoTestCoverageVerification {
     dependsOn(tasks.jacocoTestReport)
+    executionData.setFrom(fileTree(layout.buildDirectory.dir("jacoco")).include("*.exec"))
     violationRules {
         rule {
             element = "BUNDLE"
@@ -54,6 +56,15 @@ tasks.jacocoTestCoverageVerification {
             }
         }
     }
+}
+
+tasks.named<Test>("test") {
+    exclude("**/*IntegrationTest*")
+    exclude("**/*E2ETest*")
+}
+
+tasks.named<Test>("integrationTest") {
+    maxParallelForks = 1
 }
 
 tasks.check {

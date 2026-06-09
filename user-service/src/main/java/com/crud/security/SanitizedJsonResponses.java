@@ -78,6 +78,7 @@ public class SanitizedJsonResponses {
                 sanitizer.sanitize(response.name()),
                 sanitizer.sanitize(response.email()),
                 response.age(),
+                response.notificationDeliveryStatus(),
                 response.createdAt()
         );
     }

@@ -1,7 +1,7 @@
 package com.notification.kafka;
 
 import com.notification.dto.NotificationEmailRequest;
-import com.notification.service.NotificationService;
+import com.notification.inbox.NotificationInboxService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -10,13 +10,17 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Service;
 
+/**
+ * Принимает события из Kafka и сохраняет в transactional inbox;
+ * доставка выполняется {@link com.notification.inbox.KafkaInboxRelay}.
+ */
 @Service
 @Profile("kafka")
 @RequiredArgsConstructor
 @Slf4j
 public class UserNotificationKafkaConsumer {
 
-    private final NotificationService notificationService;
+    private final NotificationInboxService inboxService;
 
     @KafkaListener(
             topics = "${app.notification.kafka.topic}",
@@ -38,7 +42,7 @@ public class UserNotificationKafkaConsumer {
                 event.operation(),
                 event.email()
         );
-        notificationService.sendEmailNotification(event);
+        inboxService.enqueue(event);
         acknowledgment.acknowledge();
     }
 }

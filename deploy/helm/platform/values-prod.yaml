@@ -4,27 +4,82 @@ global:
 infra:
   enabled: false
 
+externalDatabase:
+  postgres:
+    host: postgres.example.com
+    port: 5432
+    user: platform
+    password: ""  # via ExternalSecret
+    database: userdb
+  mongo:
+    uri: mongodb+srv://user:pass@cluster.example/notification
+
 platform:
   enabled: true
+  userService:
+    env:
+      DB_URL: jdbc:postgresql://postgres.example.com:5432/userdb
+      SPRING_DATA_MONGODB_URI: ""
+  notificationService:
+    env:
+      SPRING_MONGODB_URI: mongodb+srv://user:pass@cluster.example/notification
 
 edge:
   enabled: true
+  insecureSsl: false
+  serviceType: ClusterIP
   ingress:
     enabled: true
     className: nginx
     host: gateway.example.com
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
     tls:
       - hosts:
           - gateway.example.com
         secretName: platform-gateway-tls
 
+autoscaling:
+  api-gateway:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    targetCpuUtilization: 70
+  user-service:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCpuUtilization: 70
+  notification-service:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    targetCpuUtilization: 70
+
+externalSecrets:
+  enabled: true
+  refreshInterval: 1h
+  secretStoreKind: ClusterSecretStore
+  secretStoreName: vault-backend
+  remoteKey: platform/prod
+
+certManager:
+  createClusterIssuer: false
+  clusterIssuerName: letsencrypt-prod
+  acmeServer: https://acme-v02.api.letsencrypt.org/directory
+  acmeEmail: ops@example.com
+
 observability:
-  enabled: false
+  enabled: true
 
 secrets:
-  appJwtSecret: ""  # set via CI/CD secret
+  appJwtSecret: ""
   appServiceJwtSecret: ""
   seedAdminPassword: ""
   seedUserPassword: ""
+
+auth:
+  oidc:
+    enabled: true
+    issuerUri: https://auth.example.com/realms/platform
