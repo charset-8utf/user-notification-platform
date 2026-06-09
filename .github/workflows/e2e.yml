@@ -56,7 +56,7 @@ jobs:
 
       - name: E2E cloud suite
         run: |
-          chmod +x gradlew scripts/ci.sh \
+          chmod +x gradlew scripts/ci.sh scripts/e2e-lib.sh \
             scripts/platform-smoke-cloud.sh \
             scripts/platform-e2e-cross-service.sh \
             scripts/platform-e2e-compensation.sh
