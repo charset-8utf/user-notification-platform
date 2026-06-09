@@ -1,0 +1,94 @@
+name: E2E
+
+on:
+  push:
+    branches: [main, microservice-feature]
+  pull_request:
+    branches: [main, microservice-feature]
+  workflow_dispatch:
+
+env:
+  APP_SERVICE_JWT_SECRET: e2e-smoke-service-jwt-secret-minimum-32b
+  APP_SEED_ADMIN_PASSWORD: admin123
+  APP_SEED_USER_PASSWORD: user123
+  GATEWAY_HTTP: http://localhost
+  BFF_HTTP: http://localhost
+
+jobs:
+  e2e-legacy:
+    name: Legacy smoke (compose)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: E2E legacy
+        env:
+          NOTIFICATION_SERVICE_PROFILES: rest,kafka,redis,management,docker
+          USER_SERVICE_PROFILES: kafka,redis,jwt,management,docker
+        run: |
+          chmod +x gradlew scripts/ci.sh scripts/platform-smoke.sh
+          ./scripts/ci.sh e2e
+
+      - name: Tear down
+        if: always()
+        run: ./scripts/ci.sh e2e-down || true
+
+  e2e-cloud:
+    name: Cloud suite (nginx + cross + compensation)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: [e2e-legacy]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: E2E cloud suite
+        run: |
+          chmod +x gradlew scripts/ci.sh \
+            scripts/platform-smoke-cloud.sh \
+            scripts/platform-e2e-cross-service.sh \
+            scripts/platform-e2e-compensation.sh
+          ./scripts/ci.sh e2e-cloud-suite
+
+      - name: Tear down
+        if: always()
+        run: ./scripts/ci.sh e2e-down || true
+
+  e2e-oidc:
+    name: OIDC smoke (Keycloak)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: [e2e-cloud]
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: E2E OIDC
+        env:
+          APP_JWT_ISSUER_URI: http://host.docker.internal:8180/realms/platform
+          COMPOSE_FILE: docker-compose.yml:docker-compose.ci-oidc.yml
+        run: |
+          chmod +x gradlew scripts/ci.sh scripts/platform-smoke-oidc.sh
+          ./scripts/ci.sh e2e-oidc
+
+      - name: Tear down
+        if: always()
+        run: ./scripts/ci.sh e2e-down || true
