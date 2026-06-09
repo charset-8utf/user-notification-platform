@@ -3,98 +3,99 @@
 ![Java](https://img.shields.io/badge/Java-21-blue?logo=openjdk)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.6-green?logo=springboot)
 ![Spring Cloud](https://img.shields.io/badge/Spring%20Cloud-2025.1.1-green?logo=spring)
+![Spring Security](https://img.shields.io/badge/Spring%20Security-6.x-green?logo=springsecurity)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-blue?logo=postgresql)
 ![MongoDB](https://img.shields.io/badge/MongoDB-7-green?logo=mongodb)
 ![Kafka](https://img.shields.io/badge/Apache%20Kafka-7.4-black?logo=apachekafka)
 ![Redis](https://img.shields.io/badge/Redis-7-red?logo=redis)
+![NGINX](https://img.shields.io/badge/NGINX-Edge-009639?logo=nginx)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-Ready-326CE5?logo=kubernetes)
+![Helm](https://img.shields.io/badge/Helm-3-0F1689?logo=helm)
 ![Gradle](https://img.shields.io/badge/Gradle-8.14+-blue?logo=gradle)
 ![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)
-![GitLab CI](https://img.shields.io/badge/GitLab%20CI/CD-Enabled-orange?logo=gitlab)
+![GitHub Actions](https://github.com/charset-8utf/user-notification-platform/actions/workflows/ci.yml/badge.svg?branch=microservice-feature)
+![GitLab CI](https://img.shields.io/badge/GitLab%20CI/CD-Mirror-orange?logo=gitlab)
+![OpenAPI](https://img.shields.io/badge/OpenAPI-3-green?logo=swagger)
 
-Микросервисная платформа для управления пользователями и доставки email-уведомлений.  
-Монорепозиторий на **Spring Cloud** (Spring Boot 4, Java 21).
+Микросервисная платформа для **управления пользователями** и **асинхронной доставки email-уведомлений**.  
+Монорепозиторий на **Spring Cloud** (Spring Boot 4, Java 21, Gradle).
 
-## Сервисы
+Покрыта unit/integration тестами, smoke/E2E сценариями, observability и Helm-чартом для Kubernetes.
+
+---
+
+## Описание
 
 | Сервис | Назначение | Хранилище |
 |--------|------------|-----------|
-| **user-service** | CRUD пользователей, JWT-аутентификация, transactional outbox → Kafka | PostgreSQL |
-| **notification-service** | Email-уведомления (REST + Kafka), аудит доставки | MongoDB |
+| [**user-service**](user-service/README.md) | CRUD, JWT, transactional **outbox** → Kafka | PostgreSQL |
+| [**notification-service**](notification-service/README.md) | Email REST/Kafka, transactional **inbox** | MongoDB |
+| **api-gateway** | Edge: JWT/OIDC, rate limit, TokenRelay | — |
+| **web-bff** | API Composition `GET /bff/me` | — |
+| **config-server** | Spring Cloud Config | Git/native repo |
+| **platform-commons** | Tracing, audit, OpenAPI defaults | — |
 
-## Платформенные компоненты
+**Discovery:** Kubernetes DNS + Simple Discovery Client (без Eureka).  
+**Edge:** NGINX (Compose `cloud` profile + K8s ingress-nginx).
 
-| Компонент | Роль |
-|-----------|------|
-| **api-gateway** | Единая точка входа: JWT, rate limit, circuit breaker, TokenRelay |
-| **web-bff** | API Composition — агрегация `GET /bff/me` |
-| **config-server** | Централизованная конфигурация (Spring Cloud Config) |
-| **platform-commons** | Shared chassis: метрики, tracing, discovery defaults |
+---
 
-Service discovery: **Kubernetes DNS + Simple Discovery Client** (без Eureka).  
-В Docker Compose и Kubernetes сервисы резолвятся по имени (`user-service`, `notification-service`).
+## Security model
 
-## Точки входа
+Реализованы различимые механизмы аутентификации (см. [docs/SECURITY.md](docs/SECURITY.md)):
 
-| Режим | Endpoint | Порт |
-|-------|----------|------|
-| **Direct** (legacy) | user-service | https://localhost:8443 |
-| **Direct** (legacy) | notification-service | https://localhost:8444 |
-| **Cloud** | API Gateway | http://localhost:8080 |
-| **Cloud** | web-bff | http://localhost:8090 |
+| Механизм | Где |
+|----------|-----|
+| **Bearer JWT** | Пользовательский API через gateway/BFF |
+| **API Key** (`X-API-Key`) | M2M write в notification-service |
+| **Service JWT** | Альтернатива API key для REST write |
+| **Session-like refresh** | Refresh token id в Redis (user-service) |
+| **OAuth2/OIDC** | Опционально: Keycloak, профиль `auth` |
+| **Basic Auth** | Только `local` profile (dev) |
 
-В cloud-режиме BFF агрегирует данные через API Gateway (`http://api-gateway:8080`), а не напрямую в микросервисы.
-| Config Server | — | http://localhost:8888 |
+Подробно: [docs/SECURITY.md](docs/SECURITY.md) · ADR: [docs/adr/004-authentication-strategy.md](docs/adr/004-authentication-strategy.md)
 
-### API Gateway (профиль `cloud`)
-
-| Маршрут | Сервис | Фильтры |
-|---------|--------|---------|
-| `/api/auth/**` | user-service | Rate limit по IP |
-| `/api/users/**`, `/api/roles/**`, `/api/profiles/**` | user-service | JWT, TokenRelay, CB, Retry (GET) |
-| `/api/notifications/logs/**` | notification-service | JWT, TokenRelay, CB |
-
-### BFF
-
-| Метод | Путь | Описание |
-|-------|------|----------|
-| GET | `/bff/me` | User + profile + последнее уведомление |
+---
 
 ## Архитектура
 
 ```text
 Клиент
-  ├─ direct ──► user-service :8443 / notification-service :8444
-  └─ cloud  ──► api-gateway :8080 ──► user-service / notification-service
-                web-bff :8090 (агрегация /bff/me)
+  └─ nginx :80 ──┬─ /      → api-gateway → user-service / notification-service
+                 └─ /bff/  → web-bff
 
+user-service ── outbox ──► Kafka ──► inbox ──► notification-service ──► Mailpit
 config-server ◄── pull ── все Spring-сервисы
-
-user-service ── outbox ──► Kafka ──► notification-service ──► SMTP / Mailpit
 ```
 
-Подробнее: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+C4: [docs/c4/CONTEXT.md](docs/c4/CONTEXT.md) · Потоки: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+
+---
+
+## Точки входа
+
+| Режим | URL | Команда |
+|-------|-----|---------|
+| **Cloud** (рекомендуется) | `http://localhost/` | `docker compose --profile cloud up -d` |
+| Direct legacy | `:8443`, `:8444` | `docker compose up -d` |
+| Kubernetes | `http://localhost/` (ingress) | `make k8s-install` |
+| OpenAPI | `/swagger-ui.html` | на каждом сервисе |
+| Keycloak (OIDC) | `:8180` | `--profile auth` |
+
+---
 
 ## Быстрый старт
 
 ### Требования
 
-- Docker Desktop
+- Docker Desktop (+ Kubernetes для K8s-сценария)
 - Java 21
-- Gradle 8.14+ (wrapper: `./gradlew`)
+- `./gradlew` (Gradle wrapper)
 
 ### 1. Конфигурация
 
 ```bash
 cp .env.example .env
-```
-
-Минимальные переменные:
-
-```properties
-APP_JWT_SECRET=dev-jwt-secret-change-in-production-min-32-chars
-APP_SERVICE_JWT_SECRET=dev-service-jwt-secret-change-in-production-min-32b
-APP_SEED_ADMIN_PASSWORD=admin123
-APP_SEED_USER_PASSWORD=user123
 ```
 
 ### 2. Сборка
@@ -103,109 +104,119 @@ APP_SEED_USER_PASSWORD=user123
 ./gradlew build
 ```
 
-### 3. Запуск
-
-**Legacy** (прямой HTTPS):
-
-```bash
-docker compose up -d --build
-```
-
-**Cloud** (Gateway + BFF):
+### 3. Запуск (cloud + nginx)
 
 ```bash
 docker compose --profile cloud up -d --build
 ```
 
-**Observability** (Prometheus, Grafana, Zipkin, Loki):
-
-```bash
-docker compose --profile observability up -d --build
-```
-
 ### 4. Проверка
 
 ```bash
-./scripts/platform-smoke.sh          # legacy
-./scripts/platform-smoke-cloud.sh    # cloud
+./scripts/platform-smoke-cloud.sh
+make e2e-cross              # login → user → notification
+make e2e-compensation       # DLT → compensation → user FAILED
+make k8s-smoke              # при поднятом K8s
 ```
 
-### 5. Остановка
+### 5. OIDC (опционально)
 
 ```bash
-docker compose --profile cloud down
-docker compose down -v   # с удалением томов
+docker compose --profile cloud --profile auth up -d
+# Gateway (JWKS из контейнера): APP_JWT_ISSUER_URI=http://host.docker.internal:8180/realms/platform
+make smoke-oidc
 ```
+
+Schema Registry (dev): `http://localhost:8085/subjects` — см. [docs/KAFKA.md](docs/KAFKA.md).
+
+---
+
+## Kubernetes
+
+```bash
+./scripts/k8s/setup-context.sh    # user-service-platform
+make k8s-install
+make k8s-smoke
+```
+
+| Профиль Helm | Назначение |
+|--------------|------------|
+| `values-dev.yaml` | локальный Docker Desktop K8s |
+| `values-prod.yaml` | External Secrets, HPA, TLS, managed DB |
+
+Документация: [docs/KUBERNETES.md](docs/KUBERNETES.md)
+
+---
+
+## CI/CD
+
+| Платформа | Конфиг | Документация |
+|-----------|--------|--------------|
+| **GitHub Actions** | [`.github/workflows/`](.github/workflows/) | [docs/GITHUB.md](docs/GITHUB.md) |
+| **GitLab CI** | [`.gitlab-ci.yml`](.gitlab-ci.yml) | [docs/GITLAB.md](docs/GITLAB.md) |
+
+```bash
+make ci-fast
+make ci-e2e-cloud-suite
+make ci-full
+./scripts/push-gitlab-mirror.sh microservice-feature   # GitLab pipeline
+```
+
+---
+
+## Observability
+
+Профиль `observability`: Prometheus, Grafana, Loki, Zipkin.
+
+- Dashboard **Outbox/Inbox**: `infra/observability/grafana/provisioning/dashboards/json/outbox-inbox.json`
+- Runbooks: [docs/runbooks/](docs/runbooks/)
+- Алерты: `infra/observability/prometheus/alerts.yml`
+
+---
+
+## Ключевые паттерны
+
+- **Transactional Outbox** + **Transactional Inbox**
+- **Saga compensation** (inbox failure / DLT → compensation topic)
+- **Strangler** (direct HTTPS + cloud gateway)
+- **BFF** + **API Gateway**
+- **NGINX edge** (Compose + K8s)
+
+ADR: [docs/adr/](docs/adr/)
+
+---
 
 ## Структура репозитория
 
 ```text
 user-notification-platform/
-├── settings.gradle.kts
-├── build.gradle.kts
-├── .gitlab-ci.yml              # CI / CD / CT
-├── platform-commons/
-├── config-server/
-├── config-repo/
-├── api-gateway/
+├── user-service/          # PostgreSQL, outbox, JWT
+├── notification-service/  # MongoDB, inbox, API key
+├── api-gateway/           # Edge security
 ├── web-bff/
-├── user-service/
-├── notification-service/
-├── deploy/helm/platform/       # Helm chart (Kubernetes)
-├── docker-compose.yml
-├── scripts/                    # ci.sh, smoke, k8s
-├── docs/
-└── infra/                      # TLS, Kafka certs, observability
+├── config-server/ + config-repo/
+├── platform-commons/
+├── deploy/helm/platform/  # HPA, ExternalSecret, Ingress TLS
+├── infra/                 # nginx, keycloak, observability
+├── scripts/               # smoke, e2e, k8s, chaos
+└── docs/                  # SECURITY, ADR, C4, runbooks
 ```
 
-## Kubernetes
+---
 
-```bash
-make k8s-create
-# build + kind load images (см. docs/KUBERNETES.md)
-make k8s-install
-make k8s-smoke    # Gateway :18080, BFF :18090
-```
+## Production readiness
 
-Документация: [docs/KUBERNETES.md](docs/KUBERNETES.md)
+| Область | Dev | Prod (`values-prod.yaml`) |
+|---------|-----|---------------------------|
+| Secrets | `.env` | External Secrets (Vault) |
+| TLS | HTTP | cert-manager + HTTPS ingress |
+| Auth | HS256 JWT | OIDC JWKS (Keycloak) |
+| Scale | 1 replica | HPA 2–8 |
+| DB | in-cluster | managed Postgres/Mongo URLs |
 
-## CI/CD
+Перед выкладкой в prod: [docs/runbooks/SECURITY_INCIDENT.md](docs/runbooks/SECURITY_INCIDENT.md)
 
-Пайплайн в GitLab: [`.gitlab-ci.yml`](.gitlab-ci.yml), документация: [docs/GITLAB.md](docs/GITLAB.md).
-
-| Стадия | Что проверяется |
-|--------|-----------------|
-| **CI** | `./gradlew check`, Helm lint |
-| **CT** | E2E smoke (Compose + K8s post-deploy) |
-| **CD** | Push образов в GitLab Registry → Helm deploy |
-
-Локально:
-
-```bash
-make ci-fast          # тесты
-make ci-e2e           # compose + smoke
-make ci-e2e-cloud     # gateway smoke
-make ci-full          # полный цикл
-```
-
-## Безопасность
-
-| Слой | Legacy | Cloud |
-|------|--------|-------|
-| Клиент → сервис | HTTPS :8443/:8444 | HTTP Gateway :8080 (dev) |
-| Gateway → микросервисы | — | HTTPS :8443 |
-| Пользовательский API | JWT (HS256) | JWT на Gateway + TokenRelay |
-| Сервис → сервис | Service JWT + HTTPS | Service JWT |
-| Асинхронно | Kafka (SASL_SSL опционально) | Kafka |
-
-## Ключевые паттерны
-
-- **Database per service** — PostgreSQL / MongoDB
-- **Transactional Outbox** — `notification_outbox` → Kafka → notification-service
-- **Saga compensation** — DLT → `notification-compensations` → user-service помечает `notificationDeliveryStatus=FAILED`
-- **Outbox replay** — FAILED записи автоматически возвращаются в PENDING
-- **Strangler** — legacy direct + cloud Gateway параллельно
-- **Observability** — Micrometer, Zipkin, Loki, Grafana
+---
 
 ## Автор
 
