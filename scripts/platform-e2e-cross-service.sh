@@ -32,8 +32,9 @@ POLL_MAX="$(e2e_poll_max)"
 POLL_SLEEP="$(e2e_poll_sleep)"
 echo "Waiting for async notification (outbox → inbox → mail), max ${POLL_MAX} attempts..."
 for i in $(seq 1 "${POLL_MAX}"); do
-  if curl -fsS "${GATEWAY}/api/notifications/logs?page=0&size=5" \
-      -H "Authorization: Bearer ${TOKEN}" | grep -q "${UNIQUE_EMAIL}"; then
+  LOG=$(curl -fsS "${GATEWAY}/api/notifications/logs/latest?email=${UNIQUE_EMAIL}" \
+    -H "Authorization: Bearer ${TOKEN}")
+  if echo "${LOG}" | grep -q '"found":true' && echo "${LOG}" | grep -q '"status":"SENT"'; then
     pass "notification log for ${UNIQUE_EMAIL}"
     echo "=== Cross-service E2E passed ==="
     exit 0
