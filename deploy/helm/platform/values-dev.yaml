@@ -9,8 +9,14 @@ platform:
 
 edge:
   enabled: true
+  insecureSsl: true
+  serviceType: ClusterIP
   ingress:
-    enabled: false
+    enabled: true
+    className: nginx
+    host: localhost
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
 
 observability:
   enabled: false

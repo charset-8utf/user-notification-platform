@@ -196,10 +196,12 @@ kind: Service
 metadata:
   name: api-gateway
 spec:
-  type: NodePort
+  type: {{ .Values.edge.serviceType }}
   ports:
     - port: {{ .Values.edge.apiGateway.port }}
-      nodePort: 30080
+      {{- if eq .Values.edge.serviceType "NodePort" }}
+      nodePort: {{ .Values.edge.apiGateway.nodePort }}
+      {{- end }}
   selector:
     app: api-gateway
 ---
@@ -239,7 +241,11 @@ spec:
             - name: SPRING_PROFILES_ACTIVE
               value: cloud,docker,kubernetes
             - name: APP_GATEWAY_INSECURE_SSL
-              value: "true"
+              value: {{ .Values.edge.insecureSsl | default false | quote }}
+            {{- if .Values.auth.oidc.enabled }}
+            - name: APP_JWT_ISSUER_URI
+              value: {{ .Values.auth.oidc.issuerUri | quote }}
+            {{- end }}
             - name: API_GATEWAY_PORT
               value: {{ .Values.edge.apiGateway.port | quote }}
           startupProbe:
@@ -260,10 +266,12 @@ kind: Service
 metadata:
   name: web-bff
 spec:
-  type: NodePort
+  type: {{ .Values.edge.serviceType }}
   ports:
     - port: {{ .Values.edge.webBff.port }}
-      nodePort: 30090
+      {{- if eq .Values.edge.serviceType "NodePort" }}
+      nodePort: {{ .Values.edge.webBff.nodePort }}
+      {{- end }}
   selector:
     app: web-bff
 ---
