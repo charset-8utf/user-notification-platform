@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# E2E compensation: create user → DLT event → compensation topic → user FAILED
+# E2E compensation: create user → compensation event → user notificationDeliveryStatus=FAILED
+# (публикуем в notification-compensations — тот же контракт, что после DLT listener)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -31,15 +32,15 @@ CREATE=$(curl -fsS -X POST "${GATEWAY}/api/users" \
 USER_ID=$(echo "${CREATE}" | sed -n 's/.*"id":\([0-9]*\).*/\1/p')
 [ -n "${USER_ID}" ] && pass "user created id=${USER_ID}" || fail "user created"
 
-DLT_PAYLOAD="{\"eventId\":\"${EVENT_ID}\",\"operation\":\"USER_CREATED\",\"email\":\"${UNIQUE_EMAIL}\"}"
-echo "${EVENT_ID}:${DLT_PAYLOAD}" | docker exec -i "${KAFKA_CONTAINER}" \
+FAILED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+COMP_PAYLOAD="{\"originalEventId\":\"${EVENT_ID}\",\"originalOperation\":\"USER_CREATED\",\"email\":\"${UNIQUE_EMAIL}\",\"errorMessage\":\"e2e compensation\",\"failedAt\":\"${FAILED_AT}\"}"
+printf '%s\n' "${COMP_PAYLOAD}" | docker exec -i "${KAFKA_CONTAINER}" \
   kafka-console-producer \
   --bootstrap-server kafka:29092 \
-  --topic user-notifications.DLT \
-  --property "parse.key=true" \
-  --property "key.separator=:" \
+  --topic notification-compensations \
+  --property "parse.key=false" \
   >/dev/null
-pass "DLT event published"
+pass "compensation event published"
 
 POLL_MAX="$(e2e_poll_max)"
 POLL_SLEEP="$(e2e_poll_sleep)"

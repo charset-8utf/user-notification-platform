@@ -9,9 +9,14 @@ import java.time.Duration;
 public record JwtProperties(
         String secret,
         @DefaultValue("user-service") String issuer,
+        String issuerUri,
+        String jwkSetUri,
         @DefaultValue("PT15M") Duration accessTokenTtl,
         @DefaultValue("P7D") Duration refreshTokenTtl
 ) {
+    public boolean oidcEnabled() {
+        return issuerUri != null && !issuerUri.isBlank();
+    }
     public JwtProperties {
         if (issuer.isBlank()) {
             issuer = "user-service";

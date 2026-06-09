@@ -34,7 +34,8 @@ class RedisRefreshTokenStoreTest {
         when(redis.opsForValue()).thenReturn(valueOps);
         ObjectMapper mapper = new ObjectMapper();
         JwtProperties props = new JwtProperties(
-                "test-jwt-secret-for-unit-tests-min-32b", "user-service", Duration.ofMinutes(15), Duration.ofDays(7));
+                "test-jwt-secret-for-unit-tests-min-32b", "user-service", null, null,
+                Duration.ofMinutes(15), Duration.ofDays(7));
         store = new RedisRefreshTokenStore(redis, mapper, props);
     }
 

@@ -37,6 +37,12 @@ public class JwtConfig {
 
     @Bean
     JwtDecoder jwtDecoder(JwtProperties properties, JwtSecretKeyFactory secretKeyFactory) {
+        if (properties.oidcEnabled()) {
+            if (properties.jwkSetUri() != null && !properties.jwkSetUri().isBlank()) {
+                return NimbusJwtDecoder.withJwkSetUri(properties.jwkSetUri()).build();
+            }
+            return NimbusJwtDecoder.withIssuerLocation(properties.issuerUri()).build();
+        }
         return NimbusJwtDecoder.withSecretKey(
                 secretKeyFactory.secretKey(properties.secret(), "app.security.jwt.secret")).build();
     }
