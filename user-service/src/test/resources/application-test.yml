@@ -34,12 +34,6 @@ server:
   ssl:
     enabled: false
 
-eureka:
-  client:
-    enabled: false
-    register-with-eureka: false
-    fetch-registry: false
-
 app:
   rate-limit:
     max-requests: 1000

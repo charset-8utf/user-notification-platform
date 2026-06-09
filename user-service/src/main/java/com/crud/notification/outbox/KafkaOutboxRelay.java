@@ -30,6 +30,19 @@ public class KafkaOutboxRelay {
     @Value("${app.notification.kafka.outbox.batch-size:50}")
     private int batchSize;
 
+    @Scheduled(fixedDelayString = "${app.notification.kafka.outbox.failed-replay-interval-ms:30000}")
+    @Transactional
+    public void replayFailedEvents() {
+        List<NotificationOutbox> failed = outboxRepository.findByStatusOrderByCreatedAtAsc(
+                OutboxStatus.FAILED, PageRequest.of(0, batchSize));
+        for (NotificationOutbox row : failed) {
+            int requeued = outboxRepository.requeueFailed(row.getEventId(), OutboxStatus.FAILED, OutboxStatus.PENDING);
+            if (requeued > 0) {
+                log.info("Outbox eventId={} requeued from FAILED to PENDING", row.getEventId());
+            }
+        }
+    }
+
     @Scheduled(fixedDelayString = "${app.notification.kafka.outbox.relay-interval-ms:1000}")
     @Transactional
     public void relayPendingEvents() {

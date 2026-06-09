@@ -6,7 +6,7 @@ WORKDIR /app
 RUN apk add --no-cache wget tini \
  && addgroup -S appgroup \
  && adduser -S appuser -G appgroup
-COPY notification-service/build/libs/notification-service-0.0.1-SNAPSHOT.jar app.jar
+COPY notification-service/build/libs/notification-service.jar app.jar
 ENV JAVA_OPTS="-XX:InitialRAMPercentage=20.0 -XX:MaxRAMPercentage=75.0 -Dfile.encoding=UTF-8"
 USER appuser
 EXPOSE 8443 8081

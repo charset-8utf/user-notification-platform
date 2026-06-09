@@ -47,6 +47,10 @@ public class User extends BaseEntity {
     @Version
     private Long version;
 
+    @Column(name = "notification_delivery_status", nullable = false, length = 32)
+    @Builder.Default
+    private NotificationDeliveryStatus notificationDeliveryStatus = NotificationDeliveryStatus.PENDING;
+
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
     @Builder.Default
     private List<Note> notes = new ArrayList<>();

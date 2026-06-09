@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @ActiveProfiles({"test", "rest"})
 @AutoConfigureStubRunner(
-        ids = "com.notification:notification-service:0.0.1-SNAPSHOT:stubs:8093",
+        ids = "com.notification:notification-service:1.0.0:stubs:8093",
         stubsMode = StubRunnerProperties.StubsMode.LOCAL
 )
 class NotificationRestContractIntegrationTest {
@@ -36,7 +36,6 @@ class NotificationRestContractIntegrationTest {
         registry.add("app.security.service-jwt.secret", () -> ServiceJwtTestSupport.TEST_SECRET);
         registry.add("spring.cloud.discovery.enabled", () -> "false");
         registry.add("spring.cloud.loadbalancer.enabled", () -> "false");
-        registry.add("eureka.client.enabled", () -> "false");
     }
 
     @Autowired

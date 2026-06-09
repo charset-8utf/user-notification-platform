@@ -1,6 +1,6 @@
 spring:
   config:
-    import: optional:classpath:platform/eureka-defaults.yml
+    import: optional:classpath:platform/discovery-defaults.yml
 
   data:
     redis:
@@ -63,11 +63,6 @@ spring:
                     redis-rate-limiter.replenishRate: ${APP_GATEWAY_NOTIFICATION_REPLENISH_RATE:30}
                     redis-rate-limiter.burstCapacity: ${APP_GATEWAY_NOTIFICATION_BURST_CAPACITY:60}
                     key-resolver: "#{@jwtSubKeyResolver}"
-
-eureka:
-  instance:
-    instance-id: ${spring.application.name}:${random.value}
-    hostname: ${EUREKA_INSTANCE_HOSTNAME:${HOSTNAME:api-gateway}}
 
 app:
   security:

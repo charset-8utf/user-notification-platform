@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class NotificationCompensationConsumer {
 
-    private final NotificationCompensationMetrics metrics;
+    private final NotificationCompensationHandler compensationHandler;
 
     @KafkaListener(
             topics = "${app.notification.kafka.compensation-topic}",
@@ -26,13 +26,6 @@ public class NotificationCompensationConsumer {
             log.warn("Пустое compensating-событие: offset={}", consumerRecord.offset());
             return;
         }
-        metrics.compensationReceived(event.originalOperation());
-        log.warn(
-                "Compensating saga step: delivery failed for originalEventId={}, operation={}, email={}, error={}, failedAt={}",
-                event.originalEventId(),
-                event.originalOperation(),
-                event.email(),
-                event.errorMessage(),
-                event.failedAt());
+        compensationHandler.handle(event);
     }
 }

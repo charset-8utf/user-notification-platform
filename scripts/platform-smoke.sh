@@ -49,12 +49,7 @@ for i in $(seq 1 30); do
 done
 
 echo "[5] Service JWT → notification REST"
-(
-  cd user-service
-  mvn -q -DskipTests test-compile dependency:build-classpath -Dmdep.outputFile=cp.txt
-)
-CP="user-service/target/test-classes:user-service/target/classes:$(cat user-service/cp.txt)"
-SVC_JWT=$(java -cp "${CP}" com.crud.support.ServiceJwtSmokeToken)
+SVC_JWT=$(./gradlew -q :user-service:serviceJwtSmokeToken)
 HTTP=$(curl -fkS -o /dev/null -w "%{http_code}" -X POST "${NOTIF_HTTPS}/api/notifications/email" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${SVC_JWT}" \

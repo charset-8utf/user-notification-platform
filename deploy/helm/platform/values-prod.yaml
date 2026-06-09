@@ -1,0 +1,30 @@
+global:
+  imagePullPolicy: Always
+
+infra:
+  enabled: false
+
+platform:
+  enabled: true
+
+edge:
+  enabled: true
+  ingress:
+    enabled: true
+    className: nginx
+    host: gateway.example.com
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    tls:
+      - hosts:
+          - gateway.example.com
+        secretName: platform-gateway-tls
+
+observability:
+  enabled: false
+
+secrets:
+  appJwtSecret: ""  # set via CI/CD secret
+  appServiceJwtSecret: ""
+  seedAdminPassword: ""
+  seedUserPassword: ""
