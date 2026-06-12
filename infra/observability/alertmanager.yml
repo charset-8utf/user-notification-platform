@@ -10,7 +10,7 @@ route:
 
 receivers:
   - name: default
-    # Replace with Slack/PagerDuty webhook in production (see docs/DEVOPS.md).
+    # Production: replace with slack_configs (api_url) or pagerduty_configs.
     webhook_configs:
       - url: http://127.0.0.1:9095/alerts
         send_resolved: true
