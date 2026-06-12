@@ -1,6 +1,6 @@
 package com.platform.config.info;
 
-import com.platform.config.backend.ConfigBackendStrategyFactory;
+import com.platform.config.backend.ConfigBackendStrategy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.actuate.info.Info;
 import org.springframework.boot.actuate.info.InfoContributor;
@@ -12,13 +12,12 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ConfigBackendInfoContributor implements InfoContributor {
 
-    private final ConfigBackendStrategyFactory backendStrategyFactory;
+    private final ConfigBackendStrategy activeBackendStrategy;
 
     @Override
     public void contribute(Info.Builder builder) {
-        var strategy = backendStrategyFactory.activeStrategy();
         builder.withDetail("configBackend", Map.of(
-                "profile", strategy.profile(),
-                "repository", strategy.repositoryDescription()));
+                "profile", activeBackendStrategy.profile(),
+                "repository", activeBackendStrategy.repositoryDescription()));
     }
 }

@@ -11,6 +11,9 @@ import java.net.http.HttpClient;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 
+/**
+ * Фабрики {@link ClientHttpRequestFactory} для RestClient BFF (TLS / dev insecure SSL).
+ */
 @Component
 public class BffSslRequestFactoryBuilder {
 
@@ -29,7 +32,8 @@ public class BffSslRequestFactoryBuilder {
                     .build();
             return new JdkClientHttpRequestFactory(httpClient);
         } catch (Exception ex) {
-            throw new IllegalStateException("Failed to create insecure SSL RestClient factory for BFF", ex);
+            throw new IllegalStateException(
+                    "Не удалось создать RestClient factory BFF с отключённой проверкой SSL", ex);
         }
     }
 
@@ -39,12 +43,12 @@ public class BffSslRequestFactoryBuilder {
         @Override
         public void checkClientTrusted(X509Certificate[] chain, String authType) {
             throw new UnsupportedOperationException(
-                    "Mutual TLS is not used for BFF - backend REST clients");
+                    "Mutual TLS для BFF не используется — REST-клиенты к downstream");
         }
 
         @Override
         public void checkServerTrusted(X509Certificate[] chain, String authType) {
-            // Dev-only (app.bff.insecure-ssl=true): server certificate validation intentionally disabled.
+            // Только dev (app.bff.insecure-ssl=true): проверка серверного сертификата намеренно отключена.
         }
 
         @Override

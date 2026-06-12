@@ -1,5 +1,6 @@
 package com.platform.gateway.ratelimit;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
@@ -9,7 +10,7 @@ import java.util.Optional;
 @Component
 public class JwtSubKeyExtractor {
 
-    public Optional<String> subjectKeyFromBearer(String authorizationHeader) {
+    public Optional<String> subjectKeyFromBearer(@Nullable String authorizationHeader) {
         if (authorizationHeader == null || !authorizationHeader.regionMatches(true, 0, "Bearer ", 0, 7)) {
             return Optional.empty();
         }

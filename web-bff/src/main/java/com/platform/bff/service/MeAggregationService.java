@@ -11,6 +11,8 @@ import com.platform.bff.facade.MeFacade;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.Objects;
+
 @Service
 @RequiredArgsConstructor
 public class MeAggregationService implements MeFacade {
@@ -21,7 +23,9 @@ public class MeAggregationService implements MeFacade {
 
     @Override
     public MeResponse loadCurrentUser(String authorizationHeader) {
-        UserSummary user = userServiceClient.getCurrentUser(authorizationHeader);
+        UserSummary user = Objects.requireNonNull(
+                userServiceClient.getCurrentUser(authorizationHeader),
+                "user-service returned empty /api/users/me response");
         ProfileSummary profile = profileFetchStrategy.fetch(user.id(), authorizationHeader);
         NotificationSummary notification = notificationServiceClient.fetchLatest(user.email(), authorizationHeader);
         return new MeResponse(user, profile, notification);

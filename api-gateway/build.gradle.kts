@@ -1,5 +1,9 @@
+import net.ltgt.gradle.errorprone.errorprone
+
 plugins {
     alias(libs.plugins.spring.boot)
+    jacoco
+    id("net.ltgt.errorprone") version "4.3.0"
 }
 
 dependencies {
@@ -17,20 +21,54 @@ dependencies {
     implementation(libs.springdoc.webflux)
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("io.micrometer:micrometer-registry-prometheus")
-    compileOnly("org.projectlombok:lombok")
-    annotationProcessor("org.projectlombok:lombok")
+    implementation(libs.jspecify)
+    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webflux-test")
     testImplementation("org.springframework.boot:spring-boot-starter-security-test")
     testImplementation(libs.wiremock)
+    errorprone("com.google.errorprone:error_prone_core:2.36.0")
+    errorprone("com.uber.nullaway:nullaway:0.12.3")
 }
 
-tasks.named<Test>("test") {
-    include("**/*Test.java", "**/*IntegrationTest.java")
+tasks.withType<JavaCompile>().configureEach {
+    options.errorprone {
+        disableAllChecks.set(true)
+        error("NullAway")
+        option("NullAway:OnlyNullMarked", "true")
+    }
+    if (name.contains("Test", ignoreCase = true)) {
+        options.errorprone {
+            disable("NullAway")
+        }
+    }
 }
 
-tasks.named<Test>("integrationTest") {
-    enabled = false
+jacoco {
+    toolVersion = libs.versions.jacoco.get()
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test, tasks.named("integrationTest"))
+    executionData.setFrom(fileTree(layout.buildDirectory.dir("jacoco")).include("*.exec"))
+}
+
+tasks.jacocoTestCoverageVerification {
+    dependsOn(tasks.jacocoTestReport)
+    executionData.setFrom(fileTree(layout.buildDirectory.dir("jacoco")).include("*.exec"))
+    violationRules {
+        rule {
+            element = "BUNDLE"
+            limit {
+                counter = "INSTRUCTION"
+                minimum = "0.70".toBigDecimal()
+            }
+        }
+    }
+}
+
+tasks.check {
+    dependsOn(tasks.jacocoTestCoverageVerification)
 }
 
 tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {

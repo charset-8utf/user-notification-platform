@@ -22,9 +22,8 @@ spring:
         webflux:
           httpclient:
             ssl:
-              use-insecure-trust-manager: ${APP_GATEWAY_INSECURE_SSL:true}
+              use-insecure-trust-manager: ${app.gateway.ssl.insecure-trust-manager:true}
           routes:
-            # Публичная аутентификация — rate limit по IP
             - id: user-service-auth
               uri: lb://user-service
               predicates:
@@ -32,10 +31,9 @@ spring:
               filters:
                 - name: RequestRateLimiter
                   args:
-                    redis-rate-limiter.replenishRate: ${APP_GATEWAY_AUTH_REPLENISH_RATE:30}
-                    redis-rate-limiter.burstCapacity: ${APP_GATEWAY_AUTH_BURST_CAPACITY:60}
+                    redis-rate-limiter.replenishRate: ${app.gateway.rate-limit.auth.replenish-rate:30}
+                    redis-rate-limiter.burstCapacity: ${app.gateway.rate-limit.auth.burst-capacity:60}
                     key-resolver: "#{@ipKeyResolver}"
-            # Защищённый user API — JWT на edge + TokenRelay + rate limit по sub
             - id: user-service-api
               uri: lb://user-service
               predicates:
@@ -53,8 +51,8 @@ spring:
                     statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT
                 - name: RequestRateLimiter
                   args:
-                    redis-rate-limiter.replenishRate: ${APP_GATEWAY_USER_REPLENISH_RATE:50}
-                    redis-rate-limiter.burstCapacity: ${APP_GATEWAY_USER_BURST_CAPACITY:100}
+                    redis-rate-limiter.replenishRate: ${app.gateway.rate-limit.user-api.replenish-rate:50}
+                    redis-rate-limiter.burstCapacity: ${app.gateway.rate-limit.user-api.burst-capacity:100}
                     key-resolver: "#{@jwtSubKeyResolver}"
             - id: notification-service-logs
               uri: lb://notification-service
@@ -68,11 +66,24 @@ spring:
                     fallbackUri: forward:/fallback/notification
                 - name: RequestRateLimiter
                   args:
-                    redis-rate-limiter.replenishRate: ${APP_GATEWAY_NOTIFICATION_REPLENISH_RATE:30}
-                    redis-rate-limiter.burstCapacity: ${APP_GATEWAY_NOTIFICATION_BURST_CAPACITY:60}
+                    redis-rate-limiter.replenishRate: ${app.gateway.rate-limit.notification-logs.replenish-rate:30}
+                    redis-rate-limiter.burstCapacity: ${app.gateway.rate-limit.notification-logs.burst-capacity:60}
                     key-resolver: "#{@jwtSubKeyResolver}"
 
 app:
+  gateway:
+    ssl:
+      insecure-trust-manager: ${APP_GATEWAY_INSECURE_SSL:true}
+    rate-limit:
+      auth:
+        replenish-rate: ${APP_GATEWAY_AUTH_REPLENISH_RATE:30}
+        burst-capacity: ${APP_GATEWAY_AUTH_BURST_CAPACITY:60}
+      user-api:
+        replenish-rate: ${APP_GATEWAY_USER_REPLENISH_RATE:50}
+        burst-capacity: ${APP_GATEWAY_USER_BURST_CAPACITY:100}
+      notification-logs:
+        replenish-rate: ${APP_GATEWAY_NOTIFICATION_REPLENISH_RATE:30}
+        burst-capacity: ${APP_GATEWAY_NOTIFICATION_BURST_CAPACITY:60}
   security:
     jwt:
       secret: ${APP_JWT_SECRET:dev-jwt-secret-change-in-production-min-32-chars}
