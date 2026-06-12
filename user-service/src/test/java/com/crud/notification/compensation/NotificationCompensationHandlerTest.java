@@ -1,7 +1,5 @@
 package com.crud.notification.compensation;
 
-import com.crud.cache.UserCachePort;
-import com.crud.entity.NotificationDeliveryStatus;
 import com.crud.entity.User;
 import com.crud.notification.UserNotificationOperation;
 import com.crud.repository.UserRepository;
@@ -15,8 +13,6 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -28,7 +24,7 @@ class NotificationCompensationHandlerTest {
     private UserRepository userRepository;
 
     @Mock
-    private UserCachePort userCache;
+    private UserCompensationService userCompensationService;
 
     @Mock
     private NotificationCompensationMetrics metrics;
@@ -37,11 +33,10 @@ class NotificationCompensationHandlerTest {
     private NotificationCompensationHandler handler;
 
     @Test
-    void handle_marksUserAsFailed() {
+    void handle_userCreated_rollsBackUser() {
         User user = User.builder().email("u@example.com").name("U").age(30).build();
         user.setId(1L);
         when(userRepository.findByEmail("u@example.com")).thenReturn(Optional.of(user));
-        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
         NotificationCompensationEvent event = new NotificationCompensationEvent(
                 UUID.randomUUID(),
@@ -52,13 +47,12 @@ class NotificationCompensationHandlerTest {
 
         handler.handle(event);
 
-        assertThat(user.getNotificationDeliveryStatus()).isEqualTo(NotificationDeliveryStatus.FAILED);
-        verify(userCache).evict(user.getId());
+        verify(userCompensationService).rollbackUserCreate(user, event);
         verify(metrics).compensationReceived(UserNotificationOperation.USER_CREATED);
     }
 
     @Test
-    void handle_unknownEmail_doesNotSave() {
+    void handle_userCreated_unknownEmail_idempotent() {
         when(userRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
 
         handler.handle(new NotificationCompensationEvent(
@@ -68,6 +62,22 @@ class NotificationCompensationHandlerTest {
                 "err",
                 Instant.now()));
 
-        verify(userRepository, never()).save(any());
+        verify(userCompensationService, never()).rollbackUserCreate(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+        verify(metrics).compensationIdempotent(UserNotificationOperation.USER_CREATED);
+    }
+
+    @Test
+    void handle_userDeleted_signalsOnly() {
+        NotificationCompensationEvent event = new NotificationCompensationEvent(
+                UUID.randomUUID(),
+                UserNotificationOperation.USER_DELETED,
+                "gone@example.com",
+                "smtp down",
+                Instant.now());
+
+        handler.handle(event);
+
+        verify(userCompensationService).signalDeleteNotificationUndelivered(event);
+        verify(userRepository, never()).findByEmail(org.mockito.ArgumentMatchers.anyString());
     }
 }

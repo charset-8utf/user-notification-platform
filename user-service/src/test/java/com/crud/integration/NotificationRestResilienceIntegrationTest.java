@@ -97,15 +97,12 @@ class NotificationRestResilienceIntegrationTest {
         CircuitBreaker breaker = circuitBreakerRegistry.circuitBreaker(NotificationRestClient.RESILIENCE_NAME);
         assertThat(breaker.getState()).isEqualTo(CircuitBreaker.State.CLOSED);
 
-        // sliding-window=10, minimum-number-of-calls=5, failure-rate-threshold=50%
-        // → 5 пятисоток подряд должны размыкнуть цепь. Fallback гарантирует отсутствие исключений.
         for (int i = 0; i < 6; i++) {
             port.publish(UserNotificationEvent.create(UserNotificationOperation.USER_CREATED, "fail-" + i + "@example.com"));
         }
 
         assertThat(breaker.getState()).isEqualTo(CircuitBreaker.State.OPEN);
 
-        // Когда цепь открыта — fallback срабатывает мгновенно, в WireMock новых запросов не приходит.
         int callsBefore = WIREMOCK.findAll(postRequestedFor(urlEqualTo("/api/notifications/email"))).size();
         port.publish(UserNotificationEvent.create(UserNotificationOperation.USER_DELETED, "open@example.com"));
         int callsAfter = WIREMOCK.findAll(postRequestedFor(urlEqualTo("/api/notifications/email"))).size();

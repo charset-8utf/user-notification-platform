@@ -1,10 +1,9 @@
 package com.crud.notification.kafka;
 
 import com.crud.notification.UserNotificationEvent;
-import lombok.RequiredArgsConstructor;
+import com.crud.config.kafka.UserNotificationKafkaProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.producer.RecordMetadata;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
@@ -12,17 +11,20 @@ import org.springframework.stereotype.Service;
 
 import java.util.concurrent.CompletableFuture;
 
-
 @Service
 @Profile("kafka")
 @Slf4j
-@RequiredArgsConstructor
 public class UserNotificationKafkaProducer {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final String topic;
 
-    @Value("${app.notification.kafka.topic}")
-    private String topic;
+    public UserNotificationKafkaProducer(
+            KafkaTemplate<String, Object> kafkaTemplate,
+            UserNotificationKafkaProperties notificationKafkaProperties) {
+        this.kafkaTemplate = kafkaTemplate;
+        this.topic = notificationKafkaProperties.topic();
+    }
 
     public void send(UserNotificationEvent event, String partitionKey) throws Exception {
         CompletableFuture<SendResult<String, Object>> future =

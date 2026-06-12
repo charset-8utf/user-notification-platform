@@ -1,7 +1,8 @@
 package com.crud.security.jwt;
 
-import com.crud.config.JwtProperties;
+import com.crud.config.security.JwtProperties;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.User;
@@ -15,7 +16,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -34,7 +35,7 @@ public class JwtTokenService {
         return issueTokenPair(user, null);
     }
 
-    public TokenPair issueTokenPair(UserDetails user, String email) {
+    public TokenPair issueTokenPair(UserDetails user, @Nullable String email) {
         String accessToken = encodeAccessToken(user, email);
         String refreshToken = issueRefreshToken(user, email);
         return new TokenPair(accessToken, refreshToken, jwtProperties.accessTokenTtl().getSeconds());
@@ -52,7 +53,7 @@ public class JwtTokenService {
         refreshTokenStore.blacklist(refreshTokenId, jwtProperties.refreshTokenTtl());
     }
 
-    private String issueRefreshToken(UserDetails user, String email) {
+    private String issueRefreshToken(UserDetails user, @Nullable String email) {
         String tokenId = UUID.randomUUID().toString();
         List<String> roles = extractRoleNames(user);
         RefreshTokenRecord tokenRecord = new RefreshTokenRecord(user.getUsername(), roles, email);
@@ -60,7 +61,7 @@ public class JwtTokenService {
         return tokenId;
     }
 
-    private String encodeAccessToken(UserDetails user, String email) {
+    private String encodeAccessToken(UserDetails user, @Nullable String email) {
         Instant now = Instant.now();
         List<String> roles = extractRoleNames(user);
 
@@ -81,15 +82,12 @@ public class JwtTokenService {
 
     private List<String> extractRoleNames(UserDetails user) {
         return user.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .map(this::stripRolePrefix)
-                .filter(Objects::nonNull)
+                .flatMap(granted -> Optional.ofNullable(granted.getAuthority()).stream().map(this::stripRolePrefix))
                 .toList();
     }
 
     private UserDetails toUserDetails(RefreshTokenRecord tokenRecord) {
         var authorities = tokenRecord.roles().stream()
-                .filter(Objects::nonNull)
                 .map(role -> (GrantedAuthority) () -> toRoleAuthority(role))
                 .collect(Collectors.toSet());
         return User.builder()
@@ -100,13 +98,10 @@ public class JwtTokenService {
     }
 
     private boolean hasRolePrefix(String value) {
-        return value != null && value.startsWith(ROLE_PREFIX);
+        return value.startsWith(ROLE_PREFIX);
     }
 
     private String stripRolePrefix(String authority) {
-        if (authority == null) {
-            return null;
-        }
         return hasRolePrefix(authority) ? authority.substring(ROLE_PREFIX.length()) : authority;
     }
 

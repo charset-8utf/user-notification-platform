@@ -37,7 +37,7 @@ public class JwtRoleSupport {
         }
         Map<String, Object> realmAccess = jwt.getClaim("realm_access");
         if (realmAccess != null) {
-            Object realmRoles = realmAccess.get("roles");
+            Object realmRoles = realmAccess.get(ROLES_CLAIM);
             if (realmRoles instanceof Collection<?> collection) {
                 return collection.stream().map(Object::toString).toList();
             }

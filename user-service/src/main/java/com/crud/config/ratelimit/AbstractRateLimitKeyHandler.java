@@ -1,12 +1,14 @@
 package com.crud.config.ratelimit;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.Optional;
 
 abstract class AbstractRateLimitKeyHandler implements RateLimitKeyHandler {
 
-    private final RateLimitKeyHandler next;
+    private final @Nullable RateLimitKeyHandler next;
 
-    protected AbstractRateLimitKeyHandler(RateLimitKeyHandler next) {
+    protected AbstractRateLimitKeyHandler(@Nullable RateLimitKeyHandler next) {
         this.next = next;
     }
 

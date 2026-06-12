@@ -1,8 +1,8 @@
 package com.crud.controller;
 
-import com.crud.config.JwtConfig;
-import com.crud.config.JwtSecurityConfig;
-import com.crud.config.SecurityBeansConfig;
+import com.crud.config.security.JwtConfig;
+import com.crud.config.security.JwtSecurityConfig;
+import com.crud.config.security.SecurityBeansConfig;
 import com.crud.config.WebMvcJwtTestSupport;
 import com.crud.config.WebMvcTestSecuritySupport;
 import com.crud.dto.auth.LoginRequest;

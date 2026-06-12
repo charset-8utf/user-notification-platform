@@ -15,10 +15,6 @@ spring:
   docker:
     compose:
       enabled: false
-  cache:
-    type: none
-  ssl:
-    enabled: false
 
 app:
   security:

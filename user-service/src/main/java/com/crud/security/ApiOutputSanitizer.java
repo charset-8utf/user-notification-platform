@@ -4,6 +4,8 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.HtmlUtils;
 
+import java.util.Objects;
+
 @Component
 public class ApiOutputSanitizer {
 
@@ -12,6 +14,10 @@ public class ApiOutputSanitizer {
         if (value == null) {
             return null;
         }
-        return HtmlUtils.htmlEscape(value);
+        return sanitizeRequired(value);
+    }
+
+    public String sanitizeRequired(String value) {
+        return Objects.requireNonNull(HtmlUtils.htmlEscape(value));
     }
 }

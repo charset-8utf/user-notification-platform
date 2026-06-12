@@ -17,9 +17,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
-/**
- * Service Component Test (лекция): поднимает user-service с Testcontainers PostgreSQL ({@code jdbc:tc:postgresql}).
- */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles({"test", "it", "jwt"})
 @Execution(ExecutionMode.SAME_THREAD)

@@ -21,6 +21,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,6 +33,8 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 @Execution(ExecutionMode.CONCURRENT)
 class ProfileServiceImplTest {
+
+    private static final LocalDateTime TEST_TIME = LocalDateTime.of(2026, 6, 1, 12, 0);
 
     @Mock
     private ProfileRepository profileRepository;
@@ -56,7 +59,7 @@ class ProfileServiceImplTest {
         savedProfile.setId(1L);
         savedProfile.setUser(user);
         
-        ProfileResponse expected = new ProfileResponse(1L, userId, "+1234567890", "Test Address", null, null);
+        ProfileResponse expected = new ProfileResponse(1L, userId, "+1234567890", "Test Address", TEST_TIME, TEST_TIME);
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(profileRepository.existsByUserId(userId)).thenReturn(false);
@@ -108,7 +111,7 @@ class ProfileServiceImplTest {
         Profile profile = Profile.builder().phone("+1234567890").address("Test Address").user(user).build();
         profile.setId(1L);
         
-        ProfileResponse expected = new ProfileResponse(1L, userId, "+1234567890", "Test Address", null, null);
+        ProfileResponse expected = new ProfileResponse(1L, userId, "+1234567890", "Test Address", TEST_TIME, TEST_TIME);
 
         when(profileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
         when(profileMapper.toResponse(profile)).thenReturn(expected);
@@ -137,7 +140,7 @@ class ProfileServiceImplTest {
         Profile profile = Profile.builder().phone("+1234567890").user(user).build();
         profile.setId(1L);
         
-        ProfileResponse response = new ProfileResponse(1L, userId, "+1234567890", null, null, null);
+        ProfileResponse response = new ProfileResponse(1L, userId, "+1234567890", "", TEST_TIME, TEST_TIME);
         Page<Profile> profilePage = new PageImpl<>(List.of(profile));
         PageRequest pageRequest = PageRequest.of(0, 10);
 

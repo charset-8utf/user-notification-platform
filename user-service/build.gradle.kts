@@ -1,6 +1,9 @@
+import net.ltgt.gradle.errorprone.errorprone
+
 plugins {
     alias(libs.plugins.spring.boot)
     jacoco
+    alias(libs.plugins.errorprone)
 }
 
 group = "com.crud"
@@ -8,49 +11,80 @@ version = "1.0.0"
 
 dependencies {
     implementation(project(":platform-commons"))
+    implementation(project(":kafka-contracts"))
     implementation("org.springframework.cloud:spring-cloud-starter-config")
-    implementation("org.springframework.boot:spring-boot-starter-webmvc")
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-    implementation("org.springframework.boot:spring-boot-starter-liquibase")
-    implementation(libs.spring.retry)
-    implementation("org.springframework:spring-aspects")
-    implementation("org.springframework.boot:spring-boot-starter-validation")
-    implementation(libs.owasp.encoder)
-    implementation(libs.postgresql)
-    implementation("com.github.ben-manes.caffeine:caffeine")
-    implementation("com.github.ben-manes.caffeine:jcache")
-    implementation(libs.hibernate.jcache)
-    implementation("org.springframework.boot:spring-boot-starter-actuator")
-    implementation("io.micrometer:micrometer-registry-prometheus")
-    implementation("org.springframework.boot:spring-boot-starter-restclient")
-    implementation("org.springframework.boot:spring-boot-starter-kafka")
-    implementation("org.springframework.boot:spring-boot-starter-data-redis")
-    implementation("org.apache.commons:commons-pool2")
-    implementation("org.springframework.boot:spring-boot-starter-aspectj")
     implementation("org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j") {
         exclude(group = "io.github.resilience4j", module = "resilience4j-spring-boot3")
     }
-    implementation(libs.resilience4j.spring.boot4)
-    implementation("org.springframework.cloud:spring-cloud-starter-loadbalancer")
+    implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation("org.springframework.boot:spring-boot-starter-liquibase")
+    implementation("org.springframework.boot:spring-boot-starter-validation")
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("org.springframework.boot:spring-boot-starter-restclient")
+    implementation("org.springframework.boot:spring-boot-starter-kafka")
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
+    implementation("org.springframework.boot:spring-boot-starter-aspectj")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
+    implementation("org.springframework:spring-aspects")
+    implementation("io.micrometer:micrometer-registry-prometheus")
+    implementation("com.github.ben-manes.caffeine:caffeine")
+    implementation("com.github.ben-manes.caffeine:jcache")
+    implementation("org.apache.commons:commons-pool2")
+    implementation(libs.spring.retry)
+    implementation(libs.resilience4j.spring.boot4)
+    implementation(libs.owasp.encoder)
+    implementation(libs.postgresql)
+    implementation(libs.hibernate.jcache)
     implementation(libs.springdoc.webmvc)
-    compileOnly("org.springframework.boot:spring-boot-configuration-processor")
-    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
     implementation(libs.jspecify)
+    implementation(libs.mapstruct)
+
+    compileOnly("org.springframework.boot:spring-boot-configuration-processor")
+
+    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
+    annotationProcessor(libs.mapstruct.processor)
+    annotationProcessor(libs.lombok.mapstruct.binding)
+
     runtimeOnly("org.springframework.boot:spring-boot-docker-compose")
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
     testImplementation("org.springframework.boot:spring-boot-resttestclient")
-    testImplementation("org.testcontainers:testcontainers-postgresql")
-    testImplementation("org.testcontainers:testcontainers-junit-jupiter")
-    testImplementation("org.testcontainers:kafka:1.20.6")
+    testImplementation("org.springframework.boot:spring-boot-starter-security-test")
+    testImplementation("org.springframework.boot:spring-boot-webmvc-test")
+    testImplementation("org.springframework.security:spring-security-test")
+    testImplementation(libs.testcontainers.postgresql)
+    testImplementation(libs.testcontainers.junit.jupiter)
+    testImplementation(libs.testcontainers.kafka.module)
     testImplementation(libs.h2)
     testImplementation(libs.wiremock)
-    testImplementation("org.springframework.cloud:spring-cloud-starter-contract-stub-runner")
-    testImplementation("org.springframework.boot:spring-boot-starter-security-test")
-    testImplementation("org.springframework.security:spring-security-test")
-    testImplementation("org.springframework.boot:spring-boot-webmvc-test")
+
+    errorprone(libs.error.prone.core)
+    errorprone(libs.nullaway)
+}
+
+tasks.withType<JavaCompile>().configureEach {
+    options.compilerArgs.addAll(
+        listOf(
+            "-Amapstruct.defaultComponentModel=spring",
+            "-Amapstruct.unmappedTargetPolicy=ERROR",
+            "-Amapstruct.suppressGeneratorTimestamp=true",
+            "-Amapstruct.suppressGeneratorVersionInfoComment=true",
+        )
+    )
+    options.errorprone {
+        disableAllChecks.set(true)
+        error("NullAway")
+        option("NullAway:OnlyNullMarked", "true")
+        excludedPaths.set(".*/build/generated/sources/annotationProcessor/.*")
+    }
+    if (name.contains("Test", ignoreCase = true)) {
+        options.errorprone {
+            disable("NullAway")
+        }
+    }
 }
 
 tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {

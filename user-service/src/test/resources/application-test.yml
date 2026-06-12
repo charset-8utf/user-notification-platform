@@ -2,8 +2,6 @@ spring:
   cloud:
     discovery:
       enabled: false
-    loadbalancer:
-      enabled: false
   docker:
     compose:
       enabled: false
@@ -26,8 +24,6 @@ spring:
           use_query_cache: false
   liquibase:
     enabled: false
-  cache:
-    type: none
 
 server:
   port: 0

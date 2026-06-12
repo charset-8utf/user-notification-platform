@@ -11,7 +11,6 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @Execution(ExecutionMode.CONCURRENT)
 class UserMapperTest {
@@ -71,17 +70,5 @@ class UserMapperTest {
         assertThat(result.getName()).isEqualTo("New Name");
         assertThat(result.getEmail()).isEqualTo("new@example.com");
         assertThat(result.getAge()).isEqualTo(35);
-    }
-
-    @Test
-    void toEntity_FromRequest_NullRequest_ShouldThrowNullPointerException() {
-        assertThatThrownBy(() -> userMapper.toEntity(null))
-                .isInstanceOf(NullPointerException.class);
-    }
-
-    @Test
-    void toResponse_FromEntity_NullEntity_ShouldThrowNullPointerException() {
-        assertThatThrownBy(() -> userMapper.toResponse(null))
-                .isInstanceOf(NullPointerException.class);
     }
 }

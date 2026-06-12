@@ -3,4 +3,7 @@
  * и его реализации (Kafka — профиль {@code kafka}, no-op — по умолчанию).
  * REST-клиент будет добавлен следующим шагом плана (профиль {@code rest}).
  */
+@NullMarked
 package com.crud.notification;
+
+import org.jspecify.annotations.NullMarked;

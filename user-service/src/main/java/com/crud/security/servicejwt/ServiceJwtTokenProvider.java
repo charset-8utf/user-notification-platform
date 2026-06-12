@@ -6,6 +6,7 @@ import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -18,7 +19,7 @@ public class ServiceJwtTokenProvider {
 
     private final JwtEncoder serviceJwtEncoder;
     private final ServiceJwtProperties properties;
-    private final AtomicReference<CachedToken> cached = new AtomicReference<>();
+    private final AtomicReference<@Nullable CachedToken> cached = new AtomicReference<>();
 
     public ServiceJwtTokenProvider(JwtEncoder serviceJwtEncoder, ServiceJwtProperties properties) {
         this.serviceJwtEncoder = serviceJwtEncoder;
@@ -28,12 +29,12 @@ public class ServiceJwtTokenProvider {
     public String getToken() {
         Instant refreshAfter = Instant.now().plusSeconds(30);
         CachedToken current = cached.get();
-        if (tokenStillValid(current, refreshAfter)) {
+        if (current != null && tokenStillValid(current, refreshAfter)) {
             return current.value();
         }
         synchronized (this) {
             current = cached.get();
-            if (tokenStillValid(current, refreshAfter)) {
+            if (current != null && tokenStillValid(current, refreshAfter)) {
                 return current.value();
             }
             CachedToken issued = issueToken();
@@ -43,7 +44,7 @@ public class ServiceJwtTokenProvider {
     }
 
     private boolean tokenStillValid(CachedToken token, Instant refreshAfter) {
-        return token != null && token.validUntil().isAfter(refreshAfter);
+        return token.validUntil().isAfter(refreshAfter);
     }
 
     private CachedToken issueToken() {

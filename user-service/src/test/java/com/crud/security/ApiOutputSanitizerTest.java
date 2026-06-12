@@ -19,4 +19,10 @@ class ApiOutputSanitizerTest {
     void nullReturnsNull() {
         assertThat(sanitizer.sanitize(null)).isNull();
     }
+
+    @Test
+    void sanitizeRequired_escapesHtml() {
+        assertThat(sanitizer.sanitizeRequired("a & b"))
+                .isEqualTo("a &amp; b");
+    }
 }

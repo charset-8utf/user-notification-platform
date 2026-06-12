@@ -1,6 +1,6 @@
 package com.crud.security.jwt;
 
-import com.crud.config.JwtProperties;
+import com.crud.config.security.JwtProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -55,7 +55,7 @@ public class RedisRefreshTokenStore implements RefreshTokenStore {
 
     @Override
     public void blacklist(String tokenId, Duration ttl) {
-        Duration effective = ttl != null && !ttl.isNegative() && !ttl.isZero()
+        Duration effective = !ttl.isNegative() && !ttl.isZero()
                 ? ttl
                 : jwtProperties.refreshTokenTtl();
         redis.opsForValue().set(BLACKLIST_PREFIX + tokenId, "1", effective);

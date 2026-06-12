@@ -20,6 +20,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -31,6 +32,8 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 @Execution(ExecutionMode.CONCURRENT)
 class RoleServiceImplTest {
+
+    private static final LocalDateTime TEST_TIME = LocalDateTime.of(2026, 6, 1, 12, 0);
 
     @Mock
     private RoleRepository roleRepository;
@@ -50,7 +53,7 @@ class RoleServiceImplTest {
         Role role = Role.builder().name("ADMIN").build();
         Role savedRole = Role.builder().name("ADMIN").build();
         savedRole.setId(1L);
-        RoleResponse expected = new RoleResponse(1L, "ADMIN", null, null);
+        RoleResponse expected = new RoleResponse(1L, "ADMIN", TEST_TIME, TEST_TIME);
 
         when(roleMapper.toEntity(request)).thenReturn(role);
         when(roleRepository.save(role)).thenReturn(savedRole);
@@ -67,7 +70,7 @@ class RoleServiceImplTest {
         Long roleId = 1L;
         Role role = Role.builder().name("USER").build();
         role.setId(roleId);
-        RoleResponse expected = new RoleResponse(roleId, "USER", null, null);
+        RoleResponse expected = new RoleResponse(roleId, "USER", TEST_TIME, TEST_TIME);
 
         when(roleRepository.findById(roleId)).thenReturn(Optional.of(role));
         when(roleMapper.toResponse(role)).thenReturn(expected);
@@ -91,7 +94,7 @@ class RoleServiceImplTest {
     void findAllRoles_ShouldReturnPage() {
         Role role = Role.builder().name("ADMIN").build();
         role.setId(1L);
-        RoleResponse response = new RoleResponse(1L, "ADMIN", null, null);
+        RoleResponse response = new RoleResponse(1L, "ADMIN", TEST_TIME, TEST_TIME);
         Page<Role> rolePage = new PageImpl<>(List.of(role));
         PageRequest pageRequest = PageRequest.of(0, 10);
 

@@ -1,6 +1,6 @@
 package com.crud.security.jwt;
 
-import com.crud.config.JwtProperties;
+import com.crud.config.security.JwtProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

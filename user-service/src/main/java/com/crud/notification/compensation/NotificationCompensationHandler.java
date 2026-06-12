@@ -1,8 +1,7 @@
 package com.crud.notification.compensation;
 
-import com.crud.cache.UserCachePort;
-import com.crud.entity.NotificationDeliveryStatus;
 import com.crud.entity.User;
+import com.crud.notification.UserNotificationOperation;
 import com.crud.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,30 +14,35 @@ import org.springframework.transaction.annotation.Transactional;
 public class NotificationCompensationHandler {
 
     private final UserRepository userRepository;
-    private final UserCachePort userCache;
+    private final UserCompensationService userCompensationService;
     private final NotificationCompensationMetrics metrics;
 
     @Transactional
     public void handle(NotificationCompensationEvent event) {
         metrics.compensationReceived(event.originalOperation());
+
+        if (event.originalOperation() == UserNotificationOperation.USER_DELETED) {
+            userCompensationService.signalDeleteNotificationUndelivered(event);
+            return;
+        }
+
+        if (event.originalOperation() != UserNotificationOperation.USER_CREATED) {
+            log.warn("Неподдерживаемая операция компенсации: {}", event.originalOperation());
+            return;
+        }
+
         userRepository.findByEmail(event.email()).ifPresentOrElse(
-                user -> markFailed(user, event),
-                () -> log.warn(
-                        "Compensation: user not found for email={}, originalEventId={}",
-                        event.email(),
-                        event.originalEventId()));
+                user -> compensateUserCreated(user, event),
+                () -> {
+                    metrics.compensationIdempotent(event.originalOperation());
+                    log.info(
+                            "Компенсация идемпотентна: пользователь уже отсутствует — email={}, originalEventId={}",
+                            event.email(),
+                            event.originalEventId());
+                });
     }
 
-    private void markFailed(User user, NotificationCompensationEvent event) {
-        user.setNotificationDeliveryStatus(NotificationDeliveryStatus.FAILED);
-        userRepository.save(user);
-        userCache.evict(user.getId());
-        log.warn(
-                "Compensation applied: userId={}, email={}, originalEventId={}, operation={}, error={}",
-                user.getId(),
-                event.email(),
-                event.originalEventId(),
-                event.originalOperation(),
-                event.errorMessage());
+    private void compensateUserCreated(User user, NotificationCompensationEvent event) {
+        userCompensationService.rollbackUserCreate(user, event);
     }
 }

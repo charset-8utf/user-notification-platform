@@ -74,8 +74,7 @@ class UserServiceImplTest {
         verify(userCache).putResponse(expectedResponse);
         verify(notificationPort).publish(argThat(event ->
                 event.operation() == UserNotificationOperation.USER_CREATED
-                        && "john@example.com".equals(event.email())
-                        && event.eventId() != null));
+                        && "john@example.com".equals(event.email())));
     }
 
     @Test
@@ -156,8 +155,7 @@ class UserServiceImplTest {
         verify(userCache).evict(userId);
         verify(notificationPort).publish(argThat(event ->
                 event.operation() == UserNotificationOperation.USER_DELETED
-                        && email.equals(event.email())
-                        && event.eventId() != null));
+                        && email.equals(event.email())));
     }
 
     @Test

@@ -2,7 +2,6 @@ package com.crud.integration;
 
 import com.crud.dto.UserRequest;
 import com.crud.dto.UserResponse;
-import com.crud.entity.NotificationDeliveryStatus;
 import com.crud.entity.User;
 import com.crud.notification.UserNotificationOperation;
 import com.crud.notification.compensation.NotificationCompensationEvent;
@@ -87,7 +86,7 @@ class UserNotificationKafkaIntegrationTest {
     UserRepository userRepository;
 
     @Test
-    void compensationEventMarksUserAsFailed() {
+    void compensationEventRollsBackUserCreate() {
         String email = "comp-" + UUID.randomUUID() + "@example.com";
         userRepository.save(User.builder().name("Comp User").email(email).age(30).build());
 
@@ -100,11 +99,7 @@ class UserNotificationKafkaIntegrationTest {
         kafkaTemplate.send("notification-compensations", event.email(), event);
 
         await().atMost(Duration.ofSeconds(15)).untilAsserted(() ->
-                assertThat(userRepository.findByEmail(email))
-                        .isPresent()
-                        .get()
-                        .extracting(User::getNotificationDeliveryStatus)
-                        .isEqualTo(NotificationDeliveryStatus.FAILED));
+                assertThat(userRepository.findByEmail(email)).isEmpty());
     }
 
     @Test

@@ -41,6 +41,6 @@ public class NotificationRestClient implements UserNotificationPort {
 
     @SuppressWarnings("unused")
     void publishFallback(UserNotificationEvent event, Throwable ex) {
-        failureRecorder.record(event, ex);
+        failureRecorder.recordFailure(event, ex);
     }
 }
