@@ -1,0 +1,23 @@
+{{- if .Values.podDisruptionBudget.enabled }}
+{{- range $name, $cfg := dict "api-gateway" .Values.edge.apiGateway "user-service" .Values.platform.userService "notification-service" .Values.platform.notificationService "web-bff" .Values.edge.webBff "config-server" .Values.platform.configServer }}
+{{- $auto := index $.Values.autoscaling $name }}
+{{- $minReplicas := 1 }}
+{{- if and $auto $auto.enabled }}
+{{- $minReplicas = $auto.minReplicas }}
+{{- end }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}
+spec:
+  {{- if ge (int $minReplicas) 2 }}
+  minAvailable: 1
+  {{- else }}
+  maxUnavailable: 1
+  {{- end }}
+  selector:
+    matchLabels:
+      app: {{ $name }}
+{{- end }}
+{{- end }}

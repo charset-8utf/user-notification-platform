@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-prod
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/charset-8utf/user-notification-platform.git
+    targetRevision: main
+    path: deploy/helm/platform
+    helm:
+      valueFiles:
+        - values-prod.yaml
+      parameters:
+        - name: global.registry
+          value: ghcr.io
+        - name: global.imageOwner
+          value: charset-8utf
+        - name: global.imagePullPolicy
+          value: Always
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: platform
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+  ignoreDifferences:
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+      jsonPointers:
+        - /spec/minReplicas
+        - /spec/maxReplicas

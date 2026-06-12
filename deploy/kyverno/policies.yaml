@@ -1,0 +1,100 @@
+# Kyverno policies for the platform namespace.
+# Requires Kyverno: https://kyverno.io/docs/installation/
+#
+# Install:
+#   kubectl create namespace platform --dry-run=client -o yaml | kubectl apply -f -
+#   kubectl apply -f deploy/kyverno/
+#
+# Default mode is Audit — switch validationFailureAction to Enforce for production.
+
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: platform-require-resources
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: require-container-resources
+      match:
+        any:
+          - resources:
+              kinds:
+                - Deployment
+                - StatefulSet
+              namespaces:
+                - platform
+      validate:
+        message: "CPU and memory requests/limits are required for all containers."
+        pattern:
+          spec:
+            template:
+              spec:
+                containers:
+                  - name: "*"
+                    resources:
+                      requests:
+                        memory: "?*"
+                        cpu: "?*"
+                      limits:
+                        memory: "?*"
+                        cpu: "?*"
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: platform-require-security-context
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: require-non-root-and-readonly-rootfs
+      match:
+        any:
+          - resources:
+              kinds:
+                - Deployment
+                - StatefulSet
+              namespaces:
+                - platform
+      validate:
+        message: "Containers must run as non-root with readOnlyRootFilesystem."
+        pattern:
+          spec:
+            template:
+              spec:
+                securityContext:
+                  runAsNonRoot: true
+                containers:
+                  - name: "*"
+                    securityContext:
+                      allowPrivilegeEscalation: false
+                      readOnlyRootFilesystem: true
+                      runAsNonRoot: true
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: platform-disallow-latest-tag
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: disallow-latest-image-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Deployment
+                - StatefulSet
+              namespaces:
+                - platform
+      validate:
+        message: "Avoid :latest — pin images by digest or immutable tag."
+        pattern:
+          spec:
+            template:
+              spec:
+                containers:
+                  - image: "!*:latest"
