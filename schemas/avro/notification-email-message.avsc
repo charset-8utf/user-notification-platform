@@ -1,0 +1,25 @@
+{
+  "namespace": "com.platform.kafka.avro",
+  "type": "record",
+  "name": "NotificationEmailMessage",
+  "doc": "Kafka contract for user-notifications topic (user-service → notification-service).",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "UUID string — idempotency key"
+    },
+    {
+      "name": "operation",
+      "type": {
+        "type": "enum",
+        "name": "UserNotificationOperation",
+        "symbols": ["USER_CREATED", "USER_DELETED"]
+      }
+    },
+    {
+      "name": "email",
+      "type": "string"
+    }
+  ]
+}

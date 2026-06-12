@@ -6,6 +6,7 @@ rootProject.name = "user-notification-platform"
 
 include(
     "platform-commons",
+    "kafka-contracts",
     "config-server",
     "api-gateway",
     "web-bff",
