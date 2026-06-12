@@ -59,3 +59,8 @@ jobs:
         run: |
           helm lint deploy/helm/platform
           helm template platform deploy/helm/platform --namespace platform > /dev/null
+          helm template platform deploy/helm/platform --namespace platform \
+            -f deploy/helm/platform/values-dev.yaml > /dev/null
+          helm template platform deploy/helm/platform --namespace platform \
+            -f deploy/helm/platform/values-prod.yaml \
+            --api-versions monitoring.coreos.com/v1 > /dev/null

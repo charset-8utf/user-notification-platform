@@ -9,8 +9,7 @@ app:
       token-ttl: ${APP_SERVICE_JWT_TTL:PT5M}
   notification:
     rest:
-      # Имя сервиса в Eureka; порт берётся из secure-port (LoadBalancer)
-      base-url: ${APP_NOTIFICATION_REST_BASE_URL:https://notification-service}
+      base-url: ${APP_NOTIFICATION_REST_BASE_URL:https://notification-service:8443}
       insecure-ssl: ${APP_NOTIFICATION_REST_INSECURE_SSL:false}
       tls:
         trust-store: ${APP_NOTIFICATION_REST_TRUST_STORE:classpath:notification-truststore.p12}

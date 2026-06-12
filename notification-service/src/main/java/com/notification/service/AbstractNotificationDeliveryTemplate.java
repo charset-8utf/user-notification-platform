@@ -1,30 +1,30 @@
 package com.notification.service;
 
 import com.notification.dto.NotificationEmailRequest;
-import com.notification.entity.UserNotificationOperation;
+import com.notification.domain.UserNotificationOperation;
 import com.notification.exception.EmailDeliveryException;
-import com.notification.idempotency.NotificationIdempotencyService;
-import com.notification.lookup.UserLookupPort;
 import com.notification.metrics.NotificationMetrics;
-import jakarta.mail.internet.MimeMessage;
-import org.springframework.mail.javamail.MimeMessageHelper;
-
-import java.nio.charset.StandardCharsets;
+import com.notification.service.port.EmailDeliveryPort;
+import com.notification.service.port.UserCacheView;
+import com.notification.service.port.UserLookupPort;
 import java.util.Optional;
 
+/**
+ * Template Method (GoF): фиксированный алгоритм доставки с hook-методами в {@link NotificationServiceImpl}.
+ */
 abstract class AbstractNotificationDeliveryTemplate {
-
-    protected static final int MAX_ERROR_MESSAGE_LENGTH = 2000;
 
     protected abstract Optional<NotificationIdempotencyService> idempotency();
 
+    protected abstract ErrorMessageTruncator errorMessageTruncator();
+
     protected abstract UserLookupPort userLookup();
+
+    protected abstract EmailDeliveryPort emailDelivery();
 
     protected abstract NotificationMetrics notificationMetrics();
 
     protected abstract String mailFrom();
-
-    protected abstract org.springframework.mail.javamail.JavaMailSender mailSender();
 
     protected abstract String buildSubject(UserNotificationOperation operation);
 
@@ -53,7 +53,7 @@ abstract class AbstractNotificationDeliveryTemplate {
                 .ifPresent(view -> onLookupEnrichment(request, view));
     }
 
-    protected void onLookupEnrichment(NotificationEmailRequest request, com.notification.lookup.UserCacheView view) {
+    protected void onLookupEnrichment(NotificationEmailRequest request, UserCacheView view) {
         // hook
     }
 
@@ -61,21 +61,18 @@ abstract class AbstractNotificationDeliveryTemplate {
         String body = buildBody(request);
         String subject = buildSubject(request.operation());
         try {
-            MimeMessage message = mailSender().createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, false, StandardCharsets.UTF_8.name());
-            helper.setFrom(mailFrom());
-            helper.setTo(request.email());
-            helper.setSubject(subject);
-            helper.setText(body, false);
-            mailSender().send(message);
+            emailDelivery().send(mailFrom(), request.email(), subject, body);
             persistSuccess(request);
             idempotency().ifPresent(service -> service.markProcessed(request.eventId()));
             notificationMetrics().emailSent(request.operation());
             onDeliverySuccess(request);
         } catch (Exception e) {
             notificationMetrics().emailFailed(request.operation());
-            persistFailure(request, truncate(e.getMessage()));
+            persistFailure(request, errorMessageTruncator().truncate(e.getMessage()));
             onDeliveryFailure(request, e);
+            if (e instanceof EmailDeliveryException deliveryException) {
+                throw deliveryException;
+            }
             throw new EmailDeliveryException("Не удалось отправить письмо", e);
         }
     }
@@ -88,12 +85,4 @@ abstract class AbstractNotificationDeliveryTemplate {
         // hook
     }
 
-    protected static String truncate(String message) {
-        if (message == null) {
-            return null;
-        }
-        return message.length() <= MAX_ERROR_MESSAGE_LENGTH
-                ? message
-                : message.substring(0, MAX_ERROR_MESSAGE_LENGTH);
-    }
 }

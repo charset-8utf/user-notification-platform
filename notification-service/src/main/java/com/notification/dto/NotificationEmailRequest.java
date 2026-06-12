@@ -1,6 +1,6 @@
 package com.notification.dto;
 
-import com.notification.entity.UserNotificationOperation;
+import com.notification.domain.UserNotificationOperation;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

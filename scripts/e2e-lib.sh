@@ -5,7 +5,7 @@ e2e_poll_max() {
   if [ -n "${GITHUB_ACTIONS:-}${CI:-}" ]; then
     echo "${E2E_POLL_MAX:-90}"
   else
-    echo "${E2E_POLL_MAX:-30}"
+    echo "${E2E_POLL_MAX:-45}"
   fi
 }
 

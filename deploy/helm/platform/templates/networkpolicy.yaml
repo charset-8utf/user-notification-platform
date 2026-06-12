@@ -1,0 +1,228 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "platform.fullname" . }}-default-deny-ingress
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "platform.fullname" . }}-allow-ingress-controller
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - api-gateway
+          - web-bff
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressControllerNamespace | quote }}
+      ports:
+        - port: {{ .Values.edge.apiGateway.port }}
+          protocol: TCP
+        - port: {{ .Values.edge.webBff.port }}
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "platform.fullname" . }}-allow-api-gateway
+spec:
+  podSelector:
+    matchLabels:
+      app: api-gateway
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: web-bff
+      ports:
+        - port: {{ .Values.edge.apiGateway.port }}
+          protocol: TCP
+{{- if .Values.observability.enabled }}
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - port: {{ .Values.edge.apiGateway.port }}
+          protocol: TCP
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "platform.fullname" . }}-allow-web-bff
+spec:
+  podSelector:
+    matchLabels:
+      app: web-bff
+  policyTypes:
+    - Ingress
+  ingress:
+{{- if .Values.observability.enabled }}
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - port: {{ .Values.edge.webBff.port }}
+          protocol: TCP
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "platform.fullname" . }}-allow-user-service
+spec:
+  podSelector:
+    matchLabels:
+      app: user-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+      ports:
+        - port: {{ .Values.platform.userService.httpsPort }}
+          protocol: TCP
+        - port: {{ .Values.platform.userService.managementPort }}
+          protocol: TCP
+{{- if .Values.observability.enabled }}
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - port: {{ .Values.platform.userService.managementPort }}
+          protocol: TCP
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "platform.fullname" . }}-allow-notification-service
+spec:
+  podSelector:
+    matchLabels:
+      app: notification-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+      ports:
+        - port: {{ .Values.platform.notificationService.httpsPort }}
+          protocol: TCP
+        - port: {{ .Values.platform.notificationService.managementPort }}
+          protocol: TCP
+{{- if .Values.observability.enabled }}
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - port: {{ .Values.platform.notificationService.managementPort }}
+          protocol: TCP
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "platform.fullname" . }}-allow-config-server
+spec:
+  podSelector:
+    matchLabels:
+      app: config-server
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - user-service
+                  - notification-service
+                  - api-gateway
+                  - web-bff
+      ports:
+        - port: {{ .Values.platform.configServer.port }}
+          protocol: TCP
+{{- if .Values.observability.enabled }}
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - port: {{ .Values.platform.configServer.port }}
+          protocol: TCP
+{{- end }}
+---
+{{- if .Values.infra.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "platform.fullname" . }}-allow-infra
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - postgres
+          - mongo
+          - redis
+          - mailpit
+          - kafka
+          - schema-registry
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - user-service
+                  - notification-service
+                  - api-gateway
+                  - web-bff
+                  - config-server
+                  - kafka
+                  - schema-registry
+      ports:
+        - port: 5432
+          protocol: TCP
+        - port: 27017
+          protocol: TCP
+        - port: 6379
+          protocol: TCP
+        - port: 1025
+          protocol: TCP
+        - port: 8025
+          protocol: TCP
+        - port: 29092
+          protocol: TCP
+        - port: {{ .Values.infra.schemaRegistry.port }}
+          protocol: TCP
+{{- end }}
+{{- end }}

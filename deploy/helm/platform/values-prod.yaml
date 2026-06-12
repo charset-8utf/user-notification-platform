@@ -16,6 +16,8 @@ externalDatabase:
 
 platform:
   enabled: true
+  kafka:
+    schemaRegistryUrl: https://schema-registry.example.com
   userService:
     env:
       DB_URL: jdbc:postgresql://postgres.example.com:5432/userdb
@@ -23,6 +25,10 @@ platform:
   notificationService:
     env:
       SPRING_MONGODB_URI: mongodb+srv://user:pass@cluster.example/notification
+      APP_API_KEY_ENABLED: "true"
+      APP_API_KEYS: ""  # via ExternalSecret
+      APP_KAFKA_SERIALIZATION: avro
+      APP_KAFKA_SCHEMA_REGISTRY_URL: http://schema-registry:8081
 
 edge:
   enabled: true
@@ -71,6 +77,14 @@ certManager:
   acmeEmail: ops@example.com
 
 observability:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+
+podDisruptionBudget:
+  enabled: true
+
+networkPolicy:
   enabled: true
 
 secrets:

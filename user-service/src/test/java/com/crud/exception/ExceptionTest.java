@@ -72,8 +72,4 @@ class ExceptionTest {
         assertThat(ex.getCause()).isEqualTo(cause);
     }
 
-    @Test
-    void kafkaSecurityConfigurationException_ShouldExtendUserServiceException() {
-        assertThat(UserServiceException.class).isAssignableFrom(KafkaSecurityConfigurationException.class);
-    }
 }

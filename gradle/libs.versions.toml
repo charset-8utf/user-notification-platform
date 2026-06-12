@@ -14,6 +14,13 @@ h2 = "2.4.240"
 greenmail = "2.1.0"
 jacoco = "0.8.14"
 springdoc = "2.8.6"
+mapstruct = "1.6.3"
+lombok-mapstruct-binding = "0.2.0"
+errorprone-plugin = "4.3.0"
+error-prone-core = "2.36.0"
+nullaway = "0.12.3"
+testcontainers = "2.0.5"
+testcontainers-kafka-module = "1.20.6"
 
 [libraries]
 wiremock = { module = "org.wiremock:wiremock-standalone", version.ref = "wiremock" }
@@ -28,8 +35,19 @@ resilience4j-spring-boot4 = { module = "io.github.resilience4j:resilience4j-spri
 platform-commons = { module = "com.platform:platform-commons", version = "1.0.0-SNAPSHOT" }
 springdoc-webmvc = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
 springdoc-webflux = { module = "org.springdoc:springdoc-openapi-starter-webflux-ui", version.ref = "springdoc" }
+mapstruct = { module = "org.mapstruct:mapstruct", version.ref = "mapstruct" }
+mapstruct-processor = { module = "org.mapstruct:mapstruct-processor", version.ref = "mapstruct" }
+lombok-mapstruct-binding = { module = "org.projectlombok:lombok-mapstruct-binding", version.ref = "lombok-mapstruct-binding" }
+error-prone-core = { module = "com.google.errorprone:error_prone_core", version.ref = "error-prone-core" }
+nullaway = { module = "com.uber.nullaway:nullaway", version.ref = "nullaway" }
+testcontainers-mongodb = { module = "org.testcontainers:testcontainers-mongodb", version.ref = "testcontainers" }
+testcontainers-kafka = { module = "org.testcontainers:testcontainers-kafka", version.ref = "testcontainers" }
+testcontainers-junit-jupiter = { module = "org.testcontainers:testcontainers-junit-jupiter", version.ref = "testcontainers" }
+testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql", version.ref = "testcontainers" }
+testcontainers-kafka-module = { module = "org.testcontainers:kafka", version.ref = "testcontainers-kafka-module" }
 
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
 spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
+errorprone = { id = "net.ltgt.errorprone", version.ref = "errorprone-plugin" }
 jacoco = { id = "jacoco" }

@@ -1,5 +1,6 @@
-# Maven (legacy)
+# Build artifacts
 target/
+META-INF/
 
 # Gradle
 .gradle/

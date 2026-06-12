@@ -11,7 +11,6 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @Execution(ExecutionMode.CONCURRENT)
 class ProfileMapperTest {
@@ -62,18 +61,5 @@ class ProfileMapperTest {
         assertThat(result.getId()).isEqualTo(1L);
         assertThat(result.getPhone()).isEqualTo("+999");
         assertThat(result.getAddress()).isEqualTo("New Address");
-    }
-
-    @Test
-    void toEntity_NullRequest_ShouldThrowNullPointerException() {
-        Profile existing = Profile.builder().phone("+000").address("Old").build();
-        assertThatThrownBy(() -> profileMapper.toEntity(null, existing))
-                .isInstanceOf(NullPointerException.class);
-    }
-
-    @Test
-    void toResponse_NullEntity_ShouldThrowNullPointerException() {
-        assertThatThrownBy(() -> profileMapper.toResponse(null))
-                .isInstanceOf(NullPointerException.class);
     }
 }

@@ -4,6 +4,48 @@ global:
   imageTag: latest
   imagePullPolicy: Never
 
+podSecurity:
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+resources:
+  configServer:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  userService:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 768Mi
+  notificationService:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 768Mi
+  apiGateway:
+    requests:
+      cpu: 200m
+      memory: 384Mi
+    limits:
+      cpu: 750m
+      memory: 512Mi
+  webBff:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 384Mi
+
 infra:
   enabled: true
   postgres:
@@ -13,11 +55,19 @@ infra:
     storage: 1Gi
   mongo:
     database: notification
+    storage: 1Gi
+  schemaRegistry:
+    port: 8081
+  kafka:
+    storage: 1Gi
   redis:
     password: ""
 
 platform:
   enabled: true
+  kafka:
+    serialization: avro
+    schemaRegistryUrl: http://schema-registry:8081
   configServer:
     image: config-server
     tag: latest
@@ -56,6 +106,23 @@ edge:
 
 observability:
   enabled: false
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    scrapeTimeout: 10s
+    labels:
+      release: prometheus
+
+networkPolicy:
+  enabled: true
+  ingressControllerNamespace: ingress-nginx
+
+podDisruptionBudget:
+  enabled: true
+
+lifecycle:
+  preStopSleepSeconds: 10
+  terminationGracePeriodSeconds: 60
 
 secrets:
   appJwtSecret: dev-jwt-secret-change-in-production-min-32-chars

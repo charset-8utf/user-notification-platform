@@ -4,7 +4,7 @@ spring:
 
   config:
     import:
-      - optional:configserver:http://${CONFIG_SERVER_HOST:localhost}:${CONFIG_SERVER_PORT:8888}
+      - optional:configserver:${CONFIG_SERVER_URI:https://localhost:8888}
       - optional:classpath:platform/tracing-defaults.yml
 
   cloud:
@@ -107,6 +107,8 @@ app:
     admin-password: ${APP_SEED_ADMIN_PASSWORD:}
     user-password: ${APP_SEED_USER_PASSWORD:}
   kafka:
+    serialization: ${APP_KAFKA_SERIALIZATION:json}
+    schema-registry-url: ${APP_KAFKA_SCHEMA_REGISTRY_URL:}
     security:
       enabled: ${APP_KAFKA_SECURITY_ENABLED:false}
   notification:

@@ -4,8 +4,8 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 import com.platform.gateway.support.GatewayJwtTestSupport;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpHeaders;
@@ -28,8 +28,14 @@ class ApiGatewaySecurityIntegrationTest {
     @LocalServerPort
     private int gatewayPort;
 
-    @Autowired
     private WebTestClient webTestClient;
+
+    @BeforeEach
+    void configureWebTestClient() {
+        webTestClient = WebTestClient.bindToServer()
+                .baseUrl("http://localhost:" + gatewayPort)
+                .build();
+    }
 
     @BeforeAll
     static void startDownstream() {
@@ -54,7 +60,7 @@ class ApiGatewaySecurityIntegrationTest {
     @Test
     void protectedRoute_withoutJwt_returns401() {
         webTestClient.get()
-                .uri("http://localhost:" + gatewayPort + "/api/users/7")
+                .uri("/api/users/7")
                 .exchange()
                 .expectStatus().isUnauthorized();
     }

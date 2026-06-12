@@ -3,18 +3,17 @@ package com.notification.integration;
 import com.icegreen.greenmail.util.GreenMail;
 import com.icegreen.greenmail.util.GreenMailUtil;
 import com.icegreen.greenmail.util.ServerSetup;
+import com.notification.config.kafka.NotificationKafkaProperties;
 import com.notification.dto.NotificationEmailRequest;
-import com.notification.entity.NotificationDeliveryStatus;
-import com.notification.entity.UserNotificationOperation;
-import com.notification.inbox.InboxStatus;
-import com.notification.inbox.NotificationInboxRepository;
+import com.notification.domain.NotificationDeliveryStatus;
+import com.notification.domain.UserNotificationOperation;
+import com.notification.repository.NotificationInboxRepository;
 import com.notification.repository.NotificationLogRepository;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.context.ActiveProfiles;
@@ -81,8 +80,8 @@ class NotificationKafkaIntegrationTest {
     @Autowired
     private NotificationInboxRepository inboxRepository;
 
-    @Value("${app.notification.kafka.topic}")
-    private String topic;
+    @Autowired
+    private NotificationKafkaProperties kafkaProperties;
 
     @BeforeEach
     void clean() {
@@ -108,7 +107,7 @@ class NotificationKafkaIntegrationTest {
         NotificationEmailRequest event = NotificationEmailRequest.of(
                 UserNotificationOperation.USER_CREATED, "kafka@example.com");
 
-        kafkaTemplate.send(topic, event.email(), event);
+        kafkaTemplate.send(kafkaProperties.topic(), event.email(), event);
 
         await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
             var logs = notificationLogRepository.findAll();
@@ -138,7 +137,7 @@ class NotificationKafkaIntegrationTest {
         NotificationEmailRequest event = NotificationEmailRequest.of(
                 UserNotificationOperation.USER_DELETED, "gone@example.com");
 
-        kafkaTemplate.send(topic, event.email(), event);
+        kafkaTemplate.send(kafkaProperties.topic(), event.email(), event);
 
         await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
             assertThat(greenMail.getReceivedMessages()).hasSize(1);

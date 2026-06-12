@@ -8,7 +8,27 @@ on:
   schedule:
     - cron: "0 3 * * 1"
 
+permissions:
+  contents: read
+  id-token: write
+  packages: write
+
 jobs:
+  hadolint:
+    name: Hadolint Dockerfiles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Hadolint
+        run: |
+          curl -sSfL https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64 \
+            -o /usr/local/bin/hadolint
+          chmod +x /usr/local/bin/hadolint
+
+      - name: Lint Dockerfiles
+        run: hadolint docker/spring-service/Dockerfile
+
   gitleaks:
     name: Gitleaks
     runs-on: ubuntu-latest
@@ -25,20 +45,17 @@ jobs:
       - name: Run Gitleaks
         run: gitleaks detect --source . --verbose --config .gitleaks.toml
 
-  trivy-images:
-    name: Trivy images
+  supply-chain:
+    name: Trivy + SBOM + Cosign
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-          cache: gradle
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker images
+      - name: Build Docker images (multi-stage)
         run: |
           chmod +x gradlew scripts/ci.sh
           ./scripts/ci.sh build-docker-images
@@ -47,9 +64,47 @@ jobs:
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
 
-      - name: Scan images
+      - name: Vulnerability scan
         run: |
           for img in user-service notification-service config-server api-gateway web-bff; do
-            echo "=== Trivy: ${img} ==="
+            echo "=== Trivy vuln: ${img} ==="
             trivy image --scanners vuln --severity HIGH,CRITICAL --exit-code 1 "${img}:latest"
+          done
+
+      - name: Generate SBOM (SPDX)
+        run: |
+          mkdir -p sbom
+          for img in user-service notification-service config-server api-gateway web-bff; do
+            echo "=== SBOM: ${img} ==="
+            trivy image --format spdx-json --output "sbom/${img}.spdx.json" "${img}:latest"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          retention-days: 30
+          path: sbom/*.spdx.json
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.7.0
+
+      - name: Sign images (keyless, main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        run: |
+          for img in user-service notification-service config-server api-gateway web-bff; do
+            echo "=== Cosign sign: ${img} ==="
+            cosign sign --yes "${img}:latest"
+          done
+
+      - name: Verify signatures (main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        run: |
+          for img in user-service notification-service config-server api-gateway web-bff; do
+            cosign verify --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+              --certificate-identity-regexp "^https://github.com/${{ github.repository }}" \
+              "${img}:latest"
           done

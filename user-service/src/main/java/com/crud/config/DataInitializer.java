@@ -14,9 +14,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.util.Objects;
+
 @Component
 @RequiredArgsConstructor
 @Slf4j
+@SuppressWarnings("NullAway.Init")
 public class DataInitializer {
 
     private final UserRepository userRepository;
@@ -40,10 +43,10 @@ public class DataInitializer {
             log.warn("Seed-пароли не заданы (app.seed.admin-password, app.seed.user-password). Пропуск инициализации — API будет недоступен без аутентификации.");
             return;
         }
-        transactionTemplate.executeWithoutResult(status -> insertSeedData());
+        transactionTemplate.executeWithoutResult(status -> insertSeedData(adminPassword, userPassword));
     }
 
-    private void insertSeedData() {
+    private void insertSeedData(String adminPassword, String userPassword) {
         log.info("Инициализация seed-данных...");
 
         User adminUser = userRepository.findByEmail("admin@userservice.local")
@@ -79,14 +82,14 @@ public class DataInitializer {
         credentialRepository.save(Credential.builder()
                 .user(adminUser)
                 .username("admin")
-                .password(passwordEncoder.encode(adminPassword))
+                .password(Objects.requireNonNull(passwordEncoder.encode(Objects.requireNonNull(adminPassword))))
                 .enabled(true)
                 .build());
 
         credentialRepository.save(Credential.builder()
                 .user(regularUser)
                 .username("user")
-                .password(passwordEncoder.encode(userPassword))
+                .password(Objects.requireNonNull(passwordEncoder.encode(Objects.requireNonNull(userPassword))))
                 .enabled(true)
                 .build());
 

@@ -9,13 +9,11 @@ paths = [
   '''\.github/workflows/.+\.yml$''',
   '''config-repo/.+\.yml$''',
   '''deploy/helm/.+\.yaml$''',
-  '''docs/.+\.md$''',
   '''README\.md$''',
   '''scripts/.+\.sh$''',
   '''infra/.+\.(sh|conf|json|yml)$''',
   '''.+/application-test\.yml$''',
   '''.+/application-it\.yml$''',
-  '''.+/contracts/.+\.groovy$''',
   '''.+/ServiceJwtTestSupport\.java$''',
   '''.+/JwtAuthTestSupport\.java$''',
 ]

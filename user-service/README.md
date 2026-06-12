@@ -13,24 +13,25 @@
 ![JUnit](https://img.shields.io/badge/JUnit%20Jupiter-6.0.3-green)
 ![Mockito](https://img.shields.io/badge/Mockito-5.23.0-orange)
 ![Testcontainers](https://img.shields.io/badge/Testcontainers-2.0.5-blue)
-[![CI](https://github.com/charset-8utf/UserServiceSpringBoot/actions/workflows/UserServiceCI.yml/badge.svg)](https://github.com/charset-8utf/UserServiceSpringBoot/actions/workflows/UserServiceCI.yml)
+[![CI](https://github.com/charset-8utf/user-notification-platform/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/charset-8utf/user-notification-platform/actions/workflows/ci.yml)
 ![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)
 
 ## Описание проекта
 
 REST-сервис для управления пользователями с поддержкой операций **Create**, **Read**, **Update**, **Delete** (CRUD).  
 Построен на **Spring Boot 4** с использованием **Spring Data JPA**, **PostgreSQL** в Docker и пула соединений **HikariCP**.  
-**Архитектура:** трёхслойная (Controller → Service → Repository) с DTO и ручными мапперами.
+**Архитектура:** трёхслойная (Controller → Service → Repository) с DTO и **MapStruct**-мапперами.
 
 Схема БД управляется миграциями **Liquibase**: точка входа — `src/main/resources/db/changelog/db.changelog-master.yaml`, изменения — SQL-файлы в `src/main/resources/db/changelog/changes/` (*Liquibase formatted sql*).  
 Покрыт юнит-тестами (JUnit, Mockito) и интеграционными тестами (Testcontainers, H2).  
 CI/CD выполняется в GitHub Actions (монорепозиторий `user-notification-platform`).
 
-При локальном запуске через `docker compose` поднимаются **PostgreSQL**, **Redis**, **Kafka** и **Zookeeper**; приложение доступно по **HTTPS** на порту **8443**.
+При локальном запуске через `docker compose` из **корня monorepo** поднимаются **PostgreSQL**, **Redis**, **Kafka (KRaft)**, **Schema Registry**; приложение доступно по **HTTPS** на порту **8443**.
 
 В составе платформы [`user-notification-platform`](../README.md) тот же сервис также доступен через **API Gateway** (`http://localhost:8080`) в профиле `cloud` — см. [platform README](../README.md).
 
-При создании и удалении пользователя сервис может отправлять события во внешний **notification-service** (профили `kafka` или `rest`, см. ниже).
+При создании и удалении пользователя сервис публикует события во **notification-service** (профили `kafka` или `rest`).  
+При сбое доставки email notification-service отправляет **compensation-событие** в Kafka (`notification-compensations`); user-service выполняет **choreography saga** — откат создания пользователя или signal-only для удаления.
 
 ## API-эндпоинты
 
@@ -67,25 +68,22 @@ CI/CD выполняется в GitHub Actions (монорепозиторий `
 ## Требования к окружению
 
 - **Docker Desktop** (для PostgreSQL, Redis, Kafka и интеграционных тестов)
-- **Java 21**
-- **Gradle 8.14+** (в monorepo платформы — `./gradlew` из корня `user-notification-platform`)
+- **Java 21** (Gradle toolchain в корневом `build.gradle.kts`)
+- **Gradle 8.14+** — wrapper из корня `user-notification-platform` (`./gradlew`)
 
 ## Быстрый старт через Docker
 
 ### 1. Клонирование репозитория
 
 ```bash
-git clone https://github.com/charset-8utf/UserServiceSpringBoot.git
-cd UserServiceSpringBoot
-```
-
-### 2. Настройка переменных окружения
-
-```bash
+git clone https://github.com/charset-8utf/user-notification-platform.git
+cd user-notification-platform
 cp .env.example .env
 ```
 
-По умолчанию `.env.example` содержит:
+### 2. Переменные окружения
+
+Скопируйте `.env.example` в `.env` (см. шаг 1). Ключевые значения:
 
 ```properties
 DB_USER=postgres
@@ -105,6 +103,8 @@ POSTGRES_PUBLISH_PORT=5432
 
 ### 3. Запуск PostgreSQL, Redis, Kafka и приложения
 
+Из **корня** monorepo:
+
 При первом запуске нужна сборка образа:
 
 ```bash
@@ -115,13 +115,7 @@ docker compose up --build -d
 
 Приложение: **https://localhost:8443** (если не меняли `APP_HTTPS_PORT`).
 
-**Режим разработки** (инфраструктура в Docker, приложение локально):
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
-```
-
-Запуск приложения — из **корня** `user-notification-platform`:
+**Режим разработки** (инфраструктура в Docker, приложение локально) — из **корня** `user-notification-platform`:
 
 ```bash
 ./gradlew :user-service:bootRun
@@ -132,6 +126,8 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 ```bash
 docker compose down -v && docker compose up --build -d
 ```
+
+В compose также поднимаются **Schema Registry** (`:8085`) и **Avro** по умолчанию для Kafka (`APP_KAFKA_SERIALIZATION=avro`). См. [platform README](../README.md#kafka).
 
 > Браузер покажет предупреждение о самоподписанном сертификате. Для API удобнее **curl** (`-k`).
 
@@ -189,12 +185,12 @@ docker compose down -v
 
 ## Безопасность
 
-| Механизм | Описание |
-|----------|----------|
-| **HTTPS** | TLS 1.2/1.3 на порту **8443** (`keystore.p12`); management — **8081** |
-| **User JWT** | Профиль `jwt`: login/refresh/logout, HS256, rate limit на `/api/auth/*` |
-| **Service JWT** | Профиль `rest`: исходящие вызовы `notification-service` (`notifications:write`) |
-| **Kafka** | По умолчанию PLAINTEXT в dev; **SASL_SSL** — `APP_KAFKA_SECURITY_ENABLED=true` |
+| Механизм            | Описание                                                                           |
+|---------------------|------------------------------------------------------------------------------------|
+| **HTTPS**           | TLS 1.2/1.3 на порту **8443** (`keystore.p12`); management — **8081**              |
+| **User JWT**        | Профиль `jwt`: login/refresh/logout, HS256, rate limit на `/api/auth/*`            |
+| **Service JWT**     | Профиль `rest`: исходящие вызовы `notification-service` (`notifications:write`)    |
+| **Kafka**           | По умолчанию PLAINTEXT в dev; **SASL_SSL** — `APP_KAFKA_SECURITY_ENABLED=true`     |
 | **Cloud / Gateway** | Клиент ходит на HTTP Gateway; до user-service — HTTPS с dev trust (`insecure-ssl`) |
 
 Порт **9090** в compose зарезервирован под будущий **gRPC** — в текущей версии не используется.
@@ -218,7 +214,23 @@ docker compose down -v
 
 Профили **`kafka` и `rest` взаимоисключающие** — не включайте оба одновременно.
 
-Параллельно (профиль `redis`) в Redis кэшируется срез пользователя: ключ `user:{id}`, TTL — `app.cache.redis.ttl` (по умолчанию `PT1H`).
+Параллельно (профиль `redis`) в Redis кэшируется срез пользователя: ключ `user:{id}`, TTL — `app.cache.redis.ttl` (по умолчанию `PT1H`). Refresh-токены JWT хранятся в Redis (`jwt & redis`) или in-memory (`jwt & !redis`).
+
+## Saga compensation (входящие события)
+
+При ошибке доставки email **notification-service** публикует JSON в топик **`notification-compensations`**. user-service (профиль `kafka`) потребляет их через `NotificationCompensationConsumer`:
+
+| Операция       | Действие                                                   |
+|----------------|------------------------------------------------------------|
+| `USER_CREATED` | **Rollback** — удаление пользователя и eviction Redis-кэша |
+| `USER_DELETED` | **Signal-only** — пользователь уже удалён, метрика + лог   |
+
+Профиль **`rest`**: тот же сценарий синхронно через `NotificationDeliveryFailureRecorder` при ошибке HTTP-вызова.
+
+E2E сценарий платформы: `make e2e-compensation` (из корня monorepo).  
+Подробнее о публикации compensation: [notification-service/README.md](../notification-service/README.md).
+
+Метрики: `app.notification.compensation.*` (Micrometer). Операционные логи compensation и security — на **русском языке**.
 
 ## Локальный запуск с PostgreSQL в контейнере
 
@@ -246,16 +258,21 @@ APP_SEED_ADMIN_PASSWORD=admin123 APP_SEED_USER_PASSWORD=user123 \
 
 ```text
 com.crud
-├── config/       # безопасность, Kafka, REST-клиент, CORS, rate limit
+├── config/           # общая конфигурация, properties
+│   ├── kafka/        # producers, consumers, topics, SASL/SSL
+│   ├── security/     # JWT, HTTP security, authorization
+│   ├── ratelimit/    # Chain of Responsibility для ключей rate limit
+│   └── rest/         # REST-клиент к notification-service
 ├── controller/   # REST API, AuthController
 ├── service/      # бизнес-логика, retry при optimistic lock
 ├── repository/   # Spring Data JPA
 ├── entity/       # JPA-сущности, @Version, L2 cache
 ├── dto/          # DTO и auth-запросы
-├── mapper/       # DTO ↔ Entity
-├── notification/ # события, outbox, Kafka/REST
-│   ├── kafka/    # UserNotificationKafkaProducer
-│   └── outbox/   # KafkaOutboxRelay
+├── mapper/       # MapStruct: DTO ↔ Entity (@MapperConfig)
+├── notification/ # события, outbox, Kafka/REST, compensation
+│   ├── kafka/        # UserNotificationKafkaProducer
+│   ├── outbox/       # notification_outbox, KafkaOutboxRelay
+│   └── compensation/ # NotificationCompensationConsumer, UserCompensationService
 ├── cache/        # Redis UserCachePort
 ├── exception/    # @RestControllerAdvice
 └── security/     # JWT, AuthService, ApiOutputSanitizer
@@ -277,7 +294,7 @@ com.crud
 ./gradlew check
 ```
 
-Интеграционные тесты используют **H2** и/или **Testcontainers** (нужен Docker).
+Интеграционные тесты используют профили **`test`**, **`it`**, **`jwt`** (`application-test.yml`, `application-it.yml`) и **H2** / **Testcontainers** (нужен Docker).
 
 ### Типы тестов
 
@@ -304,14 +321,15 @@ com.crud
 
 ## CI
 
-В monorepo платформы: `./gradlew check` (workflow `ci.yml`).
+В monorepo платформы: `./gradlew :user-service:check` (workflow [`ci.yml`](../.github/workflows/ci.yml), JDK **21**).  
+E2E и compensation: [`e2e.yml`](../.github/workflows/e2e.yml), `make e2e-compensation`.
 
-Отдельный репозиторий — `.github/workflows/UserServiceCI.yml`:
+## Сборка (`build.gradle.kts`)
 
-- JDK 21, Gradle
-- `./gradlew check`
-- Сборка Docker-образа (Buildx)
-- Smoke-тест в docker compose
+- Зависимости сгруппированы по конфигурациям (`implementation`, `testImplementation`, `errorprone`, …)
+- Версии вне Spring BOM — через каталог [`gradle/libs.versions.toml`](../gradle/libs.versions.toml) (`libs.*`)
+- **Error Prone** + **NullAway** на этапе компиляции; плагин — `alias(libs.plugins.errorprone)`
+- Java **21** — toolchain из корневого `build.gradle.kts`
 
 ## Логирование
 
@@ -328,8 +346,9 @@ com.crud
 - **Санитизация ответов** — `ApiOutputSanitizer` в контроллерах
 - **CORS** — настраиваемые allowed origins
 - **Пагинация** — Spring Data Pageable (макс. 100)
-- **Kafka outbox** — at-least-once доставка событий; опционально SASL_SSL (`APP_KAFKA_SECURITY_ENABLED=true`)
-- **REST к notification-service** — service JWT, TLS truststore, Spring Cloud Circuit Breaker (Resilience4j) + Bulkhead, `@LoadBalanced` RestClient → `https://notification-service`
+- **Kafka outbox** — таблица `notification_outbox`, at-least-once дelivery; опционально SASL_SSL (`APP_KAFKA_SECURITY_ENABLED=true`)
+- **Saga compensation** — consumer топика `notification-compensations`, идемпотентный rollback
+- **REST к notification-service** — service JWT (`@DefaultValue` в `ServiceJwtProperties`), TLS truststore, Resilience4j + Bulkhead, `RestClient` → `https://notification-service:8443`
 - **Liquibase** — `spring.jpa.hibernate.ddl-auto: validate`
 - **Healthcheck** в Docker через Actuator
 

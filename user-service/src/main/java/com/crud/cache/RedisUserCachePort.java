@@ -47,24 +47,21 @@ public class RedisUserCachePort implements UserCachePort {
             String json = objectMapper.writeValueAsString(view);
             redis.opsForValue().set(byId, json, ttl);
             redis.opsForValue().set(byEmail, json, ttl);
-            log.debug("Redis put: {} / {} ttl={}", byId, byEmail, ttl);
+            log.debug("Redis-кэш: сохранён пользователь, ключи {}/{}, TTL={}", byId, byEmail, ttl);
         } catch (JacksonException | DataAccessException e) {
-            log.warn("Не удалось записать пользователя в Redis (id={}, email={}): {}",
+            log.warn("Не удалось записать пользователя в Redis-кэш (id={}, email={}): {}",
                     view.id(), view.email(), e.getMessage());
         }
     }
 
     @Override
     public void putResponse(UserResponse response) {
-        if (response.id() == null) {
-            return;
-        }
         String key = KEY_PREFIX_QUERY + response.id();
         try {
             redis.opsForValue().set(key, objectMapper.writeValueAsString(response), ttl);
-            log.debug("Redis query cache put: {}", key);
+            log.debug("Redis-кэш: сохранён ответ пользователя, ключ {}", key);
         } catch (JacksonException | DataAccessException e) {
-            log.warn("Не удалось записать read-model в Redis (id={}): {}", response.id(), e.getMessage());
+            log.warn("Не удалось записать ответ пользователя в Redis-кэш (id={}): {}", response.id(), e.getMessage());
         }
     }
 
@@ -78,7 +75,7 @@ public class RedisUserCachePort implements UserCachePort {
             }
             return java.util.Optional.of(objectMapper.readValue(json, UserResponse.class));
         } catch (JacksonException | DataAccessException e) {
-            log.warn("Не удалось прочитать read-model из Redis (id={}): {}", id, e.getMessage());
+            log.warn("Не удалось прочитать ответ пользователя из Redis-кэша (id={}): {}", id, e.getMessage());
             return java.util.Optional.empty();
         }
     }
@@ -94,9 +91,9 @@ public class RedisUserCachePort implements UserCachePort {
                 UserCacheView view = objectMapper.readValue(existing, UserCacheView.class);
                 redis.delete(KEY_PREFIX_EMAIL + view.email());
             }
-            log.debug("Redis evict: id={}", id);
+            log.debug("Redis-кэш: удалены записи пользователя, id={}", id);
         } catch (JacksonException | DataAccessException e) {
-            log.warn("Не удалось удалить пользователя из Redis (id={}): {}", id, e.getMessage());
+            log.warn("Не удалось удалить пользователя из Redis-кэша (id={}): {}", id, e.getMessage());
         }
     }
 }

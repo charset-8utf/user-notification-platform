@@ -1,4 +1,5 @@
 com.platform.commons.PlatformCommonsAutoConfiguration
+com.platform.commons.kafka.KafkaSecurityAutoConfiguration
 com.platform.commons.observability.ExceptionMetricsAutoConfiguration
 com.platform.commons.observability.ServletMetricsAutoConfiguration
 com.platform.commons.audit.AuditLogAutoConfiguration

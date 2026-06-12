@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 @MappedSuperclass
 @Getter
 @Setter
+@SuppressWarnings("NullAway.Init")
 public abstract class BaseEntity {
 
     @Id

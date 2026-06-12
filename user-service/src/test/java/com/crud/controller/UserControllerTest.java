@@ -2,7 +2,7 @@ package com.crud.controller;
 
 import com.crud.entity.NotificationDeliveryStatus;
 
-import com.crud.config.SecurityConfig;
+import com.crud.config.security.SecurityConfig;
 import com.crud.config.WebMvcTestSecuritySupport;
 import tools.jackson.databind.json.JsonMapper;
 import com.crud.dto.UserRequest;

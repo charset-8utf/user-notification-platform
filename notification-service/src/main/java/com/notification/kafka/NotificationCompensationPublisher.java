@@ -1,11 +1,14 @@
 package com.notification.kafka;
 
+import com.notification.config.kafka.NotificationKafkaProperties;
 import com.notification.dto.NotificationCompensationEvent;
 import com.notification.dto.NotificationEmailRequest;
 import com.notification.metrics.NotificationMetrics;
+import com.notification.service.ErrorMessageTruncator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Profile;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
@@ -14,24 +17,25 @@ import java.time.Instant;
 
 @Component
 @Profile("kafka")
-@RequiredArgsConstructor
 @Slf4j
+@RequiredArgsConstructor
 public class NotificationCompensationPublisher {
 
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    @Qualifier("compensationKafkaTemplate")
+    private final KafkaTemplate<String, Object> compensationKafkaTemplate;
     private final NotificationMetrics notificationMetrics;
+    private final NotificationKafkaProperties kafkaProperties;
+    private final ErrorMessageTruncator errorMessageTruncator;
 
-    @Value("${app.notification.kafka.compensation-topic}")
-    private String compensationTopic;
-
-    public void publishFromFailedDelivery(NotificationEmailRequest original, String errorMessage) {
+    public void publishFromFailedDelivery(NotificationEmailRequest original, @Nullable String errorMessage) {
+        String compensationTopic = kafkaProperties.compensationTopic();
         NotificationCompensationEvent event = new NotificationCompensationEvent(
                 original.eventId(),
                 original.operation(),
                 original.email(),
-                truncate(errorMessage),
+                errorMessageTruncator.truncate(errorMessage),
                 Instant.now());
-        kafkaTemplate.send(compensationTopic, original.eventId().toString(), event);
+        compensationKafkaTemplate.send(compensationTopic, original.eventId().toString(), event);
         notificationMetrics.compensationPublished(original.operation());
         log.warn(
                 "Опубликовано compensating-событие: topic={}, originalEventId={}, operation={}, email={}",
@@ -39,12 +43,5 @@ public class NotificationCompensationPublisher {
                 original.eventId(),
                 original.operation(),
                 original.email());
-    }
-
-    private static String truncate(String message) {
-        if (message == null) {
-            return "unknown";
-        }
-        return message.length() <= 2000 ? message : message.substring(0, 2000);
     }
 }

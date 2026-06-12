@@ -1,46 +1,41 @@
 package com.notification.service;
 
+import com.notification.config.NotificationProperties;
+import com.notification.domain.NotificationDeliveryStatus;
+import com.notification.domain.UserNotificationOperation;
 import com.notification.dto.NotificationEmailRequest;
-import com.notification.email.EmailContentStrategy;
-import com.notification.email.EmailContentStrategyFactory;
-import com.notification.entity.NotificationDeliveryStatus;
-import com.notification.entity.UserNotificationOperation;
-import com.notification.idempotency.NotificationIdempotencyService;
-import com.notification.lookup.UserCacheView;
-import com.notification.lookup.UserLookupPort;
 import com.notification.mapper.NotificationLogMapper;
 import com.notification.metrics.NotificationMetrics;
-import com.platform.commons.audit.AuditLog;
 import com.notification.repository.NotificationLogRepository;
+import com.notification.service.email.EmailContentStrategy;
+import com.notification.service.email.EmailContentStrategyFactory;
+import com.notification.service.port.EmailDeliveryPort;
+import com.notification.service.port.UserCacheView;
+import com.notification.service.port.UserLookupPort;
+import com.platform.commons.audit.AuditLog;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
 /**
- * Реализация сервиса уведомлений.
+ * Facade (GoF) над pipeline доставки email.
  */
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class NotificationServiceImpl extends AbstractNotificationDeliveryTemplate implements NotificationService {
 
-    private final JavaMailSender mailSender;
+    private final EmailDeliveryPort emailDelivery;
     private final NotificationLogRepository notificationLogRepository;
     private final NotificationLogMapper notificationLogMapper;
     private final UserLookupPort userLookup;
     private final Optional<NotificationIdempotencyService> idempotency;
     private final NotificationMetrics notificationMetrics;
     private final EmailContentStrategyFactory emailContentStrategyFactory;
-
-    @Value("${app.notification.site-name}")
-    private String siteName;
-
-    @Value("${app.notification.mail-from}")
-    private String mailFrom;
+    private final NotificationProperties notificationProperties;
+    private final ErrorMessageTruncator errorMessageTruncator;
 
     @Override
     @AuditLog(action = "NOTIFICATION_EMAIL_SEND", resourceType = "notification")
@@ -59,18 +54,23 @@ public class NotificationServiceImpl extends AbstractNotificationDeliveryTemplat
     }
 
     @Override
+    protected EmailDeliveryPort emailDelivery() {
+        return emailDelivery;
+    }
+
+    @Override
     protected NotificationMetrics notificationMetrics() {
         return notificationMetrics;
     }
 
     @Override
-    protected String mailFrom() {
-        return mailFrom;
+    protected ErrorMessageTruncator errorMessageTruncator() {
+        return errorMessageTruncator;
     }
 
     @Override
-    protected JavaMailSender mailSender() {
-        return mailSender;
+    protected String mailFrom() {
+        return notificationProperties.mailFrom();
     }
 
     @Override
@@ -81,7 +81,7 @@ public class NotificationServiceImpl extends AbstractNotificationDeliveryTemplat
     @Override
     protected String buildBody(NotificationEmailRequest request) {
         EmailContentStrategy strategy = emailContentStrategyFactory.forOperation(request.operation());
-        return strategy.body(siteName);
+        return strategy.body(notificationProperties.siteName());
     }
 
     @Override
@@ -104,7 +104,7 @@ public class NotificationServiceImpl extends AbstractNotificationDeliveryTemplat
     @Override
     protected void onLookupEnrichment(NotificationEmailRequest request, UserCacheView view) {
         log.debug(
-                "Redis enrichment: user.id={}, cache.email={}, status={}",
+                "Обогащение из Redis: user.id={}, cache.email={}, status={}",
                 view.id(), view.email(), view.status());
     }
 

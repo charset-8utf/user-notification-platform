@@ -1,6 +1,6 @@
 package com.notification.dto;
 
-import com.notification.entity.UserNotificationOperation;
+import com.notification.domain.UserNotificationOperation;
 
 import java.time.Instant;
 import java.util.UUID;

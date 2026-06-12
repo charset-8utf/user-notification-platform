@@ -1,0 +1,2 @@
+# Synced from ../schemas/avro at build time (see build.gradle.kts syncAvroSchemas)
+src/main/avro/

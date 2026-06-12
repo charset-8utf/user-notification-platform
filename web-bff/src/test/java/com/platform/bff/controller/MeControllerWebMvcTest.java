@@ -13,7 +13,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -39,7 +38,7 @@ class MeControllerWebMvcTest {
                 new UserSummary(1L, "admin", "admin@example.com", 30),
                 new ProfileSummary(10L, "+7999", "Moscow"),
                 new NotificationSummary("email", "DELIVERED", "Welcome"));
-        when(meFacade.loadCurrentUser(eq("Bearer token"))).thenReturn(response);
+        when(meFacade.loadCurrentUser("Bearer token")).thenReturn(response);
 
         mockMvc.perform(get("/bff/me").header(AUTHORIZATION, "Bearer token"))
                 .andExpect(status().isOk())

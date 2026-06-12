@@ -1,0 +1,30 @@
+{{- if and .Values.observability.enabled .Values.observability.serviceMonitor.enabled (.Capabilities.APIVersions.Has "monitoring.coreos.com/v1") }}
+{{- $monitorLabels := .Values.observability.serviceMonitor.labels }}
+{{- range $name, $port := dict
+  "config-server" "http"
+  "user-service" "management"
+  "notification-service" "management"
+  "api-gateway" "http"
+  "web-bff" "http"
+}}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- range $key, $value := $monitorLabels }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+    app.kubernetes.io/name: {{ $name }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ $name }}
+  endpoints:
+    - port: {{ $port }}
+      path: /actuator/prometheus
+      interval: {{ $.Values.observability.serviceMonitor.interval }}
+      scrapeTimeout: {{ $.Values.observability.serviceMonitor.scrapeTimeout }}
+{{- end }}
+{{- end }}

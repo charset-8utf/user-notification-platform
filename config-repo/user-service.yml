@@ -1,4 +1,3 @@
-# Externalized defaults for user-service (secrets stay in env)
 spring:
   jpa:
     open-in-view: false

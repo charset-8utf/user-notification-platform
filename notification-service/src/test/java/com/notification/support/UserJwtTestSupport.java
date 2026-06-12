@@ -26,10 +26,6 @@ public final class UserJwtTestSupport {
         return "Bearer " + accessToken(email, List.of("USER"));
     }
 
-    public static String adminBearerToken(String email) {
-        return "Bearer " + accessToken(email, List.of("ADMIN"));
-    }
-
     private static String accessToken(String email, List<String> roles) {
         byte[] secretBytes = TEST_SECRET.getBytes(StandardCharsets.UTF_8);
         OctetSequenceKey jwk = new OctetSequenceKey.Builder(secretBytes)

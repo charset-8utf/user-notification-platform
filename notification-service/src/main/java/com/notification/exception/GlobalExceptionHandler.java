@@ -16,6 +16,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 @RestControllerAdvice
 @Slf4j
@@ -30,12 +31,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(EmailDeliveryException.class)
     public ResponseEntity<ErrorResponse> handleEmailDelivery(EmailDeliveryException ex) {
         log.warn("Ошибка отправки письма: {}", ex.getMessage());
-        return buildErrorResponse(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
+        return buildErrorResponse(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                Objects.requireNonNullElse(ex.getMessage(), "Ошибка отправки письма"));
     }
 
     @ExceptionHandler(NotificationServiceException.class)
     public ResponseEntity<ErrorResponse> handleNotificationService(NotificationServiceException ex) {
-        return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
+        return buildErrorResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                Objects.requireNonNullElse(ex.getMessage(), "Ошибка сервиса уведомлений"));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -43,8 +48,7 @@ public class GlobalExceptionHandler {
         Map<String, String> errors = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach(error -> {
             String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName, errorMessage);
+            errors.put(fieldName, Objects.requireNonNullElse(error.getDefaultMessage(), "Некорректное значение"));
         });
         String message = "Ошибка валидации: " + errors;
         return buildErrorResponse(HttpStatus.BAD_REQUEST, message);
@@ -63,7 +67,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
-        return buildErrorResponse(HttpStatus.FORBIDDEN, ex.getMessage());
+        return buildErrorResponse(
+                HttpStatus.FORBIDDEN,
+                Objects.requireNonNullElse(ex.getMessage(), "Доступ запрещён"));
     }
 
     @ExceptionHandler(Exception.class)

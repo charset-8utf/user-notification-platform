@@ -9,9 +9,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * In-memory refresh store для тестов и профиля {@code jwt} без {@code redis}.
- */
 @Component
 @Profile({"jwt & !redis"})
 public class InMemoryRefreshTokenStore implements RefreshTokenStore {

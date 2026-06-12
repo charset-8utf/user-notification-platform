@@ -23,22 +23,6 @@ public final class ServiceJwtTestSupport {
     public static final String AUDIENCE = "notification-service";
     public static final String SCOPE = "notifications:write";
 
-    private static final Instant CONTRACT_TOKEN_ISSUED_AT = Instant.parse("2026-05-30T00:00:00Z");
-
-    /**
-     * Фиксированный Bearer для Spring Cloud Contract (producer + stub-runner consumer).
-     * TTL ~10 лет; secret/claims совпадают с {@code application-contract.yml}.
-     */
-    public static final String CONTRACT_AUTHORIZATION = "Bearer "
-            + accessToken(
-            TEST_SECRET,
-            ISSUER,
-            SUBJECT,
-            AUDIENCE,
-            SCOPE,
-            CONTRACT_TOKEN_ISSUED_AT,
-            Duration.ofDays(3650));
-
     private ServiceJwtTestSupport() {
     }
 

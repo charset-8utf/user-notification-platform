@@ -5,6 +5,7 @@ import com.crud.dto.ProfileResponse;
 import com.crud.dto.RoleResponse;
 import com.crud.dto.UserResponse;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -75,8 +76,8 @@ public class SanitizedJsonResponses {
     private UserResponse sanitize(UserResponse response) {
         return new UserResponse(
                 response.id(),
-                sanitizer.sanitize(response.name()),
-                sanitizer.sanitize(response.email()),
+                requireSanitized(response.name()),
+                requireSanitized(response.email()),
                 response.age(),
                 response.notificationDeliveryStatus(),
                 response.createdAt()
@@ -86,7 +87,7 @@ public class SanitizedJsonResponses {
     private NoteResponse sanitize(NoteResponse response) {
         return new NoteResponse(
                 response.id(),
-                sanitizer.sanitize(response.content()),
+                requireSanitized(response.content()),
                 response.createdAt(),
                 response.updatedAt()
         );
@@ -96,8 +97,8 @@ public class SanitizedJsonResponses {
         return new ProfileResponse(
                 response.id(),
                 response.userId(),
-                sanitizer.sanitize(response.phone()),
-                sanitizer.sanitize(response.address()),
+                requireSanitized(response.phone()),
+                requireSanitized(response.address()),
                 response.createdAt(),
                 response.updatedAt()
         );
@@ -106,9 +107,13 @@ public class SanitizedJsonResponses {
     private RoleResponse sanitize(RoleResponse response) {
         return new RoleResponse(
                 response.id(),
-                sanitizer.sanitize(response.name()),
+                requireSanitized(response.name()),
                 response.createdAt(),
                 response.updatedAt()
         );
+    }
+
+    private String requireSanitized(@Nullable String value) {
+        return value == null ? "" : sanitizer.sanitizeRequired(value);
     }
 }

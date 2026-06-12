@@ -1,5 +1,7 @@
 package com.notification.security;
 
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -11,12 +13,14 @@ import java.util.Collections;
 import java.util.List;
 
 @Component
+@RequiredArgsConstructor
 public class JwtRoleSupport {
 
     private static final String ROLE_PREFIX = "ROLE_";
     private static final String ROLES_CLAIM = "roles";
 
-    private final JwtGrantedAuthoritiesConverter defaultConverter = newDefaultConverter();
+    @Qualifier("userJwtGrantedAuthoritiesConverter")
+    private final JwtGrantedAuthoritiesConverter defaultConverter;
 
     public Collection<GrantedAuthority> resolveAuthorities(Jwt jwt) {
         Collection<GrantedAuthority> fromRoles = defaultConverter.convert(jwt);
@@ -50,12 +54,5 @@ public class JwtRoleSupport {
 
     private GrantedAuthority toRoleAuthority(String role) {
         return new SimpleGrantedAuthority(role.startsWith(ROLE_PREFIX) ? role : ROLE_PREFIX + role);
-    }
-
-    private JwtGrantedAuthoritiesConverter newDefaultConverter() {
-        JwtGrantedAuthoritiesConverter converter = new JwtGrantedAuthoritiesConverter();
-        converter.setAuthorityPrefix(ROLE_PREFIX);
-        converter.setAuthoritiesClaimName(ROLES_CLAIM);
-        return converter;
     }
 }

@@ -1,30 +1,30 @@
 package com.notification.security;
 
+import com.notification.config.NotificationApiProperties;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.authentication.AbstractAuthenticationToken;
-import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
- * API Key auth (7AuthConcepts): credential интеграции через {@code X-API-Key}.
+ * API Key auth: credential интеграции через настраиваемый заголовок (по умолчанию {@code X-API-Key}).
  * Применяется только к write-endpoint, если Bearer service JWT отсутствует.
  */
+@Component
+@ConditionalOnProperty(prefix = "app.security.api-key", name = "enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
-    public static final String API_KEY_HEADER = "X-API-Key";
-    public static final String WRITE_PATH = "/api/notifications/email";
-
     private final ApiKeyProperties properties;
+    private final NotificationApiProperties notificationApiProperties;
+    private final ServiceJwtAuthorities serviceJwtAuthorities;
 
     @Override
     protected void doFilterInternal(
@@ -32,50 +32,25 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
-        if (properties.enabled()
-                && "POST".equalsIgnoreCase(request.getMethod())
-                && WRITE_PATH.equals(request.getRequestURI())
+        if ("POST".equalsIgnoreCase(request.getMethod())
+                && notificationApiProperties.resolvedEmailPath().equals(request.getRequestURI())
                 && SecurityContextHolder.getContext().getAuthentication() == null
                 && hasNoBearer(request)) {
-            String apiKey = request.getHeader(API_KEY_HEADER);
+            String apiKey = request.getHeader(properties.getHeader());
             if (apiKey != null && isValid(apiKey)) {
-                var auth = new ApiKeyAuthenticationToken(apiKey);
+                var auth = new ApiKeyAuthenticationToken(apiKey, serviceJwtAuthorities.writeScopeAuthority());
                 SecurityContextHolder.getContext().setAuthentication(auth);
             }
         }
         filterChain.doFilter(request, response);
     }
 
-    private static boolean hasNoBearer(HttpServletRequest request) {
+    private boolean hasNoBearer(HttpServletRequest request) {
         String authorization = request.getHeader("Authorization");
         return authorization == null || !authorization.regionMatches(true, 0, "Bearer ", 0, 7);
     }
 
     private boolean isValid(String apiKey) {
-        Set<String> allowed = properties.resolvedKeys().stream()
-                .filter(k -> k != null && !k.isBlank())
-                .collect(Collectors.toSet());
-        return allowed.contains(apiKey);
-    }
-
-    static final class ApiKeyAuthenticationToken extends AbstractAuthenticationToken {
-
-        private final String apiKey;
-
-        ApiKeyAuthenticationToken(String apiKey) {
-            super(AuthorityUtils.createAuthorityList("SCOPE_notifications:write"));
-            this.apiKey = apiKey;
-            setAuthenticated(true);
-        }
-
-        @Override
-        public Object getCredentials() {
-            return apiKey;
-        }
-
-        @Override
-        public Object getPrincipal() {
-            return "api-key-client";
-        }
+        return properties.resolvedKeys().contains(apiKey);
     }
 }

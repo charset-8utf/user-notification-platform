@@ -1,5 +1,6 @@
 package com.notification.security;
 
+import com.notification.config.NotificationApiProperties;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -13,6 +14,8 @@ import static org.mockito.Mockito.verify;
 
 class ApiKeyAuthenticationFilterTest {
 
+    private static final String EMAIL_PATH = "/api/notifications/email";
+
     @AfterEach
     void clearContext() {
         SecurityContextHolder.clearContext();
@@ -23,10 +26,17 @@ class ApiKeyAuthenticationFilterTest {
         ApiKeyProperties properties = new ApiKeyProperties();
         properties.setEnabled(true);
         properties.setKeys("demo-key");
-        ApiKeyAuthenticationFilter filter = new ApiKeyAuthenticationFilter(properties);
 
-        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/notifications/email");
-        request.addHeader(ApiKeyAuthenticationFilter.API_KEY_HEADER, "demo-key");
+        NotificationApiProperties notificationApiProperties = new NotificationApiProperties(EMAIL_PATH);
+
+        ServiceJwtProperties serviceJwtProperties = new ServiceJwtProperties(
+                "secret", "issuer", "audience", "subject", "notifications:write");
+        ServiceJwtAuthorities authorities = new ServiceJwtAuthorities(serviceJwtProperties);
+        ApiKeyAuthenticationFilter filter = new ApiKeyAuthenticationFilter(
+                properties, notificationApiProperties, authorities);
+
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", EMAIL_PATH);
+        request.addHeader(properties.getHeader(), "demo-key");
         MockHttpServletResponse response = new MockHttpServletResponse();
         FilterChain chain = mock(FilterChain.class);
 

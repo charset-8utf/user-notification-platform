@@ -11,6 +11,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
@@ -23,7 +24,7 @@ public class UserJwtSecurityConfig {
     JwtDecoder userJwtDecoder(UserJwtProperties properties) {
         byte[] secretBytes = properties.secret().getBytes(StandardCharsets.UTF_8);
         if (secretBytes.length < 32) {
-            throw new IllegalStateException("app.security.jwt.secret must be at least 32 bytes for HS256");
+            throw new IllegalStateException("app.security.jwt.secret должен быть не короче 32 байт для HS256");
         }
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(
                 new SecretKeySpec(secretBytes, "HmacSHA256")).build();
@@ -32,6 +33,14 @@ public class UserJwtSecurityConfig {
                 new JwtClaimValidator<String>("typ", "access"::equals));
         decoder.setJwtValidator(validator);
         return decoder;
+    }
+
+    @Bean
+    JwtGrantedAuthoritiesConverter userJwtGrantedAuthoritiesConverter() {
+        JwtGrantedAuthoritiesConverter converter = new JwtGrantedAuthoritiesConverter();
+        converter.setAuthorityPrefix("ROLE_");
+        converter.setAuthoritiesClaimName("roles");
+        return converter;
     }
 
     @Bean

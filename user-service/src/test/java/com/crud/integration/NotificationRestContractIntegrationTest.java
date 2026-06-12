@@ -22,9 +22,6 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
-/**
- * Consumer contract (REST): notification-service принимает POST /api/notifications/email → 204.
- */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @ActiveProfiles({"test", "rest"})
 class NotificationRestContractIntegrationTest {
@@ -55,8 +52,6 @@ class NotificationRestContractIntegrationTest {
         registry.add("app.notification.rest.base-url", () -> "http://localhost:" + WIREMOCK.port());
         registry.add("app.notification.rest.insecure-ssl", () -> "true");
         registry.add("app.security.service-jwt.secret", () -> ServiceJwtTestSupport.TEST_SECRET);
-        registry.add("spring.cloud.discovery.enabled", () -> "false");
-        registry.add("spring.cloud.loadbalancer.enabled", () -> "false");
     }
 
     @Autowired

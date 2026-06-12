@@ -1,5 +1,6 @@
 package com.notification.metrics;
 
+import com.notification.exception.KafkaLagMonitorException;
 import com.notification.kafka.KafkaLagMonitor;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -24,7 +25,7 @@ public class KafkaLagMetricsConfiguration {
     @Bean
     Gauge kafkaConsumerLagTotal(AtomicLong kafkaConsumerLagTotalHolder, MeterRegistry registry) {
         return Gauge.builder("app.kafka.consumer.lag.total", kafkaConsumerLagTotalHolder, holder -> (double) holder.get())
-                .description("Total Kafka consumer lag for notification topic")
+                .description("Суммарный lag Kafka-consumer для топика уведомлений")
                 .register(registry);
     }
 
@@ -50,8 +51,8 @@ public class KafkaLagMetricsConfiguration {
         void refresh() {
             try {
                 lagHolder.set(lagMonitor.measureLag().totalLag());
-            } catch (Exception ignored) {
-                // gauge keeps last value; health indicator reports errors
+            } catch (KafkaLagMonitorException ignored) {
+                // При ошибке gauge сохраняет последнее значение; сбой фиксирует health indicator
             }
         }
     }

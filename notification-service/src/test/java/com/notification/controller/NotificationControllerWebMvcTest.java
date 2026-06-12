@@ -1,7 +1,8 @@
 package com.notification.controller;
 
-import com.notification.config.SecurityConfig;
-import com.notification.entity.UserNotificationOperation;
+import com.notification.config.WebMvcTestPropertiesSupport;
+import com.notification.config.security.SecurityConfig;
+import com.notification.domain.UserNotificationOperation;
 import com.notification.exception.GlobalExceptionHandler;
 import com.notification.security.ServiceJwtSecurityConfig;
 import com.notification.security.JwtRoleSupport;
@@ -23,6 +24,8 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.UUID;
+
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -38,10 +41,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         JwtRoleSupport.class,
         ServiceJwtAudienceValidator.class,
         ServiceJwtAuthorities.class,
-        SecurityJsonErrorWriter.class
+        SecurityJsonErrorWriter.class,
+        WebMvcTestPropertiesSupport.class
 })
 @ActiveProfiles("rest")
 @TestPropertySource(properties = {
+        "app.notification.api.email-path=/api/notifications/email",
+        "app.security.api-key.enabled=false",
         "app.security.service-jwt.secret=test-service-jwt-secret-for-tests-min-32b",
         "app.security.jwt.secret=test-jwt-secret-for-notification-read-min-32b"
 })
@@ -76,7 +82,7 @@ class NotificationControllerWebMvcTest {
         verify(notificationService).sendEmailNotification(argThat(r ->
                 r.operation() == UserNotificationOperation.USER_CREATED
                         && "user@example.com".equals(r.email())
-                        && r.eventId() != null));
+                        && UUID.fromString("550e8400-e29b-41d4-a716-446655440000").equals(r.eventId())));
     }
 
     @Test

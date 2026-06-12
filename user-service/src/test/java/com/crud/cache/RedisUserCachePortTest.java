@@ -19,7 +19,9 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
@@ -46,7 +48,7 @@ class RedisUserCachePortTest {
     }
 
     @Test
-    void put_writesByIdAndEmailKeys() throws Exception {
+    void put_writesByIdAndEmailKeys() {
         UserCacheView view = UserCacheView.active(1L, "user@example.com");
         String json = objectMapper.writeValueAsString(view);
 
@@ -57,14 +59,7 @@ class RedisUserCachePortTest {
     }
 
     @Test
-    void putResponse_skipsNullId() {
-        cache.putResponse(new UserResponse(null, "n", "e@example.com", 20, NotificationDeliveryStatus.PENDING, LocalDateTime.now()));
-
-        verify(valueOps, never()).set(any(), any(), any(Duration.class));
-    }
-
-    @Test
-    void putResponse_writesQueryKey() throws Exception {
+    void putResponse_writesQueryKey() {
         UserResponse response = new UserResponse(7L, "Ann", "ann@example.com", 30, NotificationDeliveryStatus.PENDING, LocalDateTime.now());
         String json = objectMapper.writeValueAsString(response);
 
@@ -74,7 +69,7 @@ class RedisUserCachePortTest {
     }
 
     @Test
-    void findResponseById_returnsCachedValue() throws Exception {
+    void findResponseById_returnsCachedValue() {
         UserResponse response = new UserResponse(3L, "Bob", "bob@example.com", 40, NotificationDeliveryStatus.PENDING, LocalDateTime.of(2026, 5, 31, 12, 0));
         when(valueOps.get("user:query:3")).thenReturn(objectMapper.writeValueAsString(response));
 
@@ -93,7 +88,7 @@ class RedisUserCachePortTest {
     }
 
     @Test
-    void evict_removesIdQueryAndEmailKeys() throws Exception {
+    void evict_removesIdQueryAndEmailKeys() {
         UserCacheView view = UserCacheView.active(5L, "evict@example.com");
         when(valueOps.get("user:5")).thenReturn(objectMapper.writeValueAsString(view));
 
@@ -105,13 +100,13 @@ class RedisUserCachePortTest {
     }
 
     @Test
-    void put_logsWarningOnSerializationError() throws Exception {
+    void put_logsWarningOnSerializationError() {
         ObjectMapper failingMapper = org.mockito.Mockito.mock(ObjectMapper.class);
         when(failingMapper.writeValueAsString(any())).thenThrow(new JacksonException("bad json") {});
         RedisUserCachePort failingCache = new RedisUserCachePort(redis, failingMapper, Duration.ofMinutes(5));
 
-        failingCache.put(UserCacheView.active(2L, "bad@example.com"));
-
+        assertThatCode(() -> failingCache.put(UserCacheView.active(2L, "bad@example.com")))
+                .doesNotThrowAnyException();
         verify(valueOps, never()).set(any(), any(), any(Duration.class));
     }
 
@@ -120,7 +115,8 @@ class RedisUserCachePortTest {
         UserResponse response = new UserResponse(8L, "X", "x@example.com", 25, NotificationDeliveryStatus.PENDING, LocalDateTime.now());
         doThrow(new DataAccessException("redis down") {}).when(valueOps).set(eq("user:query:8"), any(), any(Duration.class));
 
-        cache.putResponse(response);
+        assertThatCode(() -> cache.putResponse(response)).doesNotThrowAnyException();
+        verify(valueOps).set(eq("user:query:8"), any(), any(Duration.class));
     }
 
     @Test
@@ -134,6 +130,8 @@ class RedisUserCachePortTest {
     void evict_logsWarningOnError() {
         when(valueOps.get("user:12")).thenThrow(new DataAccessException("redis down") {});
 
-        cache.evict(12L);
+        assertThatCode(() -> cache.evict(12L)).doesNotThrowAnyException();
+        verify(valueOps).get("user:12");
+        verify(redis, never()).delete(anyString());
     }
 }

@@ -5,4 +5,7 @@
  * Реализация выбирается профилем: {@code redis} включает {@link com.crud.cache.RedisUserCachePort},
  * иначе используется {@link com.crud.cache.NoOpUserCachePort} (для тестов и локальной отладки без Redis).
  */
+@NullMarked
 package com.crud.cache;
+
+import org.jspecify.annotations.NullMarked;

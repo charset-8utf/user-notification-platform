@@ -1,8 +1,15 @@
 package com.notification.controller;
 
-import com.notification.config.SecurityConfig;
+import com.notification.config.WebMvcTestPropertiesSupport;
+import com.notification.config.security.SecurityConfig;
+import com.notification.domain.NotificationChannel;
+import com.notification.domain.NotificationDeliveryStatus;
+import com.notification.domain.UserNotificationOperation;
+import com.notification.entity.NotificationLog;
 import com.notification.exception.GlobalExceptionHandler;
-import com.notification.dto.NotificationLogSummaryResponse;
+import com.notification.mapper.NotificationLogDetailResolver;
+import com.notification.mapper.NotificationLogMapperImpl;
+import com.notification.repository.NotificationLogRepository;
 import com.notification.security.JwtRoleSupport;
 import com.notification.security.NotificationLogAccessPolicy;
 import com.notification.security.SecurityJsonErrorWriter;
@@ -24,8 +31,10 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -39,12 +48,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         UserJwtSecurityConfig.class,
         JwtRoleSupport.class,
         NotificationLogAccessPolicy.class,
+        NotificationLogQueryService.class,
+        NotificationLogDetailResolver.class,
+        NotificationLogMapperImpl.class,
         ServiceJwtAudienceValidator.class,
         ServiceJwtAuthorities.class,
-        SecurityJsonErrorWriter.class
+        SecurityJsonErrorWriter.class,
+        WebMvcTestPropertiesSupport.class
 })
 @ActiveProfiles("rest")
 @TestPropertySource(properties = {
+        "app.notification.api.email-path=/api/notifications/email",
+        "app.security.api-key.enabled=false",
         "app.security.jwt.secret=test-jwt-secret-for-notification-read-min-32b",
         "app.security.service-jwt.secret=test-service-jwt-secret-for-tests-min-32b"
 })
@@ -54,22 +69,23 @@ class NotificationLogControllerWebMvcTest {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private NotificationLogQueryService notificationLogQueryService;
+    private NotificationLogRepository notificationLogRepository;
 
     @MockitoBean
     private ExceptionMetrics exceptionMetrics;
 
     @Test
     void latest_withMatchingEmail_returnsSummary() throws Exception {
-        when(notificationLogQueryService.latestByEmail(eq("user@example.com")))
-                .thenReturn(new NotificationLogSummaryResponse(
-                        true,
-                        "USER_CREATED",
-                        "EMAIL",
-                        "SENT",
-                        "user@example.com",
-                        LocalDateTime.parse("2026-05-30T10:00:00"),
-                        "OK"));
+        NotificationLog log = NotificationLog.builder()
+                .id("log-1")
+                .operation(UserNotificationOperation.USER_CREATED)
+                .email("user@example.com")
+                .channel(NotificationChannel.EMAIL)
+                .status(NotificationDeliveryStatus.SENT)
+                .createdAt(LocalDateTime.parse("2026-05-30T10:00:00"))
+                .build();
+        when(notificationLogRepository.findFirstByEmailOrderByCreatedAtDesc("user@example.com"))
+                .thenReturn(Optional.of(log));
 
         mockMvc.perform(get("/api/notifications/logs/latest")
                         .param("email", "user@example.com")
@@ -85,5 +101,7 @@ class NotificationLogControllerWebMvcTest {
                         .param("email", "other@example.com")
                         .header(HttpHeaders.AUTHORIZATION, UserJwtTestSupport.bearerToken("user@example.com")))
                 .andExpect(status().isForbidden());
+
+        verify(notificationLogRepository, never()).findFirstByEmailOrderByCreatedAtDesc("other@example.com");
     }
 }

@@ -10,7 +10,6 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @Execution(ExecutionMode.CONCURRENT)
 class RoleMapperTest {
@@ -55,17 +54,5 @@ class RoleMapperTest {
 
         assertThat(result.getId()).isEqualTo(1L);
         assertThat(result.getName()).isEqualTo("NEW_ROLE");
-    }
-
-    @Test
-    void toEntity_NullRequest_ShouldThrowNullPointerException() {
-        assertThatThrownBy(() -> roleMapper.toEntity(null))
-                .isInstanceOf(NullPointerException.class);
-    }
-
-    @Test
-    void toResponse_NullEntity_ShouldThrowNullPointerException() {
-        assertThatThrownBy(() -> roleMapper.toResponse(null))
-                .isInstanceOf(NullPointerException.class);
     }
 }

@@ -20,7 +20,7 @@ class GlobalExceptionHandlerTest {
 
     private final GlobalExceptionHandler handler = new GlobalExceptionHandler(
             mock(com.platform.commons.observability.ExceptionMetrics.class),
-            new ApiOutputSanitizer());
+            new ExceptionMessageResolver(new ApiOutputSanitizer()));
 
     @Test
     void handleUserNotFound_ShouldReturn404() {

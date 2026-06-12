@@ -1,11 +1,10 @@
 package com.platform.gateway;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
-import com.github.tomakehurst.wiremock.client.WireMock;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpHeaders;
@@ -29,8 +28,14 @@ class ApiGatewayCloudComponentIntegrationTest {
     @LocalServerPort
     private int gatewayPort;
 
-    @Autowired
     private WebTestClient webTestClient;
+
+    @BeforeEach
+    void configureWebTestClient() {
+        webTestClient = WebTestClient.bindToServer()
+                .baseUrl("http://localhost:" + gatewayPort)
+                .build();
+    }
 
     @BeforeAll
     static void startDownstream() {
@@ -55,13 +60,12 @@ class ApiGatewayCloudComponentIntegrationTest {
     @Test
     void gateway_shouldProxyUsersRouteToDownstream() {
         webTestClient.get()
-                .uri("http://localhost:" + gatewayPort + "/api/users/42")
+                .uri("/api/users/42")
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$.email").isEqualTo("gw@example.com");
 
         DOWNSTREAM.verify(getRequestedFor(urlEqualTo("/api/users/42")));
-        WireMock.resetAllRequests();
     }
 }

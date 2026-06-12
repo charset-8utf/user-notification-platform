@@ -1,6 +1,5 @@
 package com.crud.exception;
 
-import com.crud.security.ApiOutputSanitizer;
 import com.platform.commons.observability.ExceptionMetrics;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.RequiredArgsConstructor;
@@ -26,36 +25,42 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     private final ExceptionMetrics exceptionMetrics;
-    private final ApiOutputSanitizer apiOutputSanitizer;
+    private final ExceptionMessageResolver exceptionMessageResolver;
 
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleUserNotFound(UserNotFoundException ex) {
-        return buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+        return buildErrorResponse(HttpStatus.NOT_FOUND,
+                exceptionMessageResolver.resolve(ex.getMessage(), "Пользователь не найден"));
     }
 
     @ExceptionHandler(NoteNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNoteNotFound(NoteNotFoundException ex) {
-        return buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+        return buildErrorResponse(HttpStatus.NOT_FOUND,
+                exceptionMessageResolver.resolve(ex.getMessage(), "Заметка не найдена"));
     }
 
     @ExceptionHandler(RoleNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleRoleNotFound(RoleNotFoundException ex) {
-        return buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+        return buildErrorResponse(HttpStatus.NOT_FOUND,
+                exceptionMessageResolver.resolve(ex.getMessage(), "Роль не найдена"));
     }
 
     @ExceptionHandler(ProfileNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleProfileNotFound(ProfileNotFoundException ex) {
-        return buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+        return buildErrorResponse(HttpStatus.NOT_FOUND,
+                exceptionMessageResolver.resolve(ex.getMessage(), "Профиль не найден"));
     }
 
     @ExceptionHandler(ValidationException.class)
     public ResponseEntity<ErrorResponse> handleValidation(ValidationException ex) {
-        return buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+        return buildErrorResponse(HttpStatus.BAD_REQUEST,
+                exceptionMessageResolver.resolve(ex.getMessage(), "Ошибка валидации"));
     }
 
     @ExceptionHandler(UserServiceException.class)
     public ResponseEntity<ErrorResponse> handleConflict(UserServiceException ex) {
-        return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage());
+        return buildErrorResponse(HttpStatus.CONFLICT,
+                exceptionMessageResolver.resolve(ex.getMessage(), "Конфликт данных"));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -63,8 +68,8 @@ public class GlobalExceptionHandler {
         Map<String, String> errors = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach(error -> {
             String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName, errorMessage);
+            errors.put(fieldName, exceptionMessageResolver.resolve(
+                    error.getDefaultMessage(), "Некорректное значение"));
         });
         String message = "Ошибка валидации: " + errors;
         return buildErrorResponse(HttpStatus.BAD_REQUEST, message);
@@ -72,25 +77,30 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ErrorResponse> handleNoResourceFound(NoResourceFoundException ex) {
-        return buildErrorResponse(HttpStatus.NOT_FOUND, "Ресурс не найден: " + ex.getResourcePath());
+        return buildErrorResponse(HttpStatus.NOT_FOUND,
+                exceptionMessageResolver.resolve(
+                        "Ресурс не найден: " + ex.getResourcePath(), "Ресурс не найден"));
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<ErrorResponse> handleMethodNotAllowed(HttpRequestMethodNotSupportedException ex) {
         return buildErrorResponse(HttpStatus.METHOD_NOT_ALLOWED,
-                "Метод '" + ex.getMethod() + "' не поддерживается для данного ресурса");
+                exceptionMessageResolver.resolve(
+                        "Метод '" + ex.getMethod() + "' не поддерживается для данного ресурса",
+                        "Метод не поддерживается для данного ресурса"));
     }
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleBadCredentials(BadCredentialsException ex) {
-        return buildErrorResponse(HttpStatus.UNAUTHORIZED, ex.getMessage());
+        return buildErrorResponse(HttpStatus.UNAUTHORIZED,
+                exceptionMessageResolver.resolve(ex.getMessage(), "Неверные учётные данные"));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrity(DataIntegrityViolationException ex) {
         log.warn("Нарушение ограничения БД", ex);
-        String message = "Нарушение уникальности или ограничения данных. Проверьте вводимые значения.";
-        return buildErrorResponse(HttpStatus.CONFLICT, message);
+        return buildErrorResponse(HttpStatus.CONFLICT,
+                "Нарушение уникальности или ограничения данных. Проверьте вводимые значения.");
     }
 
     @ExceptionHandler(Exception.class)
@@ -105,7 +115,7 @@ public class GlobalExceptionHandler {
                 LocalDateTime.now(),
                 status.value(),
                 status.getReasonPhrase(),
-                apiOutputSanitizer.sanitize(message)
+                message
         );
         return ResponseEntity.status(status).body(error);
     }

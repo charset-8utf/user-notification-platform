@@ -1,9 +1,11 @@
 package com.notification.service;
 
 import com.notification.dto.NotificationLogSummaryResponse;
-import com.notification.entity.NotificationLog;
+import com.notification.mapper.NotificationLogMapper;
 import com.notification.repository.NotificationLogRepository;
+import com.notification.security.NotificationLogAccessPolicy;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,11 +14,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class NotificationLogQueryService {
 
     private final NotificationLogRepository notificationLogRepository;
+    private final NotificationLogMapper notificationLogMapper;
+    private final NotificationLogAccessPolicy notificationLogAccessPolicy;
 
     @Transactional(readOnly = true)
-    public NotificationLogSummaryResponse latestByEmail(String email) {
+    public NotificationLogSummaryResponse latestByEmail(String email, Jwt jwt) {
+        notificationLogAccessPolicy.assertCanRead(email, jwt);
         return notificationLogRepository.findFirstByEmailOrderByCreatedAtDesc(email)
-                .map(this::toSummary)
+                .map(notificationLogMapper::toSummary)
                 .orElseGet(() -> new NotificationLogSummaryResponse(
                         false,
                         null,
@@ -25,16 +30,5 @@ public class NotificationLogQueryService {
                         email,
                         null,
                         "Уведомлений для этого email пока нет"));
-    }
-
-    private NotificationLogSummaryResponse toSummary(NotificationLog log) {
-        return new NotificationLogSummaryResponse(
-                true,
-                log.getOperation() != null ? log.getOperation().name() : null,
-                log.getChannel() != null ? log.getChannel().name() : null,
-                log.getStatus() != null ? log.getStatus().name() : null,
-                log.getEmail(),
-                log.getCreatedAt(),
-                log.getErrorMessage() != null ? log.getErrorMessage() : "OK");
     }
 }

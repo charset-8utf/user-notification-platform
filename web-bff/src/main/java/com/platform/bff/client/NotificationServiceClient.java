@@ -1,8 +1,9 @@
 package com.platform.bff.client;
 
+import com.platform.bff.config.BffClientProperties;
 import com.platform.bff.dto.NotificationLogResponse;
 import com.platform.bff.dto.NotificationSummary;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -13,10 +14,13 @@ public class NotificationServiceClient {
 
     private final RestClient restClient;
 
-    public NotificationServiceClient(
-            BffRestClientFactory restClientFactory,
-            @Value("${app.bff.notification-service-base-url:https://notification-service}") String baseUrl) {
-        this.restClient = restClientFactory.create(baseUrl);
+    @Autowired
+    public NotificationServiceClient(BffRestClientFactory restClientFactory, BffClientProperties clientProperties) {
+        this(restClientFactory.create(clientProperties.notificationServiceBaseUrl()));
+    }
+
+    NotificationServiceClient(RestClient restClient) {
+        this.restClient = restClient;
     }
 
     public NotificationSummary fetchLatest(String email, String bearerToken) {

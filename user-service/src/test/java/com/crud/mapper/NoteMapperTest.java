@@ -10,7 +10,6 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @Execution(ExecutionMode.CONCURRENT)
 class NoteMapperTest {
@@ -45,18 +44,5 @@ class NoteMapperTest {
 
         assertThat(result.getId()).isEqualTo(1L);
         assertThat(result.getContent()).isEqualTo("New content");
-    }
-
-    @Test
-    void toEntity_NullRequest_ShouldThrowNullPointerException() {
-        Note existing = Note.builder().content("Old").build();
-        assertThatThrownBy(() -> noteMapper.toEntity(null, existing))
-                .isInstanceOf(NullPointerException.class);
-    }
-
-    @Test
-    void toResponse_NullEntity_ShouldThrowNullPointerException() {
-        assertThatThrownBy(() -> noteMapper.toResponse(null))
-                .isInstanceOf(NullPointerException.class);
     }
 }

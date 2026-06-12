@@ -1,8 +1,9 @@
 package com.notification.integration;
 
+import com.notification.config.kafka.NotificationKafkaProperties;
 import com.notification.dto.NotificationEmailRequest;
-import com.notification.entity.NotificationDeliveryStatus;
-import com.notification.entity.UserNotificationOperation;
+import com.notification.domain.NotificationDeliveryStatus;
+import com.notification.domain.UserNotificationOperation;
 import com.notification.repository.NotificationLogRepository;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -13,7 +14,6 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.context.ActiveProfiles;
@@ -65,11 +65,8 @@ class NotificationKafkaDltIntegrationTest {
     @Autowired
     private NotificationLogRepository notificationLogRepository;
 
-    @Value("${app.notification.kafka.topic}")
-    private String topic;
-
-    @Value("${app.notification.kafka.compensation-topic}")
-    private String compensationTopic;
+    @Autowired
+    private NotificationKafkaProperties kafkaProperties;
 
     @BeforeEach
     void clean() {
@@ -80,7 +77,7 @@ class NotificationKafkaDltIntegrationTest {
     void failedInboxDeliveryPublishesCompensationEvent() {
         NotificationEmailRequest event = NotificationEmailRequest.of(
                 UserNotificationOperation.USER_CREATED, "victim@example.com");
-        kafkaTemplate.send(topic, event.email(), event);
+        kafkaTemplate.send(kafkaProperties.topic(), event.email(), event);
 
         Map<String, Object> consumerProps = Map.of(
                 ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers(),
@@ -91,7 +88,7 @@ class NotificationKafkaDltIntegrationTest {
         );
 
         try (KafkaConsumer<String, byte[]> compensationConsumer = new KafkaConsumer<>(consumerProps)) {
-            compensationConsumer.subscribe(List.of(compensationTopic));
+            compensationConsumer.subscribe(List.of(kafkaProperties.compensationTopic()));
             await().atMost(Duration.ofSeconds(45)).untilAsserted(() -> {
                 ConsumerRecords<String, byte[]> records = compensationConsumer.poll(Duration.ofMillis(500));
                 assertThat(records.count()).isPositive();

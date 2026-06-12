@@ -1,7 +1,7 @@
 package com.notification.kafka;
 
 import com.notification.dto.NotificationEmailRequest;
-import com.notification.inbox.NotificationInboxService;
+import com.notification.service.NotificationInboxService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -11,8 +11,8 @@ import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Service;
 
 /**
- * Принимает события из Kafka и сохраняет в transactional inbox;
- * доставка выполняется {@link com.notification.inbox.KafkaInboxRelay}.
+ * Kafka adapter: принимает события и сохраняет в transactional inbox;
+ * доставка выполняется {@link KafkaInboxRelay}.
  */
 @Service
 @Profile("kafka")

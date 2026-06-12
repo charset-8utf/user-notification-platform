@@ -1,5 +1,6 @@
 package com.crud.notification.kafka;
 
+import com.crud.config.kafka.UserNotificationKafkaProperties;
 import com.crud.notification.UserNotificationEvent;
 import com.crud.notification.UserNotificationOperation;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -11,7 +12,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -29,8 +29,10 @@ class UserNotificationKafkaProducerTest {
 
     @BeforeEach
     void setUp() {
-        producer = new UserNotificationKafkaProducer(kafkaTemplate);
-        ReflectionTestUtils.setField(producer, "topic", "user-notifications");
+        UserNotificationKafkaProperties properties = new UserNotificationKafkaProperties(
+                "user-notifications", 3, (short) 1, "notification-compensations",
+                "user-service-compensation", new UserNotificationKafkaProperties.Outbox(1000, 50, 30000));
+        producer = new UserNotificationKafkaProducer(kafkaTemplate, properties);
     }
 
     @Test

@@ -12,13 +12,13 @@ public abstract class GatewayFallbackTemplate {
 
     public ResponseEntity<Map<String, Object>> toResponse() {
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("error", "Service Unavailable");
+        body.put("error", "Сервис недоступен");
         body.put("service", serviceName());
         body.put("message", fallbackMessage());
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(body);
     }
 
     protected String fallbackMessage() {
-        return "Circuit breaker open or downstream timeout";
+        return "Circuit breaker открыт или таймаут downstream-сервиса";
     }
 }
