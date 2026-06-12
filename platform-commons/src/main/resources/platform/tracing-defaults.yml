@@ -1,3 +1,7 @@
+platform:
+  tracing:
+    enabled: ${TRACING_ENABLED:false}
+
 management:
   tracing:
     enabled: ${TRACING_ENABLED:false}

@@ -1,14 +1,12 @@
 package com.platform.commons.observability;
 
 import io.micrometer.core.instrument.MeterRegistry;
+import lombok.RequiredArgsConstructor;
 
+@RequiredArgsConstructor
 public class ExceptionMetrics {
 
     private final MeterRegistry registry;
-
-    public ExceptionMetrics(MeterRegistry registry) {
-        this.registry = registry;
-    }
 
     public void recordException(Throwable throwable, String source) {
         registry.counter(
