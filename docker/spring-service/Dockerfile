@@ -28,6 +28,7 @@ ARG HEALTHCHECK_SHELL
 LABEL org.opencontainers.image.title="${MODULE}"
 WORKDIR /app
 RUN apk add --no-cache wget tini \
+ && apk upgrade --no-cache \
  && addgroup -S -g 1000 appgroup \
  && adduser -S -u 1000 -G appgroup appuser \
  && chown -R appuser:appgroup /app
