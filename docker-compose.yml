@@ -143,8 +143,6 @@ services:
       args:
         MODULE: config-server
         JAR_FILE: config-server.jar
-        HEALTHCHECK_INTERVAL: 10s
-        HEALTHCHECK_START_PERIOD: 30s
         HEALTHCHECK_SHELL: wget -q --spider http://127.0.0.1:8888/actuator/health/liveness || exit 1
     image: config-server:latest
     container_name: unp-config-server
@@ -298,8 +296,6 @@ services:
       args:
         MODULE: api-gateway
         JAR_FILE: api-gateway.jar
-        HEALTHCHECK_INTERVAL: 10s
-        HEALTHCHECK_START_PERIOD: 45s
         HEALTHCHECK_SHELL: wget -q --spider http://127.0.0.1:8080/actuator/health/liveness || exit 1
     image: api-gateway:latest
     container_name: unp-api-gateway
@@ -345,8 +341,6 @@ services:
       args:
         MODULE: web-bff
         JAR_FILE: web-bff.jar
-        HEALTHCHECK_INTERVAL: 10s
-        HEALTHCHECK_START_PERIOD: 45s
         HEALTHCHECK_SHELL: wget -q --spider http://127.0.0.1:8090/actuator/health/liveness || exit 1
     image: web-bff:latest
     container_name: unp-web-bff

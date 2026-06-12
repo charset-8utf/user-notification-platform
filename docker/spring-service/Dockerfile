@@ -9,8 +9,6 @@
 
 ARG MODULE
 ARG JAR_FILE
-ARG HEALTHCHECK_INTERVAL=30s
-ARG HEALTHCHECK_START_PERIOD=90s
 ARG HEALTHCHECK_SHELL="wget -q --spider http://127.0.0.1:8081/actuator/health/liveness || exit 1"
 
 FROM gradle:8.14-jdk21-alpine AS builder
@@ -25,8 +23,6 @@ RUN gradle ":${MODULE}:bootJar" -x test --no-daemon
 FROM eclipse-temurin:21-jre-alpine
 ARG MODULE
 ARG JAR_FILE
-ARG HEALTHCHECK_INTERVAL
-ARG HEALTHCHECK_START_PERIOD
 ARG HEALTHCHECK_SHELL
 
 LABEL org.opencontainers.image.title="${MODULE}"
@@ -39,6 +35,6 @@ COPY --from=builder --chown=appuser:appgroup /home/gradle/project/${MODULE}/buil
 ENV JAVA_OPTS="-XX:InitialRAMPercentage=20.0 -XX:MaxRAMPercentage=75.0 -Dfile.encoding=UTF-8" \
     HEALTHCHECK_SHELL=${HEALTHCHECK_SHELL}
 USER appuser
-HEALTHCHECK --interval=${HEALTHCHECK_INTERVAL} --timeout=3s --start-period=${HEALTHCHECK_START_PERIOD} --retries=3 \
+HEALTHCHECK --interval=30s --timeout=3s --start-period=90s --retries=3 \
   CMD sh -c "${HEALTHCHECK_SHELL}"
 ENTRYPOINT ["/sbin/tini", "--", "sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]
