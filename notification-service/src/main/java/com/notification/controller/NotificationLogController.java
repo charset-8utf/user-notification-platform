@@ -1,7 +1,6 @@
 package com.notification.controller;
 
 import com.notification.dto.NotificationLogSummaryResponse;
-import com.notification.security.NotificationLogAccessPolicy;
 import com.notification.service.NotificationLogQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
@@ -21,13 +20,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class NotificationLogController {
 
     private final NotificationLogQueryService notificationLogQueryService;
-    private final NotificationLogAccessPolicy notificationLogAccessPolicy;
 
     @GetMapping(value = "/latest", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<NotificationLogSummaryResponse> latest(
             @RequestParam String email,
             @AuthenticationPrincipal Jwt jwt) {
-        notificationLogAccessPolicy.assertCanRead(email, jwt);
-        return ResponseEntity.ok(notificationLogQueryService.latestByEmail(email));
+        return ResponseEntity.ok(notificationLogQueryService.latestByEmail(email, jwt));
     }
 }

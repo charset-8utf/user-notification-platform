@@ -1,5 +1,7 @@
 package com.notification.kafka;
 
+import com.notification.exception.KafkaLagMonitorException;
+import lombok.RequiredArgsConstructor;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.context.annotation.Profile;
@@ -10,15 +12,12 @@ import org.springframework.stereotype.Component;
  */
 @Component("kafkaConsumerLag")
 @Profile("kafka")
+@RequiredArgsConstructor
 public class KafkaConsumerLagHealthIndicator implements HealthIndicator {
 
     private static final String DETAIL_GROUP_ID = "groupId";
 
     private final KafkaLagMonitor lagMonitor;
-
-    public KafkaConsumerLagHealthIndicator(KafkaLagMonitor lagMonitor) {
-        this.lagMonitor = lagMonitor;
-    }
 
     @Override
     public Health health() {
@@ -30,12 +29,7 @@ public class KafkaConsumerLagHealthIndicator implements HealthIndicator {
                     .withDetail("totalLag", snapshot.totalLag())
                     .withDetail("lagByPartition", snapshot.lagByPartition())
                     .build();
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            return Health.down()
-                    .withException(ex)
-                    .build();
-        } catch (Exception ex) {
+        } catch (KafkaLagMonitorException ex) {
             return Health.down()
                     .withException(ex)
                     .build();

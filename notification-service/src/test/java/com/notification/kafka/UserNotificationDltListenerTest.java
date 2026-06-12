@@ -1,14 +1,14 @@
 package com.notification.kafka;
 
 import com.notification.dto.NotificationEmailRequest;
-import com.notification.entity.UserNotificationOperation;
+import com.notification.domain.UserNotificationOperation;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.apache.kafka.common.record.TimestampType;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.support.KafkaHeaders;
@@ -17,8 +17,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.contains;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -27,8 +25,14 @@ class UserNotificationDltListenerTest {
     @Mock
     private NotificationCompensationPublisher compensationPublisher;
 
-    @InjectMocks
+    private final DltExceptionMessageExtractor dltExceptionMessageExtractor = new DltExceptionMessageExtractor();
+
     private UserNotificationDltListener listener;
+
+    @BeforeEach
+    void setUp() {
+        listener = new UserNotificationDltListener(compensationPublisher, dltExceptionMessageExtractor);
+    }
 
     @Test
     void onDeadLetter_publishesCompensationWithDltHeader() {
@@ -55,7 +59,7 @@ class UserNotificationDltListenerTest {
 
         listener.onDeadLetter(consumerRecord);
 
-        verify(compensationPublisher).publishFromFailedDelivery(eq(request), eq("mail server down"));
+        verify(compensationPublisher).publishFromFailedDelivery(request, "mail server down");
     }
 
     @Test
@@ -67,6 +71,7 @@ class UserNotificationDltListenerTest {
 
         listener.onDeadLetter(consumerRecord);
 
-        verify(compensationPublisher).publishFromFailedDelivery(eq(request), contains("no DLT exception header"));
+        verify(compensationPublisher).publishFromFailedDelivery(
+                request, "ошибка доставки (заголовок DLT exception отсутствует)");
     }
 }

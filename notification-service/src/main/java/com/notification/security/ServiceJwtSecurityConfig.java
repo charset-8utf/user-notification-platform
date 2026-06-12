@@ -30,7 +30,7 @@ public class ServiceJwtSecurityConfig {
     JwtDecoder serviceJwtDecoder(ServiceJwtProperties properties) {
         byte[] secretBytes = properties.secret().getBytes(StandardCharsets.UTF_8);
         if (secretBytes.length < 32) {
-            throw new IllegalStateException("app.security.service-jwt.secret must be at least 32 bytes for HS256");
+            throw new IllegalStateException("app.security.service-jwt.secret должен быть не короче 32 байт для HS256");
         }
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(
                 new SecretKeySpec(secretBytes, "HmacSHA256")).build();

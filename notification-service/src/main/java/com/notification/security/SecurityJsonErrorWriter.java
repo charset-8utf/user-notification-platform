@@ -38,7 +38,7 @@ public class SecurityJsonErrorWriter {
                     "path", path);
             jsonMapper.writeValue(response.getOutputStream(), body);
         } catch (IOException ex) {
-            log.error("Failed to write security error response for path={}", path, ex);
+            log.error("Не удалось записать JSON-ответ об ошибке безопасности: path={}", path, ex);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
     }

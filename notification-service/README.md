@@ -7,23 +7,27 @@
 ![Kafka](https://img.shields.io/badge/Apache%20Kafka-7.4-black?logo=apachekafka)
 ![Redis](https://img.shields.io/badge/Redis-7-red?logo=redis)
 ![Gradle](https://img.shields.io/badge/Gradle-8.14+-blue?logo=gradle)
-![JUnit](https://img.shields.io/badge/JUnit%20Jupiter-6.0.3-green)
 ![Testcontainers](https://img.shields.io/badge/Testcontainers-2.0.5-blue)
 ![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)
 
-## Описание проекта
+## Описание
 
-Микросервис отправки email-уведомлений о событиях пользователей (**создание** / **удаление** аккаунта).  
-Принимает события по **REST** и из **Kafka**, пишет аудит в **MongoDB**, отправляет письма через SMTP (в dev — **Mailpit**).  
-Опционально обогащает контекст из **Redis** (ключи `user:email:{email}`).
+Микросервис отправки email-уведомлений о событиях пользователей (**создание** / **удаление** аккаунта).
 
-Стек: **Java 21**, **Spring Boot 4**, **Spring Kafka 4** (Jackson 3 / `JsonMapper`), **Spring Data MongoDB**, **Spring Data Redis**.  
-Покрыт модульными и интеграционными тестами (Testcontainers).  
-CI/CD выполняется в GitHub Actions (монорепозиторий `user-notification-platform`).  
-Приложение и зависимости (MongoDB, Mailpit, Kafka) запускаются через `docker compose`.
+- **Write:** REST (`POST /api/notifications/email`) и Kafka (`user-notifications`) — service JWT или API Key.
+- **Read:** REST (`GET /api/notifications/logs/latest`) — user JWT (свой email или роль `ADMIN`).
+- **Аудит:** MongoDB (`notification_logs`, `notification_inbox`).
+- **SMTP:** Mailpit в dev (`localhost:1025`, UI — `http://localhost:8025`).
+- **Redis** (опционально): обогащение из ключей `user:email:{email}`.
 
-В платформе [`user-notification-platform`](../README.md) REST доступен через Gateway (`/api/notifications/logs/**`) и напрямую по **HTTPS** `:8444`.  
-Write API: **service JWT** или **API Key** (`X-API-Key`). Kafka: **transactional inbox** (`notification_inbox`).
+Стек: **Java 21**, **Spring Boot 4**, **Spring Kafka** (JSON по умолчанию, опционально Avro), **Spring Data MongoDB**, **Spring Data Redis**, **MapStruct**, **JSpecify** + **NullAway**.
+
+Модуль входит в монорепозиторий [`user-notification-platform`](../README.md).  
+REST с edge: **api-gateway** (`/api/notifications/**`) или напрямую **HTTPS** `:8444` (проброс с контейнерного `:8443`).
+
+Зависимости модулей: `:platform-commons`, `:kafka-contracts`.
+
+---
 
 ## Входящие события
 
@@ -42,20 +46,37 @@ Write API: **service JWT** или **API Key** (`X-API-Key`). Kafka: **transactio
 | `USER_CREATED` | «Аккаунт создан» |
 | `USER_DELETED` | «Аккаунт удалён» |
 
-**Kafka:** consumer → **inbox** (PENDING) → `KafkaInboxRelay` → email → PROCESSED; DLT (`user-notifications.DLT`).
+### Kafka-поток
 
-**REST:** `POST /api/notifications/email` → **204**. Auth: **service JWT** (`Bearer`) **или** **API Key** (`X-API-Key`).
+```text
+UserNotificationKafkaConsumer → notification_inbox (PENDING)
+                              → KafkaInboxRelay (atomic claim → PROCESSING)
+                              → NotificationService → email → PROCESSED
+                                                         ↘ FAILED → notification-compensations
+DLT (user-notifications.DLT) → UserNotificationDltListener → compensation topic
+```
 
-## API-эндпоинты
+- **Manual ack** после записи в inbox.
+- **Идемпотентность** по `eventId` — дубликаты с `InboxStatus.PROCESSED` не обрабатываются повторно.
+- Зависшие `PROCESSING` (старше `stale-processing-timeout-ms`) возвращаются в `PENDING`.
+- Сериализация: `app.kafka.serialization=json` (по умолчанию) или `avro` (+ Schema Registry).
 
-| Метод | Путь                       | Описание                                                       |
-|-------|----------------------------|----------------------------------------------------------------|
-| POST  | `/api/notifications/email` | Отправить уведомление (`eventId`, `operation`, `email`)        |
-| GET   | `/actuator/health`         | Health; при `kafka` — contributor `kafkaConsumerLag`           |
-| GET   | `/actuator/info`           | Информация о приложении                                        |
-| GET   | `/actuator/prometheus`     | Метрики Prometheus                                             |
+---
 
-### Пример запроса
+## API
+
+| Метод | Путь                                | Auth                         | Описание                                      |
+|-------|-------------------------------------|------------------------------|-----------------------------------------------|
+| POST  | `/api/notifications/email`          | Service JWT или `X-API-Key`  | Отправить уведомление → **204**               |
+| GET   | `/api/notifications/logs/latest`    | User JWT (`USER` / `ADMIN`)  | Последний лог по `?email=` → JSON summary     |
+| GET   | `/actuator/health`                  | —                            | Health; при `kafka` — `kafkaConsumerLag`      |
+| GET   | `/actuator/info`                    | —                            | Info                                          |
+| GET   | `/actuator/prometheus`              | —                            | Метрики Prometheus                            |
+| GET   | `/swagger-ui.html`                  | — (dev)                      | OpenAPI UI (springdoc)                        |
+
+Путь write-эндпоинта настраивается: `app.notification.api.email-path` (используется в контроллере и `SecurityConfig`).
+
+### Пример: отправка email
 
 ```bash
 curl -k -X POST https://localhost:8444/api/notifications/email \
@@ -68,93 +89,27 @@ curl -k -X POST https://localhost:8444/api/notifications/email \
   }'
 ```
 
-Ответы: **204** — успех, **400** — валидация, **401** / **403** — JWT, **503** — ошибка SMTP.
+Ответы: **204** — успех, **400** — валидация, **401** / **403** — auth, **503** — ошибка SMTP.
 
-## Требования к окружению
-
-- **Docker Desktop** (Testcontainers и compose)
-- **Java 21**
-- **Gradle 8.14+** (в monorepo — `./gradlew` из корня `user-notification-platform`)
-
-## Быстрый старт через Docker
-
-### 1. Клонирование репозитория
+### Пример: последний лог
 
 ```bash
-git clone https://github.com/charset-8utf/notification-service.git
-cd notification-service
+curl -k 'https://localhost:8444/api/notifications/logs/latest?email=user@example.com' \
+  -H 'Authorization: Bearer <user-jwt>'
 ```
 
-### 2. Настройка переменных окружения
+Пользователь видит только свой email; `ADMIN` — любой. **403**, если email в query не совпадает с claim `email` в JWT.
 
-При необходимости создайте `.env` (см. `docker-compose.yml`):
-
-```properties
-KEYSTORE_PASSWORD=changeit
-APP_SERVICE_JWT_SECRET=dev-service-jwt-secret-change-in-production-min-32b
-APP_HTTPS_PORT=8444
-SPRING_PROFILES_ACTIVE=rest,kafka,redis,management
-```
-
-> Секрет `APP_SERVICE_JWT_SECRET` (≥32 байт) должен совпадать у **всех сервисов**, которые вызывают REST API с service JWT.
-
-### 3. Запуск инфраструктуры и приложения
-
-Только Mongo, Mailpit, Kafka (приложение из корня платформы):
-
-```bash
-docker compose up -d
-cd ..   # в user-notification-platform, если вы в notification-service/
-./gradlew :notification-service:bootRun
-```
-
-Сервис: **https://localhost:8444** (при пробросе `APP_HTTPS_PORT=8444`)  
-Mailpit UI: **http://localhost:8025** (SMTP — `localhost:1025`)
-
-Приложение в контейнере:
-
-```bash
-docker compose --profile app up --build -d
-```
-
-HTTPS на хосте: **https://localhost:8444** (`APP_HTTPS_PORT`).
-
-### 4. Аутентификация (service JWT)
-
-Эндпоинт `/api/notifications/email` защищён OAuth2 Resource Server (HS256). Проверяются `iss`, `sub`, `aud` и scope `notifications:write`.
-
-Для ручных вызовов сгенерируйте **service JWT** (тот же `APP_SERVICE_JWT_SECRET`):
-
-```bash
-# из корня user-notification-platform
-./gradlew :user-service:serviceJwtSmokeToken -q
-```
-
-`/actuator/health`, `/actuator/info`, `/actuator/prometheus` — без авторизации (профиль `management`, порт **8081** внутри контейнера).
-
-### 5. Проверка
-
-```bash
-curl -k https://localhost:8444/actuator/health
-```
-
-После успешного POST проверьте письмо в Mailpit: http://localhost:8025
-
-### 6. Остановка и очистка
-
-```bash
-docker compose down
-docker compose down -v
-```
+---
 
 ## Spring-профили
 
 | Профиль      | Назначение                                                        |
 |--------------|-------------------------------------------------------------------|
-| `rest`       | `NotificationController` — HTTP API                               |
-| `kafka`      | `UserNotificationKafkaConsumer`, DLT, идемпотентность, lag health |
-| `redis`      | `RedisUserLookupPort` — чтение `user:email:{email}`               |
-| `management` | Actuator и Prometheus на отдельном порту                          |
+| `rest`       | `NotificationController`, `NotificationLogController`             |
+| `kafka`      | Consumer, inbox relay, DLT, idempotency, lag health, compensation |
+| `redis`      | `RedisUserLookupPort`                                             |
+| `management` | Actuator на отдельном порту **8081** (без TLS)                    |
 
 Дефолт в `application.yml`: **`kafka`**.
 
@@ -165,87 +120,150 @@ docker compose down -v
 | Kafka + Redis         | `kafka,redis`                 |
 | Полный локальный стек | `rest,kafka,redis,management` |
 
+Без `redis` Redis auto-config отключён (`application.yml`).
+
+---
+
 ## Безопасность
 
-| Механизм | Описание |
-|----------|----------|
-| **HTTPS** | TLS на порту **8444** (`keystore.p12`); actuator — **8081** |
-| **Service JWT** | `POST /api/notifications/email` — только machine-to-machine (`notifications:write`) |
-| **User JWT** | Не принимается на REST email (отдельный issuer/audience) |
-| **Kafka** | PLAINTEXT в dev; **SASL_SSL** — `APP_KAFKA_SECURITY_ENABLED=true` |
-| **Cloud** | Синхронный REST от user-service; основной поток — Kafka |
+Две цепочки `SecurityFilterChain` (`config/security/SecurityConfig.java`):
 
-## Архитектура проекта
+| Цепочка | Matcher                         | Механизм                                              |
+|---------|---------------------------------|-------------------------------------------------------|
+| Read    | `/api/notifications/logs/**`    | User JWT (`APP_JWT_*`), роли `USER` / `ADMIN`         |
+| Write   | остальное API + actuator rules  | Service JWT (`APP_SERVICE_JWT_*`) или API Key         |
+
+| Механизм        | Описание                                                                     |
+|-----------------|------------------------------------------------------------------------------|
+| **HTTPS**       | TLS **8443** в контейнере; хост **8444** (`NOTIFICATION_SERVICE_HTTPS_PORT`) |
+| **Service JWT** | Scope `notifications:write`; отклонение user access-токенов                  |
+| **API Key**     | `APP_API_KEY_ENABLED=true`, заголовок `X-API-Key`                            |
+| **Kafka**       | PLAINTEXT в dev; SASL_SSL — `APP_KAFKA_SECURITY_ENABLED=true`                |
+
+Actuator (`health`, `info`, `prometheus`) — без auth на write-цепочке. С профилем `management` слушает **8081**.
+
+---
+
+## Архитектура
 
 ```text
-com.notification
-├── config/        # Security, Kafka, Redis
-├── controller/    # REST API (профиль rest)
-├── service/       # отправка email + аудит Mongo
-├── repository/    # MongoDB
-├── entity/        # NotificationLog
-├── dto/           # NotificationEmailRequest
-├── mapper/        # DTO → документ
-├── idempotency/   # дедупликация по eventId (kafka)
-├── kafka/         # consumer, lag health
-├── lookup/        # UserLookupPort / Redis
-├── security/      # service JWT Resource Server
-└── exception/     # @RestControllerAdvice
+controller/          REST (профиль rest)
+dto/                 API records (JSpecify @NullMarked)
+domain/              enum'ы: operation, channel, status, inbox status
+service/
+  port/              EmailDeliveryPort, UserLookupPort
+  email/             Strategy — subject/body по operation
+  …                  Facade, Template Method, inbox, idempotency, log query
+mapper/              MapStruct (NotificationLogMapper + DetailResolver)
+entity/              NotificationLog, NotificationInbox (@Document)
+repository/          Spring Data + atomic inbox claim (custom impl)
+delivery/            JavaMailEmailDeliveryAdapter
+lookup/              RedisUserLookupPort / NoOpUserLookupPort
+kafka/
+  json/, avro/       serializers / consumer factory builders
+  …                  consumer, inbox relay, DLT, compensation, lag monitor
+config/
+  kafka/             topics, producers, consumers, typed properties
+  security/          SecurityFilterChain
+security/            JWT decoders, API Key filter, access policies
+metrics/, exception/
 ```
 
-## Тестирование
+Паттерны: **Facade**, **Template Method**, **Strategy**, **Adapter**, **Transactional Inbox**.
 
-### Запуск тестов
+Конфигурация — `@ConfigurationProperties` records, без `@Value` в main-коде.  
+Опционально: Spring Cloud Config (`CONFIG_SERVER_URI`, профиль `cloud`).
+
+---
+
+## Быстрый старт
+
+### Требования
+
+- **Java 21** (Gradle JVM — см. комментарий в корневом `gradle.properties`, если default JDK > 21)
+- **Docker** (compose и Testcontainers)
+- `./gradlew` из корня `user-notification-platform`
+
+### 1. Инфраструктура
+
+```bash
+git clone https://github.com/charset-8utf/user-notification-platform.git
+cd user-notification-platform
+docker compose up -d
+```
+
+Опционально `.env` (см. `.env.example`): `KEYSTORE_PASSWORD`, `APP_SERVICE_JWT_SECRET`, `SPRING_PROFILES_ACTIVE=rest,kafka,redis,management`.
+
+### 2. Приложение локально
+
+```bash
+./gradlew :notification-service:bootRun
+```
+
+Или в Docker (из корня monorepo):
+
+```bash
+docker compose up -d --build notification-service
+```
+
+| Сервис        | URL                                      |
+|---------------|------------------------------------------|
+| HTTPS API     | https://localhost:8444                   |
+| Mailpit UI    | http://localhost:8025                    |
+| Actuator      | http://localhost:8081/actuator/health    |
+
+### 3. Service JWT для write
+
+Секрет `APP_SERVICE_JWT_SECRET` (≥32 символа) должен совпадать у сервисов-вызывателей.
+
+```bash
+./gradlew :user-service:serviceJwtSmokeToken -q
+```
+
+### 4. Проверка
+
+```bash
+curl -k https://localhost:8444/actuator/health
+```
+
+---
+
+## Тестирование
 
 ```bash
 ./gradlew :notification-service:check
 ```
 
-или из каталога сервиса:
+| Тип          | Примеры                                                                 |
+|--------------|-------------------------------------------------------------------------|
+| Unit / slice | `*WebMvcTest`, `NotificationLogMapperTest`, `KafkaInboxRelayTest`       |
+| Integration  | `NotificationKafka*IntegrationTest`, `NotificationEmailIntegrationTest` |
 
-```bash
-./gradlew check
-```
+Testcontainers: MongoDB, Kafka. Покрытие JaCoCo — минимум **70%** instructions (`check`).
 
-### Ручная проверка API (curl)
-
-```bash
-# из корня платформы
-SVC_JWT=$(./gradlew -q :user-service:serviceJwtSmokeToken)
-
-curl -k -X POST https://localhost:8444/api/notifications/email \
-  -H "Authorization: Bearer $SVC_JWT" \
-  -H 'Content-Type: application/json' \
-  -d '{"eventId":"990e8400-e29b-41d4-a716-446655440099","operation":"USER_CREATED","email":"user@example.com"}'
-```
-
-Письмо проверьте в Mailpit: http://localhost:8025
+---
 
 ## CI
 
-В monorepo платформы: `./gradlew check` (workflow `ci.yml`).
+Монорепозиторий: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) — `./gradlew check` на JDK 21.  
+Отдельного workflow для notification-service нет.
 
-Отдельный репозиторий — `.github/workflows/NotificationServiceCI.yml`:
+---
 
-- JDK 21, Gradle
-- `./gradlew check`
-- Сборка Docker-образа
+## Конфигурация
 
-## Логирование
+| Префикс                  | Record                        | Назначение                              |
+|--------------------------|-------------------------------|-----------------------------------------|
+| `app.notification`       | `NotificationProperties`      | `site-name`, `mail-from`                |
+| `app.notification.api`   | `NotificationApiProperties`   | `email-path`                            |
+| `app.notification.kafka` | `NotificationKafkaProperties` | topic, inbox, retry, listener, DLT      |
+| `app.kafka`              | `AppKafkaProperties`          | `serialization`, schema-registry, SASL  |
+| `app.security.*`         | JWT / `ApiKeyProperties`      | auth                                    |
 
-**SLF4J** (Spring Boot). Уровни — в `application.yml`.
+Профили: `application-kafka.yml`, `application-redis.yml`, `application-management.yml`, `application-cloud.yml`.  
+Централизованные overrides — [`config-repo/`](../config-repo/).
 
-## Особенности реализации
-
-- Единый `NotificationService` для REST и Kafka; **constructor injection**
-- **Идемпотентность** по `eventId` (профиль `kafka`)
-- **Manual ack** Kafka, **DLT** после исчерпания retry
-- **Service JWT** — отклонение пользовательских access-токенов с чужим `iss` / scope
-- **HTTPS** — `keystore.p12`, alias `notification-service`
-- **Actuator** + **Prometheus**; **kafkaConsumerLag** — lag consumer group
-- **Redis readiness** в `/actuator/health/readiness` (профиль `redis`)
-- Опционально **Kafka SASL_SSL** — `APP_KAFKA_SECURITY_ENABLED=true`, truststore `kafka-truststore.p12`
-- Сообщения Kafka — JSON без `__TypeId__` (Jackson 3 `JsonMapper`)
+---
 
 ## Автор
 

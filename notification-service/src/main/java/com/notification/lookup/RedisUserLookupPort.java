@@ -1,5 +1,8 @@
 package com.notification.lookup;
 
+import com.notification.service.port.UserCacheView;
+import com.notification.service.port.UserLookupPort;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Profile;
@@ -12,32 +15,27 @@ import tools.jackson.databind.ObjectMapper;
 import java.util.Optional;
 
 /**
- * Чтение из Redis-кэша по email-индексу {@code user:email:{email}},
- * который пишет user-service.
+ * Adapter (GoF): чтение enrichment из Redis-кэша user-service ({@code user:email:{email}}).
  */
 @Component
 @Profile("redis")
 @Slf4j
+@RequiredArgsConstructor
 public class RedisUserLookupPort implements UserLookupPort {
 
     private static final String KEY_PREFIX_EMAIL = "user:email:";
 
-    private final StringRedisTemplate redis;
+    private final ObjectProvider<StringRedisTemplate> redis;
     private final ObjectMapper objectMapper;
-
-    public RedisUserLookupPort(ObjectProvider<StringRedisTemplate> redis, ObjectMapper objectMapper) {
-        this.redis = redis.getObject();
-        this.objectMapper = objectMapper;
-    }
 
     @Override
     public Optional<UserCacheView> findByEmail(String email) {
-        if (email == null || email.isBlank()) {
+        if (email.isBlank()) {
             return Optional.empty();
         }
         String key = KEY_PREFIX_EMAIL + email;
         try {
-            String json = redis.opsForValue().get(key);
+            String json = redis.getObject().opsForValue().get(key);
             if (json == null) {
                 return Optional.empty();
             }

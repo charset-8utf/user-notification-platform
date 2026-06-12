@@ -1,13 +1,14 @@
 package com.notification.lookup;
 
+import com.notification.service.port.UserCacheView;
+import com.notification.service.port.UserLookupPort;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
 
 /**
- * Заглушка, активная когда профиль {@code redis} не включён —
- * notification-service просто работает по данным из самого события.
+ * Null Object (GoF): enrichment отключён, когда профиль {@code redis} не включён.
  */
 @Component
 @Profile("!redis")

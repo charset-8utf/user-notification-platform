@@ -4,7 +4,7 @@ spring:
 
   config:
     import:
-      - optional:configserver:http://${CONFIG_SERVER_HOST:localhost}:${CONFIG_SERVER_PORT:8888}
+      - optional:configserver:${CONFIG_SERVER_URI:https://localhost:8888}
       - optional:classpath:platform/tracing-defaults.yml
 
   cloud:
@@ -24,6 +24,9 @@ spring:
       mail:
         smtp:
           auth: false
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
           starttls:
             enable: false
   kafka:
@@ -61,12 +64,15 @@ management:
 
 app:
   kafka:
+    serialization: ${APP_KAFKA_SERIALIZATION:json}
+    schema-registry-url: ${APP_KAFKA_SCHEMA_REGISTRY_URL:}
     security:
       enabled: ${APP_KAFKA_SECURITY_ENABLED:false}
   security:
     api-key:
       enabled: ${APP_API_KEY_ENABLED:false}
       keys: ${APP_API_KEYS:}
+      header: ${APP_API_KEY_HEADER:X-API-Key}
     jwt:
       secret: ${APP_JWT_SECRET:dev-jwt-secret-change-in-production-min-32-chars}
       issuer: ${APP_JWT_ISSUER:user-service}
@@ -77,6 +83,8 @@ app:
       subject: ${APP_SERVICE_JWT_SUBJECT:user-service}
       scope: ${APP_SERVICE_JWT_SCOPE:notifications:write}
   notification:
+    api:
+      email-path: ${APP_NOTIFICATION_EMAIL_PATH:/api/notifications/email}
     site-name: "ваш сайт"
     mail-from: "noreply@localhost"
     kafka:
@@ -92,6 +100,7 @@ app:
         batch-size: ${APP_NOTIFICATION_KAFKA_INBOX_BATCH_SIZE:50}
         relay-interval-ms: ${APP_NOTIFICATION_KAFKA_INBOX_RELAY_INTERVAL_MS:1000}
         failed-replay-interval-ms: ${APP_NOTIFICATION_KAFKA_INBOX_FAILED_REPLAY_INTERVAL_MS:30000}
+        stale-processing-timeout-ms: ${APP_NOTIFICATION_KAFKA_INBOX_STALE_PROCESSING_TIMEOUT_MS:300000}
       retry:
         max-attempts: 3
         backoff-ms: 1000

@@ -1,19 +1,17 @@
 package com.notification.metrics;
 
-import com.notification.entity.UserNotificationOperation;
+import com.notification.domain.UserNotificationOperation;
 import io.micrometer.core.instrument.MeterRegistry;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class NotificationMetrics {
 
     private static final String OPERATION_TAG = "operation";
 
     private final MeterRegistry registry;
-
-    public NotificationMetrics(MeterRegistry registry) {
-        this.registry = registry;
-    }
 
     public void emailSent(UserNotificationOperation operation) {
         registry.counter("app.notification.email.sent", OPERATION_TAG, operation.name()).increment();
