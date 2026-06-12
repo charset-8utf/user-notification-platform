@@ -50,13 +50,7 @@ cmd_fast() {
   ./gradlew check
 }
 
-cmd_build_e2e() {
-  ./gradlew :platform-commons:jar :user-service:bootJar :notification-service:bootJar \
-    :config-server:bootJar :api-gateway:bootJar :web-bff:bootJar -x test
-}
-
 cmd_build_docker_images() {
-  cmd_build_e2e
   docker compose --profile cloud build \
     user-service notification-service config-server api-gateway web-bff
 }
@@ -64,7 +58,6 @@ cmd_build_docker_images() {
 cmd_e2e_up() {
   export NOTIFICATION_SERVICE_PROFILES="${NOTIFICATION_SERVICE_PROFILES:-rest,kafka,redis,management,docker}"
   export USER_SERVICE_PROFILES="${USER_SERVICE_PROFILES:-kafka,redis,jwt,management,docker}"
-  cmd_build_e2e
   docker compose up -d --build
   wait_container_healthy unp-user-service 60
   wait_container_healthy unp-notification-service 60
@@ -78,12 +71,16 @@ cmd_e2e() {
 cmd_e2e_cloud_up() {
   export USER_SERVICE_PROFILES="${USER_SERVICE_PROFILES:-kafka,redis,jwt,management,docker,cloud}"
   export NOTIFICATION_SERVICE_PROFILES="${NOTIFICATION_SERVICE_PROFILES:-rest,kafka,redis,management,docker,cloud}"
-  cmd_build_e2e
   docker compose --profile cloud up -d --build
   wait_container_healthy unp-user-service "$(ci_health_wait_max)"
   wait_container_healthy unp-notification-service "$(ci_health_wait_max)"
   wait_container_healthy unp-nginx 30
   wait_http "http://localhost/actuator/health" "$(ci_health_wait_max)"
+  if [ "${APP_KAFKA_SERIALIZATION:-avro}" = "avro" ]; then
+    chmod +x scripts/kafka/schema-compat-check.sh
+    SCHEMA_REGISTRY_URL="${SCHEMA_REGISTRY_URL:-http://localhost:8085}" \
+      ./scripts/kafka/schema-compat-check.sh
+  fi
 }
 
 cmd_e2e_cloud() {
@@ -108,7 +105,6 @@ cmd_e2e_oidc_up() {
   export COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml:docker-compose.ci-oidc.yml}"
   export USER_SERVICE_PROFILES="${USER_SERVICE_PROFILES:-kafka,redis,jwt,management,docker,cloud}"
   export NOTIFICATION_SERVICE_PROFILES="${NOTIFICATION_SERVICE_PROFILES:-rest,kafka,redis,management,docker,cloud}"
-  cmd_build_e2e
   docker compose --profile cloud --profile auth up -d --build
   wait_container_healthy unp-user-service 60
   wait_container_healthy unp-notification-service 60
@@ -127,7 +123,6 @@ cmd_e2e_oidc() {
 cmd_observability_up() {
   export USER_SERVICE_PROFILES="${USER_SERVICE_PROFILES:-kafka,redis,jwt,management,docker,cloud}"
   export NOTIFICATION_SERVICE_PROFILES="${NOTIFICATION_SERVICE_PROFILES:-rest,kafka,redis,management,docker,cloud}"
-  cmd_build_e2e
   docker compose --profile cloud --profile observability up -d --build
   wait_container_healthy unp-user-service 60
   wait_container_healthy unp-notification-service 60
@@ -187,22 +182,21 @@ usage() {
 Usage: $(basename "$0") <command>
 
 Commands:
-  fast              ./gradlew check (unit + integration)
-  build-e2e         Build JARs for Docker (skip tests)
-  build-docker-images  build-e2e + docker compose build (5 app images)
-  e2e-up            Build, compose up, wait healthy
-  e2e               e2e-up + platform-smoke.sh
-  e2e-cloud-up      Compose --profile cloud, wait healthy
-  e2e-cloud         e2e-cloud-up + platform-smoke-cloud.sh
-  e2e-cross         cloud stack + cross-service E2E
-  e2e-compensation  cloud stack + compensation E2E
-  e2e-oidc-up       cloud + auth profile, wait Keycloak
-  e2e-oidc          e2e-oidc-up + platform-smoke-oidc.sh
-  e2e-cloud-suite   smoke-cloud + e2e-cross + e2e-compensation
-  observability-up  compose cloud + observability, wait prometheus
-  e2e-down          Stop compose and remove volumes
-  security          Trivy (fail on HIGH/CRITICAL) + gitleaks
-  full              fast + e2e + cloud suite + oidc + e2e-down + security
+  fast                 ./gradlew check (unit + integration)
+  build-docker-images  docker compose build (5 app images)
+  e2e-up               Compose up --build, wait healthy
+  e2e                  e2e-up + platform-smoke.sh
+  e2e-cloud-up         Compose --profile cloud, wait healthy
+  e2e-cloud            e2e-cloud-up + platform-smoke-cloud.sh
+  e2e-cross            cloud stack + cross-service E2E
+  e2e-compensation     cloud stack + compensation E2E
+  e2e-oidc-up          cloud + auth profile, wait Keycloak
+  e2e-oidc             e2e-oidc-up + platform-smoke-oidc.sh
+  e2e-cloud-suite      smoke-cloud + e2e-cross + e2e-compensation
+  observability-up     compose cloud + observability, wait prometheus
+  e2e-down             Stop compose and remove volumes
+  security             Trivy (fail on HIGH/CRITICAL) + gitleaks
+  full                 fast + e2e + cloud suite + oidc + e2e-down + security
 EOF
 }
 
@@ -210,7 +204,6 @@ main() {
   local cmd="${1:-}"
   case "${cmd}" in
     fast) cmd_fast ;;
-    build-e2e) cmd_build_e2e ;;
     build-docker-images) cmd_build_docker_images ;;
     e2e-up) cmd_e2e_up ;;
     e2e) cmd_e2e ;;

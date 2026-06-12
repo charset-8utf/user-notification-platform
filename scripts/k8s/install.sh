@@ -12,9 +12,12 @@ usage() {
   cat <<EOF
 Usage: $(basename "$0") [--build-images] [helm upgrade extra args...]
 
-  --build-images   docker compose build + import into K8s node (Docker Desktop)
+  --build-images   build/import images (--if-needed) then helm install
 
 Requires Docker Desktop Kubernetes enabled (context: ${K8S_CONTEXT}).
+
+Tip: heavy image import can cause IntelliJ "TLS handshake timeout".
+      Close the Kubernetes tool window during --build-images, then refresh.
 EOF
 }
 
@@ -37,10 +40,32 @@ if [[ "${VALUES_FILE}" == *values-dev* ]]; then
 fi
 
 if [ "${BUILD_IMAGES}" = true ]; then
-  "${ROOT}/scripts/k8s/load-images.sh"
+  "${ROOT}/scripts/k8s/load-images.sh" --if-needed
 fi
 
-kubectl create namespace "${NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
+echo "Checking Kubernetes API before Helm..."
+for i in $(seq 1 36); do
+  if kubectl cluster-info >/dev/null 2>&1; then
+    break
+  fi
+  if [[ "${i}" -eq 36 ]]; then
+    echo "Kubernetes API unavailable. Close IntelliJ Kubernetes tool window and retry." >&2
+    exit 1
+  fi
+  echo "Waiting for Kubernetes API (${i}/36)..."
+  sleep 5
+done
+
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${NAMESPACE}
+  labels:
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+EOF
 
 kubectl -n "${NAMESPACE}" create configmap "${RELEASE}-config-repo" \
   --from-file="${ROOT}/config-repo/" \
