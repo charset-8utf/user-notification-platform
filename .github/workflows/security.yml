@@ -88,23 +88,59 @@ jobs:
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3.7.0
 
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish images to GHCR (main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          IMAGE_OWNER: ${{ github.repository_owner }}
+        run: |
+          owner="$(echo "${IMAGE_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          for img in user-service notification-service config-server api-gateway web-bff; do
+            remote="ghcr.io/${owner}/${img}"
+            echo "=== Publish: ${remote} ==="
+            docker tag "${img}:latest" "${remote}:${{ github.sha }}"
+            docker tag "${img}:latest" "${remote}:latest"
+            docker push "${remote}:${{ github.sha }}"
+            docker push "${remote}:latest"
+          done
+
       - name: Sign images (keyless, main only)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           COSIGN_EXPERIMENTAL: "true"
+          IMAGE_OWNER: ${{ github.repository_owner }}
         run: |
+          owner="$(echo "${IMAGE_OWNER}" | tr '[:upper:]' '[:lower:]')"
           for img in user-service notification-service config-server api-gateway web-bff; do
-            echo "=== Cosign sign: ${img} ==="
-            cosign sign --yes "${img}:latest"
+            remote="ghcr.io/${owner}/${img}:latest"
+            digest="$(docker inspect --format='{{index .RepoDigests 0}}' "${remote}")"
+            if [ -z "${digest}" ] || [ "${digest}" = "<no value>" ]; then
+              echo "Could not resolve digest for ${remote}" >&2
+              exit 1
+            fi
+            echo "=== Cosign sign: ${digest} ==="
+            cosign sign --yes "${digest}"
           done
 
       - name: Verify signatures (main only)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           COSIGN_EXPERIMENTAL: "true"
+          IMAGE_OWNER: ${{ github.repository_owner }}
         run: |
+          owner="$(echo "${IMAGE_OWNER}" | tr '[:upper:]' '[:lower:]')"
           for img in user-service notification-service config-server api-gateway web-bff; do
+            remote="ghcr.io/${owner}/${img}:latest"
+            digest="$(docker inspect --format='{{index .RepoDigests 0}}' "${remote}")"
+            echo "=== Cosign verify: ${digest} ==="
             cosign verify --certificate-oidc-issuer https://token.actions.githubusercontent.com \
               --certificate-identity-regexp "^https://github.com/${{ github.repository }}" \
-              "${img}:latest"
+              "${digest}"
           done
