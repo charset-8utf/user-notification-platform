@@ -1,6 +1,10 @@
+x-spring-service-build: &spring-service-build
+  context: .
+  dockerfile: docker/spring-service/Dockerfile
+
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:17-alpine@sha256:5a6fcbc5d93831991d2386fa634509b3c49a1ac5ffb70c13c2322840f821d7e7
     container_name: unp-postgres
     restart: unless-stopped
     environment:
@@ -20,7 +24,7 @@ services:
       - unp-network
 
   mongo:
-    image: mongo:7
+    image: mongo:7@sha256:948b635bc126d62274eebb650dd2e2e66c9abc3bb0a336eb2279a5d8489417f5
     container_name: unp-mongo
     restart: unless-stopped
     ports:
@@ -36,7 +40,7 @@ services:
       - unp-network
 
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
     container_name: unp-redis
     restart: unless-stopped
     environment:
@@ -55,14 +59,7 @@ services:
     ports:
       - "${REDIS_PUBLISH_PORT:-6379}:6379"
     healthcheck:
-      test:
-        - CMD-SHELL
-        - |
-          if [ -n "$$REDIS_PASSWORD" ]; then
-            redis-cli -a "$$REDIS_PASSWORD" --no-auth-warning ping | grep -q PONG
-          else
-            redis-cli ping | grep -q PONG
-          fi
+      test: ["CMD-SHELL", "if [ -n \"$$REDIS_PASSWORD\" ]; then redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG; else redis-cli ping | grep -q PONG; fi"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -70,7 +67,7 @@ services:
       - unp-network
 
   mailpit:
-    image: axllent/mailpit
+    image: axllent/mailpit@sha256:3bd7c2f2696deb35a4780d152b404dceec99cb041b942c0877b3b22384714f85
     container_name: unp-mailpit
     restart: unless-stopped
     ports:
@@ -84,45 +81,43 @@ services:
     networks:
       - unp-network
 
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.4.0
-    container_name: unp-zookeeper
-    restart: unless-stopped
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    networks:
-      - unp-network
-
   kafka:
-    image: confluentinc/cp-kafka:7.4.0
+    image: confluentinc/cp-kafka:7.4.0@sha256:187dac6627e7906c350f5f8c982f80ce735ff1a0e571a20de6000a309a12ce63
     container_name: unp-kafka
     restart: unless-stopped
     mem_limit: 1g
     cpus: 2.0
-    depends_on:
-      - zookeeper
     ports:
       - "${KAFKA_PUBLISH_PORT:-9092}:9092"
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092,CONTROLLER://0.0.0.0:29093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+    volumes:
+      - kafka_data:/var/lib/kafka/data
     healthcheck:
       test: ["CMD-SHELL", "kafka-topics --bootstrap-server kafka:29092 --list >/dev/null 2>&1"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 12
+      start_period: 30s
     networks:
       - unp-network
 
   schema-registry:
-    image: confluentinc/cp-schema-registry:7.4.0
+    image: confluentinc/cp-schema-registry:7.4.0@sha256:45894007bc1b54ae9db571328ec38d535b3a17e001a60956eb76f6a6212222d6
     container_name: unp-schema-registry
     restart: unless-stopped
     depends_on:
@@ -144,8 +139,13 @@ services:
 
   config-server:
     build:
-      context: .
-      dockerfile: config-server/Dockerfile
+      <<: *spring-service-build
+      args:
+        MODULE: config-server
+        JAR_FILE: config-server.jar
+        HEALTHCHECK_INTERVAL: 10s
+        HEALTHCHECK_START_PERIOD: 30s
+        HEALTHCHECK_SHELL: wget -q --spider http://127.0.0.1:8888/actuator/health/liveness || exit 1
     image: config-server:latest
     container_name: unp-config-server
     restart: unless-stopped
@@ -167,8 +167,10 @@ services:
 
   user-service:
     build:
-      context: .
-      dockerfile: user-service/Dockerfile
+      <<: *spring-service-build
+      args:
+        MODULE: user-service
+        JAR_FILE: user-service.jar
     image: user-service:latest
     container_name: unp-user-service
     restart: unless-stopped
@@ -181,33 +183,37 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      schema-registry:
+        condition: service_healthy
     environment:
       SPRING_DOCKER_COMPOSE_ENABLED: "false"
-      DB_URL: jdbc:postgresql://postgres:5432/userdb
+      DB_URL: "jdbc:postgresql://postgres:5432/userdb"
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       KEYSTORE_PASSWORD: ${KEYSTORE_PASSWORD:-changeit}
       TRACING_ENABLED: ${TRACING_ENABLED:-false}
-      ZIPKIN_ENDPOINT: ${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}
+      ZIPKIN_ENDPOINT: "${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}"
       APP_SEED_ADMIN_PASSWORD: ${APP_SEED_ADMIN_PASSWORD:-admin123}
       APP_SEED_USER_PASSWORD: ${APP_SEED_USER_PASSWORD:-user123}
-      CONFIG_SERVER_HOST: config-server
-      CONFIG_SERVER_PORT: "8888"
+      CONFIG_SERVER_URI: "${CONFIG_SERVER_URI:-http://config-server:8888}"
+      API_GATEWAY_URI: "${API_GATEWAY_URI:-http://api-gateway:8080}"
       CONFIG_FAIL_FAST: ${CONFIG_FAIL_FAST:-false}
-      SPRING_PROFILES_ACTIVE: ${USER_SERVICE_PROFILES:-kafka,redis,jwt,management,docker,cloud}
+      SPRING_PROFILES_ACTIVE: "${USER_SERVICE_PROFILES:-kafka,redis,jwt,management,docker,cloud}"
       MANAGEMENT_SERVER_PORT: "8081"
       APP_JWT_SECRET: ${APP_JWT_SECRET:-dev-jwt-secret-change-in-production-min-32-chars}
-      APP_JWT_ISSUER_URI: ${APP_JWT_ISSUER_URI:-}
-      APP_JWT_JWK_SET_URI: ${APP_JWT_JWK_SET_URI:-}
+      APP_JWT_ISSUER_URI: "${APP_JWT_ISSUER_URI:-}"
+      APP_JWT_JWK_SET_URI: "${APP_JWT_JWK_SET_URI:-}"
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      APP_KAFKA_SERIALIZATION: ${APP_KAFKA_SERIALIZATION:-avro}
+      APP_KAFKA_SCHEMA_REGISTRY_URL: "${APP_KAFKA_SCHEMA_REGISTRY_URL:-http://schema-registry:8081}"
       APP_KAFKA_SECURITY_ENABLED: "false"
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: "6379"
       SPRING_DATA_REDIS_DATABASE: "0"
-      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      SPRING_DATA_REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
       APP_SERVICE_JWT_SECRET: ${APP_SERVICE_JWT_SECRET:-dev-service-jwt-secret-change-in-production-min-32b}
       APP_RATE_LIMIT_MAX_REQUESTS: ${APP_RATE_LIMIT_MAX_REQUESTS:-200}
-      APP_NOTIFICATION_REST_BASE_URL: https://notification-service
+      APP_NOTIFICATION_REST_BASE_URL: "https://notification-service:8443"
       APP_NOTIFICATION_REST_INSECURE_SSL: "false"
     ports:
       - "${USER_SERVICE_HTTPS_PORT:-8443}:8443"
@@ -218,15 +224,18 @@ services:
       timeout: 5s
       retries: 12
       start_period: 90s
-    mem_limit: 768m
-    cpus: 1.5
+    mem_limit: "768m"
+    cpus: "1.5"
     networks:
       - unp-network
 
   notification-service:
     build:
-      context: .
-      dockerfile: notification-service/Dockerfile
+      <<: *spring-service-build
+      args:
+        MODULE: notification-service
+        JAR_FILE: notification-service.jar
+        HEALTHCHECK_SHELL: wget -q --spider http://127.0.0.1:8081/actuator/health/liveness 2>/dev/null || wget -q --spider --no-check-certificate https://127.0.0.1:8443/actuator/health/liveness || exit 1
     image: notification-service:latest
     container_name: unp-notification-service
     restart: unless-stopped
@@ -239,11 +248,13 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      schema-registry:
+        condition: service_healthy
       redis:
         condition: service_healthy
     environment:
-      CONFIG_SERVER_HOST: config-server
-      CONFIG_SERVER_PORT: "8888"
+      CONFIG_SERVER_URI: ${CONFIG_SERVER_URI:-http://config-server:8888}
+      API_GATEWAY_URI: ${API_GATEWAY_URI:-http://api-gateway:8080}
       CONFIG_FAIL_FAST: ${CONFIG_FAIL_FAST:-false}
       SPRING_PROFILES_ACTIVE: ${NOTIFICATION_SERVICE_PROFILES:-rest,kafka,redis,management,docker,cloud}
       MANAGEMENT_SERVER_PORT: "8081"
@@ -251,6 +262,8 @@ services:
       APP_JWT_SECRET: ${APP_JWT_SECRET:-dev-jwt-secret-change-in-production-min-32-chars}
       SPRING_MONGODB_URI: mongodb://mongo:27017/notification
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      APP_KAFKA_SERIALIZATION: ${APP_KAFKA_SERIALIZATION:-avro}
+      APP_KAFKA_SCHEMA_REGISTRY_URL: ${APP_KAFKA_SCHEMA_REGISTRY_URL:-http://schema-registry:8081}
       APP_KAFKA_SECURITY_ENABLED: "false"
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: "6379"
@@ -281,8 +294,13 @@ services:
   api-gateway:
     profiles: ["cloud"]
     build:
-      context: .
-      dockerfile: api-gateway/Dockerfile
+      <<: *spring-service-build
+      args:
+        MODULE: api-gateway
+        JAR_FILE: api-gateway.jar
+        HEALTHCHECK_INTERVAL: 10s
+        HEALTHCHECK_START_PERIOD: 45s
+        HEALTHCHECK_SHELL: wget -q --spider http://127.0.0.1:8080/actuator/health/liveness || exit 1
     image: api-gateway:latest
     container_name: unp-api-gateway
     restart: unless-stopped
@@ -296,8 +314,8 @@ services:
       notification-service:
         condition: service_healthy
     environment:
-      CONFIG_SERVER_HOST: config-server
-      CONFIG_SERVER_PORT: "8888"
+      CONFIG_SERVER_URI: ${CONFIG_SERVER_URI:-http://config-server:8888}
+      API_GATEWAY_URI: ${API_GATEWAY_URI:-http://api-gateway:8080}
       SPRING_PROFILES_ACTIVE: cloud,docker
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: "6379"
@@ -311,14 +329,25 @@ services:
       ZIPKIN_ENDPOINT: ${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}
     ports:
       - "${API_GATEWAY_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
     networks:
       - unp-network
 
   web-bff:
     profiles: ["cloud"]
     build:
-      context: .
-      dockerfile: web-bff/Dockerfile
+      <<: *spring-service-build
+      args:
+        MODULE: web-bff
+        JAR_FILE: web-bff.jar
+        HEALTHCHECK_INTERVAL: 10s
+        HEALTHCHECK_START_PERIOD: 45s
+        HEALTHCHECK_SHELL: wget -q --spider http://127.0.0.1:8090/actuator/health/liveness || exit 1
     image: web-bff:latest
     container_name: unp-web-bff
     restart: unless-stopped
@@ -330,8 +359,8 @@ services:
       api-gateway:
         condition: service_started
     environment:
-      CONFIG_SERVER_HOST: config-server
-      CONFIG_SERVER_PORT: "8888"
+      CONFIG_SERVER_URI: ${CONFIG_SERVER_URI:-http://config-server:8888}
+      API_GATEWAY_URI: ${API_GATEWAY_URI:-http://api-gateway:8080}
       SPRING_PROFILES_ACTIVE: cloud,docker
       APP_JWT_SECRET: ${APP_JWT_SECRET:-dev-jwt-secret-change-in-production-min-32-chars}
       APP_BFF_USER_SERVICE_BASE_URL: http://api-gateway:8080
@@ -342,22 +371,29 @@ services:
       ZIPKIN_ENDPOINT: ${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}
     ports:
       - "${WEB_BFF_PORT:-8090}:8090"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8090/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
     networks:
       - unp-network
 
   nginx:
     profiles: ["cloud"]
-    image: nginx:1.27-alpine
+    image: nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
     container_name: unp-nginx
     restart: unless-stopped
     depends_on:
       api-gateway:
-        condition: service_started
+        condition: service_healthy
       web-bff:
-        condition: service_started
+        condition: service_healthy
     volumes:
       - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
+      # Local Docker Desktop + K8s: set NGINX_HTTP_PORT=8088 in .env (ingress занимает :80).
       - "${NGINX_HTTP_PORT:-80}:80"
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/nginx-health || exit 1"]
@@ -370,7 +406,7 @@ services:
 
   keycloak:
     profiles: ["auth"]
-    image: quay.io/keycloak/keycloak:26.0
+    image: quay.io/keycloak/keycloak:26.0@sha256:09a381c715ab0b111835b70f2905955274843a219c6f27efb348e4d9f4086858
     container_name: unp-keycloak
     restart: unless-stopped
     command: start-dev --import-realm --http-port=8180
@@ -387,7 +423,7 @@ services:
 
   zipkin:
     profiles: ["observability"]
-    image: openzipkin/zipkin:3.4
+    image: openzipkin/zipkin:3.4@sha256:c2830e93d95de43f0d10e00a3784a9ee101cdf4909370196c8802514fd7f1954
     container_name: unp-zipkin
     restart: unless-stopped
     ports:
@@ -397,7 +433,7 @@ services:
 
   alertmanager:
     profiles: ["observability"]
-    image: prom/alertmanager:v0.28.0
+    image: prom/alertmanager:v0.28.0@sha256:d5155cfac40a6d9250ffc97c19db2c5e190c7bc57c6b67125c94903358f8c7d8
     container_name: unp-alertmanager
     restart: unless-stopped
     volumes:
@@ -411,7 +447,7 @@ services:
 
   prometheus:
     profiles: ["observability"]
-    image: prom/prometheus:v3.0.1
+    image: prom/prometheus:v3.0.1@sha256:565ee86501224ebbb98fc10b332fa54440b100469924003359edf49cbce374bd
     container_name: unp-prometheus
     restart: unless-stopped
     depends_on:
@@ -435,7 +471,7 @@ services:
 
   loki:
     profiles: ["observability"]
-    image: grafana/loki:3.2.1
+    image: grafana/loki:3.2.1@sha256:09a53b4a4ff81ffcd8f13886df19d33fac7a8d3aaf952e3c7e66cbade5b2fc31
     container_name: unp-loki
     restart: unless-stopped
     command: -config.file=/etc/loki/local-config.yaml
@@ -449,7 +485,7 @@ services:
 
   promtail:
     profiles: ["observability"]
-    image: grafana/promtail:3.2.1
+    image: grafana/promtail:3.2.1@sha256:bf617e9d67e80247a59f717f9c1ad388d7d32dc0a1d29abd5799516d15e0a9b5
     container_name: unp-promtail
     restart: unless-stopped
     command: -config.file=/etc/promtail/promtail-config.yaml
@@ -464,7 +500,7 @@ services:
 
   grafana:
     profiles: ["observability"]
-    image: grafana/grafana:11.4.0
+    image: grafana/grafana:11.4.0@sha256:d8ea37798ccc41061a62ab080f2676dda6bf7815558499f901bdb0f533a456fb
     container_name: unp-grafana
     restart: unless-stopped
     environment:
@@ -486,6 +522,7 @@ services:
 volumes:
   postgres_data:
   mongo_data:
+  kafka_data:
   prometheus_data:
   loki_data:
   grafana_data:

@@ -1,4 +1,4 @@
-# Root build context for user-service / notification-service Dockerfiles
+# Root build context for docker/spring-service/Dockerfile (monorepo-wide)
 .git
 .github
 .idea
@@ -6,9 +6,11 @@
 **/.DS_Store
 **/target
 **/*.iml
+**/build
 docs
 scripts
 agent-transcripts
 .env
 .env.*
 !.env.example
+!gradle/wrapper/gradle-wrapper.jar

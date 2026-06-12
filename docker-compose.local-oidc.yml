@@ -1,0 +1,13 @@
+# macOS / Docker Desktop: OIDC smoke с Keycloak на :8180
+services:
+  api-gateway:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      APP_JWT_ISSUER_URI: http://localhost:8180/realms/platform
+      APP_JWT_JWK_SET_URI: http://host.docker.internal:8180/realms/platform/protocol/openid-connect/certs
+
+  user-service:
+    environment:
+      APP_JWT_ISSUER_URI: http://localhost:8180/realms/platform
+      APP_JWT_JWK_SET_URI: http://keycloak:8180/realms/platform/protocol/openid-connect/certs
