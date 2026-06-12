@@ -1,4 +1,3 @@
-# Cloud profile defaults (discovery via Simple Discovery Client).
 spring:
   cloud:
     discovery:
@@ -10,4 +9,4 @@ spring:
             notification-service:
               - uri: https://${NOTIFICATION_SERVICE_HOST:notification-service}:8443
             api-gateway:
-              - uri: http://${API_GATEWAY_HOST:api-gateway}:8080
+              - uri: ${API_GATEWAY_URI:https://api-gateway:8080}

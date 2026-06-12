@@ -1,8 +1,12 @@
-# Kubernetes: static service registry backed by cluster DNS (no Eureka).
 platform:
   environment: kubernetes
 
+server:
+  shutdown: graceful
+
 spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
   cloud:
     discovery:
       client:
@@ -13,4 +17,4 @@ spring:
             notification-service:
               - uri: https://notification-service:8443
             api-gateway:
-              - uri: http://api-gateway:8080
+              - uri: ${API_GATEWAY_URI:https://api-gateway:8080}

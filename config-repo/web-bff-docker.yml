@@ -5,11 +5,11 @@ spring:
         simple:
           instances:
             api-gateway:
-              - uri: http://api-gateway:8080
+              - uri: ${API_GATEWAY_URI:https://api-gateway:8080}
 
 app:
   bff:
-    user-service-base-url: http://api-gateway:8080
-    notification-service-base-url: http://api-gateway:8080
+    user-service-base-url: ${APP_BFF_USER_SERVICE_BASE_URL:https://api-gateway:8080}
+    notification-service-base-url: ${APP_BFF_NOTIFICATION_SERVICE_BASE_URL:https://api-gateway:8080}
     insecure-ssl: false
     load-balanced: true

@@ -1,4 +1,3 @@
-# Docker Compose: static service registry (replaces Eureka).
 platform:
   environment: docker
 
@@ -13,4 +12,4 @@ spring:
             notification-service:
               - uri: https://notification-service:8443
             api-gateway:
-              - uri: http://api-gateway:8080
+              - uri: ${API_GATEWAY_URI:https://api-gateway:8080}
