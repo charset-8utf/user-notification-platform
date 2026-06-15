@@ -6,7 +6,7 @@
 
 ## Описание
 
-[Spring MVC BFF](https://martinfowler.com/articles/bff.html) — агрегирует данные из `user-service` и `notification-service` для фронтенда.
+Spring MVC BFF — агрегирует данные из `user-service` и `notification-service` для фронтенда.
 
 **Возможности:**
 
