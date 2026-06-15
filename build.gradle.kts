@@ -20,9 +20,10 @@ subprojects {
     apply(plugin = "java")
     apply(plugin = "io.spring.dependency-management")
 
-    // Trivy: CVE в transitive deps (netty, tomcat, bouncycastle)
+    // Trivy: CVE в transitive deps (netty, tomcat, bouncycastle, spring-kafka)
     extra["netty.version"] = "4.2.15.Final"
     extra["tomcat.version"] = "11.0.22"
+    extra["spring-kafka.version"] = "4.0.6"
 
     java {
         toolchain {
