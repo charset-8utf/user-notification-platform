@@ -38,6 +38,13 @@ subprojects {
         }
         dependencies {
             dependency("org.bouncycastle:bcprov-jdk18on:1.84")
+            // CVE-2026-54512, CVE-2026-54513 — com.fasterxml jackson 2.x (fixed: 2.21.4)
+            dependency("com.fasterxml.jackson.core:jackson-databind:2.21.4")
+            dependency("com.fasterxml.jackson.core:jackson-core:2.21.4")
+            // CVE-2026-54512, CVE-2026-54513 — tools.jackson 3.x / Spring Boot 4.x (fixed: 3.1.4)
+            dependency("tools.jackson.core:jackson-databind:3.1.4")
+            dependency("tools.jackson.core:jackson-core:3.1.4")
+            dependency("tools.jackson.core:jackson-annotations:3.1.4")
             dependency("org.springframework.cloud:spring-cloud-config-server:5.0.3")
             dependency("io.github.resilience4j:resilience4j-spring-boot4:2.4.0")
             dependency("org.wiremock:wiremock-standalone:3.10.0")
